@@ -198,6 +198,8 @@ export interface BaseState {
   consumables: string[];
   servicesUsed: Record<string, number>;
   reserva: string | null;
+  /** Visit in which the Reserva do Mercador was last paid (§32: it must be renewed each visit). */
+  reservaVisit?: number;
   restored: boolean;
 }
 
@@ -856,7 +858,12 @@ export function enterBase(s: CampaignState) {
   }
   const reserva = s.base?.reserva ?? null;
   const vitrine = { comum: drawShop(s, 'comum', 4), raro: drawShop(s, 'raro', 2) };
-  s.base = { visit, vitrine, consumables: [...new Set(lootPools().consumivel)], servicesUsed: {}, reserva, restored: true };
+  // §32 Reserva do Mercador: the reserved card waits in this visit's Vitrine, on top of the normal 4 + 2
+  if (reserva) {
+    const kind = reg().items[reserva]?.rarity === 'raro' ? 'raro' : 'comum';
+    if (!vitrine[kind].includes(reserva)) vitrine[kind].push(reserva);
+  }
+  s.base = { visit, vitrine, consumables: [...new Set(lootPools().consumivel)], servicesUsed: {}, reserva, reservaVisit: s.base?.reservaVisit, restored: true };
   clog(s, 'Retorno à Base: HP restaurado, Cantis recarregados, +1 Maestria e +1 Talento por herói.');
 }
 function drawShop(s: CampaignState, kind: 'comum' | 'raro', n: number): string[] {
@@ -891,6 +898,13 @@ function baseCommand(s: CampaignState, cmd: Extract<CampaignCommand, { t: 'buy' 
   if (s.phase !== 'base' || !s.base) cfail('Somente na Base.');
   const B = s.base;
   if (cmd.t === 'leaveBase') {
+    // §31: unbought Vitrine cards return to the pool when the party leaves; a Reserva paid this visit stays aside (§32)
+    const keep = B.reserva && B.reservaVisit === B.visit ? B.reserva : null;
+    if (!keep) B.reserva = null;
+    for (const kind of ['comum', 'raro'] as const) {
+      for (const id of B.vitrine[kind]) if (id !== keep) s.decks[kind].push(id);
+      B.vitrine[kind] = [];
+    }
     s.phase = 'complete';
     return;
   }
@@ -903,6 +917,7 @@ function baseCommand(s: CampaignState, cmd: Extract<CampaignCommand, { t: 'buy' 
       price = PRICES[cmd.kind].buy;
       if (s.gold < price) cfail('Ouro insuficiente.');
       list.splice(i, 1);
+      if (B.reserva === cmd.itemId) B.reserva = null;
     } else if (cmd.kind === 'usado') {
       const i = s.usados.indexOf(cmd.itemId);
       if (i < 0) cfail('Item fora do Estoque de Usados.');
@@ -966,7 +981,9 @@ function baseCommand(s: CampaignState, cmd: Extract<CampaignCommand, { t: 'buy' 
       if (s.gold < 1) cfail('Ouro insuficiente.');
       const all = [...B.vitrine.comum, ...B.vitrine.raro];
       if (!all[cmd.index]) cfail('Carta inválida.');
+      if (B.reservaVisit === B.visit && B.reserva === all[cmd.index]) cfail('Já reservado nesta visita.');
       B.reserva = all[cmd.index];
+      B.reservaVisit = B.visit;
       s.gold -= 1;
       clog(s, `Reserva do Mercador: ${reg().items[B.reserva].name} (−1 ouro).`);
       return;

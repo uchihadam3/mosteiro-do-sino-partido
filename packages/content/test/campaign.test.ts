@@ -103,8 +103,8 @@ describe('Save, economia e progressão (aceites 11, 16)', () => {
     expect(reloaded).toEqual(s);
   });
   it('retorno à Base concede +1 Maestria e +1 Talento; T1 compra e T2 bloqueado', () => {
-    const r = autoplayCampaign(camp(1, 'base1'), { route: 'leste', optionals: false, decipher: false });
-    if (r.outcome !== 'victory') return;
+    const r = autoplayCampaign(camp(3, 'base1'), { route: 'leste', optionals: false, decipher: false });
+    expect(r.outcome).toBe('victory');
     let s = r.state;
     expect(s.phase).toBe('base');
     const h = s.heroes[0];
@@ -120,6 +120,22 @@ describe('Save, economia e progressão (aceites 11, 16)', () => {
     const d4 = (Object.entries(h.attrs).find(([, g]) => g === 4) ?? [])[0] as any;
     s = campaignDispatch(s, { t: 'mastery', heroId: h.id, attr: d4 }).state;
     expect(s.heroes[0].attrs[d4 as 'poder']).toBe(6);
+  });
+  it('Vitrine (§31) e Reserva do Mercador (§32): não compradas voltam ao pool; a Reserva paga fica de lado', () => {
+    const r = autoplayCampaign(camp(3, 'base2'), { route: 'oeste', optionals: false, decipher: false });
+    expect(r.outcome).toBe('victory');
+    let s = { ...r.state, gold: 40 };
+    const [c0, c1, c2, c3] = s.base!.vitrine.comum;
+    const deckBefore = s.decks.comum.length;
+    s = campaignDispatch(s, { t: 'buy', itemId: c0, kind: 'comum', heroId: 'armazem' }).state;
+    s = campaignDispatch(s, { t: 'service', id: 'reserva', index: 0 }).state; // c0 is gone, so index 0 is c1
+    expect(s.base!.reserva).toBe(c1);
+    s = campaignDispatch(s, { t: 'leaveBase' }).state;
+    // c2, c3 and both rares go back; c0 was bought; c1 is reserved
+    expect(s.decks.comum.length).toBe(deckBefore + 2);
+    expect(s.decks.comum.slice(-2)).toEqual([c2, c3]);
+    expect(s.decks.comum).not.toContain(c1);
+    expect(s.base!.reserva).toBe(c1);
   });
   it('Dungeon de teste não canônica é plugável e oculta', () => {
     const test = dungeons().find((d) => d.id === 'test-fixture')!;
