@@ -293,7 +293,7 @@ export function autoplayCampaign(start: CampaignState, strat: Strategy): RunRepo
       const pick = pickOption(opts.map((o) => o.id), strat);
       if (!pick) return { state: s, commands: n, combats, errors, outcome: 'stuck', seenOptions: seen };
       run({ t: 'explore', optionId: pick });
-      if (s.phase === 'combat') {
+      if ((s.phase as string) === 'combat') {
         combats++;
         if (!strat.decipher && s.combat) s.combat.flags['__autoDecipher'] = false;
       }
