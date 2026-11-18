@@ -1,0 +1,1581 @@
+{
+  "version": 1,
+  "generator": "tools/python/models/build_models.py",
+  "license": "Original geometry generated procedurally by project code (no third-party assets).",
+  "units": "meters",
+  "up": "+Y",
+  "forward": "+Z",
+  "texture_binding": "materials are bound by name to assets/textures/<id>_{albedo,normal,rough,ao}.jpg",
+  "uv_density_m_per_uv": {
+    "stone_floor": 2.0,
+    "stone_wall": 2.0,
+    "stone_plate": 2.0,
+    "wood_dark": 1.0,
+    "bronze_aged": 0.5,
+    "iron_rusted": 0.5,
+    "cloth_wool": 1.0,
+    "parchment": 0.5,
+    "wax": 0.25,
+    "leather": 0.5,
+    "stained_glass": 1.0,
+    "flame": 0.25
+  },
+  "total_bytes": 5964656,
+  "total_triangles": 119948,
+  "models": [
+    {
+      "id": "floor_tile_4m",
+      "file": "floor_tile_4m.glb",
+      "triangles": 1356,
+      "vertices": 1523,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 58348,
+      "bounds": {
+        "min": [
+          -2.006,
+          -0.13,
+          -2.007
+        ],
+        "max": [
+          2.005,
+          0.01,
+          2.007
+        ],
+        "size": [
+          4.011,
+          0.14,
+          4.014
+        ]
+      },
+      "origin": "top_center: walkable top surface at y=0 (slab extends below)",
+      "materials": [
+        "stone_floor"
+      ],
+      "anchors": [],
+      "nodes": [
+        "floor_tile_4m"
+      ],
+      "use": "Modular 4x4 m worn flagstone floor tile."
+    },
+    {
+      "id": "wall_segment_4m",
+      "file": "wall_segment_4m.glb",
+      "triangles": 2628,
+      "vertices": 5727,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 201256,
+      "bounds": {
+        "min": [
+          -2.001,
+          0.0,
+          -0.525
+        ],
+        "max": [
+          2.001,
+          7.0,
+          0.525
+        ],
+        "size": [
+          4.002,
+          7.0,
+          1.05
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "stone_plate",
+        "stone_wall"
+      ],
+      "anchors": [],
+      "nodes": [
+        "wall_segment_4m"
+      ],
+      "use": "Ashlar wall module 4 m wide, 7 m tall, 0.8 m thick; x in [-2, 2], faces at z=+-0.4."
+    },
+    {
+      "id": "wall_window_lancet",
+      "file": "wall_window_lancet.glb",
+      "triangles": 5047,
+      "vertices": 7721,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 280832,
+      "bounds": {
+        "min": [
+          -2.001,
+          0.0,
+          -0.525
+        ],
+        "max": [
+          2.001,
+          7.0,
+          0.525
+        ],
+        "size": [
+          4.002,
+          7.0,
+          1.05
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "stained_glass",
+        "stone_plate",
+        "stone_wall"
+      ],
+      "anchors": [
+        "window_light_anchor"
+      ],
+      "nodes": [
+        "wall_window_lancet",
+        "window_glass",
+        "window_light_anchor"
+      ],
+      "use": "Wall module with a two-light lancet window; glass is node window_glass (material stained_glass, 0..1 UVs)."
+    },
+    {
+      "id": "arch_gothic",
+      "file": "arch_gothic.glb",
+      "triangles": 9410,
+      "vertices": 10659,
+      "budget": 10000,
+      "budget_class": "architecture",
+      "bytes": 400872,
+      "bounds": {
+        "min": [
+          -2.62,
+          0.0,
+          -0.719
+        ],
+        "max": [
+          2.62,
+          8.066,
+          0.712
+        ],
+        "size": [
+          5.24,
+          8.066,
+          1.431
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "stone_plate",
+        "stone_wall"
+      ],
+      "anchors": [],
+      "nodes": [
+        "arch_gothic",
+        "arch_gothic_pier_left",
+        "arch_gothic_pier_right",
+        "arch_gothic_ring"
+      ],
+      "use": "Freestanding pointed arch on two responds; pier axes at x=+-2 m (4 m grid span)."
+    },
+    {
+      "id": "pillar_gothic",
+      "file": "pillar_gothic.glb",
+      "triangles": 4160,
+      "vertices": 4853,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 183488,
+      "bounds": {
+        "min": [
+          -0.8,
+          0.0,
+          -0.8
+        ],
+        "max": [
+          0.8,
+          7.0,
+          0.8
+        ],
+        "size": [
+          1.6,
+          7.0,
+          1.6
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "stone_plate",
+        "stone_wall"
+      ],
+      "anchors": [],
+      "nodes": [
+        "pillar_gothic",
+        "pillar_gothic_base",
+        "pillar_gothic_shaft",
+        "pillar_gothic_capital"
+      ],
+      "use": "Clustered gothic column, 7 m, base/shaft/capital nodes."
+    },
+    {
+      "id": "pillar_broken",
+      "file": "pillar_broken.glb",
+      "triangles": 2814,
+      "vertices": 3826,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 143236,
+      "bounds": {
+        "min": [
+          -1.504,
+          -0.015,
+          -0.78
+        ],
+        "max": [
+          1.97,
+          3.781,
+          1.524
+        ],
+        "size": [
+          3.474,
+          3.796,
+          2.304
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "stone_wall"
+      ],
+      "anchors": [],
+      "nodes": [
+        "pillar_broken",
+        "pillar_broken_base",
+        "pillar_broken_shaft",
+        "pillar_broken_drum",
+        "pillar_broken_debris"
+      ],
+      "use": "Same column snapped at ~3.5 m with jagged break, fallen drum and debris."
+    },
+    {
+      "id": "vault_rib_segment",
+      "file": "vault_rib_segment.glb",
+      "triangles": 6364,
+      "vertices": 5159,
+      "budget": 10000,
+      "budget_class": "architecture",
+      "bytes": 205764,
+      "bounds": {
+        "min": [
+          -2.12,
+          -0.012,
+          -2.12
+        ],
+        "max": [
+          2.12,
+          3.326,
+          2.12
+        ],
+        "size": [
+          4.24,
+          3.339,
+          4.24
+        ]
+      },
+      "origin": "springing: y=0 at the rib springing level, corners at (+-2, 0, +-2); hang above pillars",
+      "materials": [
+        "stone_plate",
+        "stone_wall"
+      ],
+      "anchors": [],
+      "nodes": [
+        "vault_rib_segment",
+        "vault_rib_segment_webs",
+        "vault_rib_segment_ribs"
+      ],
+      "use": "Quadripartite ribbed vault bay 4x4 m; edge ribs are half-profiles so neighbouring bays form full ribs."
+    },
+    {
+      "id": "stairs_stone",
+      "file": "stairs_stone.glb",
+      "triangles": 1236,
+      "vertices": 1698,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 64088,
+      "bounds": {
+        "min": [
+          -1.355,
+          0.0,
+          -0.812
+        ],
+        "max": [
+          1.355,
+          1.42,
+          0.89
+        ],
+        "size": [
+          2.71,
+          1.42,
+          1.702
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "stone_floor",
+        "stone_wall"
+      ],
+      "anchors": [],
+      "nodes": [
+        "stairs_stone"
+      ],
+      "use": "Five worn stone steps 2.5 m wide with cheek walls; ascends to -Z."
+    },
+    {
+      "id": "doorway_gothic",
+      "file": "doorway_gothic.glb",
+      "triangles": 8608,
+      "vertices": 14352,
+      "budget": 10000,
+      "budget_class": "architecture",
+      "bytes": 516928,
+      "bounds": {
+        "min": [
+          -2.001,
+          0.0,
+          -0.525
+        ],
+        "max": [
+          2.001,
+          7.0,
+          0.725
+        ],
+        "size": [
+          4.002,
+          7.0,
+          1.25
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "iron_rusted",
+        "stone_plate",
+        "stone_wall",
+        "wood_dark"
+      ],
+      "anchors": [],
+      "nodes": [
+        "doorway_gothic",
+        "door_L",
+        "door_R"
+      ],
+      "use": "Wall module with a pointed portal, three archivolts and gable; door_L/door_R pivot at hinges (rotate Y)."
+    },
+    {
+      "id": "rubble_pile",
+      "file": "rubble_pile.glb",
+      "triangles": 2194,
+      "vertices": 4243,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 152872,
+      "bounds": {
+        "min": [
+          -3.873,
+          -0.01,
+          -0.945
+        ],
+        "max": [
+          3.824,
+          0.595,
+          0.757
+        ],
+        "size": [
+          7.697,
+          0.605,
+          1.702
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "stone_wall"
+      ],
+      "anchors": [],
+      "nodes": [
+        "rubble_pile",
+        "rubble_a",
+        "rubble_b",
+        "rubble_c",
+        "rubble_d"
+      ],
+      "use": "Four rubble variants rubble_a..d laid out along X (2 m apart); each node is centred on its own origin."
+    },
+    {
+      "id": "floor_crack_slab",
+      "file": "floor_crack_slab.glb",
+      "triangles": 1668,
+      "vertices": 2078,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 77992,
+      "bounds": {
+        "min": [
+          -2.004,
+          -0.45,
+          -2.006
+        ],
+        "max": [
+          2.009,
+          0.029,
+          2.01
+        ],
+        "size": [
+          4.014,
+          0.479,
+          4.016
+        ]
+      },
+      "origin": "top_center: walkable top surface at y=0 (slab extends below)",
+      "materials": [
+        "stone_floor"
+      ],
+      "anchors": [],
+      "nodes": [
+        "floor_crack_slab"
+      ],
+      "use": "Floor tile with a shattered, tilted central slab."
+    },
+    {
+      "id": "bell_great_cracked",
+      "file": "bell_great_cracked.glb",
+      "triangles": 12202,
+      "vertices": 8850,
+      "budget": 15000,
+      "budget_class": "hero",
+      "bytes": 390288,
+      "bounds": {
+        "min": [
+          -0.962,
+          0.0,
+          -0.962
+        ],
+        "max": [
+          0.962,
+          2.238,
+          0.962
+        ],
+        "size": [
+          1.924,
+          2.238,
+          1.924
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "bronze_aged",
+        "iron_rusted"
+      ],
+      "anchors": [
+        "bell_crown_anchor"
+      ],
+      "nodes": [
+        "bell_great_cracked",
+        "bell_great_cracked_body",
+        "bell_great_cracked_crown",
+        "bell_clapper",
+        "bell_crown_anchor"
+      ],
+      "use": "The cracked great bell (2.2 m). bell_clapper pivots at its node origin; bell_crown_anchor is the hang point."
+    },
+    {
+      "id": "bell_frame",
+      "file": "bell_frame.glb",
+      "triangles": 3016,
+      "vertices": 6108,
+      "budget": 15000,
+      "budget_class": "hero",
+      "bytes": 217636,
+      "bounds": {
+        "min": [
+          -1.95,
+          0.0,
+          -1.35
+        ],
+        "max": [
+          1.95,
+          4.66,
+          1.35
+        ],
+        "size": [
+          3.9,
+          4.66,
+          2.7
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "iron_rusted",
+        "wood_dark"
+      ],
+      "anchors": [
+        "bell_mount_anchor"
+      ],
+      "nodes": [
+        "bell_frame",
+        "bell_headstock",
+        "bell_mount_anchor"
+      ],
+      "use": "Timber bell frame with iron straps; bell_headstock swings about local X; bell_mount_anchor receives the bell crown."
+    },
+    {
+      "id": "bell_small",
+      "file": "bell_small.glb",
+      "triangles": 1032,
+      "vertices": 759,
+      "budget": 2000,
+      "budget_class": "small",
+      "bytes": 33784,
+      "bounds": {
+        "min": [
+          -0.077,
+          0.0,
+          -0.077
+        ],
+        "max": [
+          0.077,
+          0.253,
+          0.077
+        ],
+        "size": [
+          0.154,
+          0.253,
+          0.154
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "bronze_aged",
+        "iron_rusted",
+        "wood_dark"
+      ],
+      "anchors": [
+        "bell_small_grip_anchor"
+      ],
+      "nodes": [
+        "bell_small",
+        "bell_small_grip_anchor"
+      ],
+      "use": "Acolyte handbell / hand prop (0.25 m)."
+    },
+    {
+      "id": "counterweight",
+      "file": "counterweight.glb",
+      "triangles": 3460,
+      "vertices": 4253,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 160896,
+      "bounds": {
+        "min": [
+          -1.245,
+          -0.008,
+          -0.345
+        ],
+        "max": [
+          1.235,
+          1.122,
+          0.345
+        ],
+        "size": [
+          2.48,
+          1.129,
+          0.69
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "iron_rusted",
+        "stone_plate"
+      ],
+      "anchors": [],
+      "nodes": [
+        "counterweight",
+        "counterweight_a",
+        "counterweight_b",
+        "counterweight_c"
+      ],
+      "use": "Counterweights counterweight_a..c (iron block, banded stone drum, iron pear) with chain stubs, laid out along X."
+    },
+    {
+      "id": "chain_hanging",
+      "file": "chain_hanging.glb",
+      "triangles": 3288,
+      "vertices": 3556,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 135024,
+      "bounds": {
+        "min": [
+          -0.049,
+          0.0,
+          -0.047
+        ],
+        "max": [
+          0.115,
+          3.179,
+          0.047
+        ],
+        "size": [
+          0.164,
+          3.179,
+          0.094
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "iron_rusted"
+      ],
+      "anchors": [
+        "chain_top_anchor"
+      ],
+      "nodes": [
+        "chain_hanging",
+        "chain_top_anchor"
+      ],
+      "use": "3 m hanging chain with hook; chain_top_anchor at the top link."
+    },
+    {
+      "id": "chain_short",
+      "file": "chain_short.glb",
+      "triangles": 1248,
+      "vertices": 1346,
+      "budget": 2000,
+      "budget_class": "small",
+      "bytes": 52052,
+      "bounds": {
+        "min": [
+          -0.049,
+          0.0,
+          -0.046
+        ],
+        "max": [
+          0.115,
+          1.139,
+          0.045
+        ],
+        "size": [
+          0.164,
+          1.139,
+          0.091
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "iron_rusted"
+      ],
+      "anchors": [
+        "chain_top_anchor"
+      ],
+      "nodes": [
+        "chain_short",
+        "chain_top_anchor"
+      ],
+      "use": "1 m chain; chain_top_anchor at the top link."
+    },
+    {
+      "id": "cage_grate",
+      "file": "cage_grate.glb",
+      "triangles": 2544,
+      "vertices": 5079,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 180088,
+      "bounds": {
+        "min": [
+          -0.77,
+          0.0,
+          -0.09
+        ],
+        "max": [
+          0.77,
+          2.22,
+          0.1
+        ],
+        "size": [
+          1.54,
+          2.22,
+          0.19
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "iron_rusted"
+      ],
+      "anchors": [],
+      "nodes": [
+        "cage_grate",
+        "cage_grate_frame",
+        "grate_door"
+      ],
+      "use": "Kennel iron grate with fixed jamb and grate_door (hinge pivot, rotate Y)."
+    },
+    {
+      "id": "bookshelf",
+      "file": "bookshelf.glb",
+      "triangles": 3976,
+      "vertices": 7890,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 289580,
+      "bounds": {
+        "min": [
+          -0.835,
+          0.0,
+          -0.225
+        ],
+        "max": [
+          0.835,
+          3.23,
+          0.255
+        ],
+        "size": [
+          1.669,
+          3.23,
+          0.48
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "leather",
+        "parchment",
+        "wood_dark"
+      ],
+      "anchors": [],
+      "nodes": [
+        "bookshelf",
+        "bookshelf_books"
+      ],
+      "use": "Tall gothic bookshelf with ~100 books (COLOR_0 tints on leather)."
+    },
+    {
+      "id": "lectern",
+      "file": "lectern.glb",
+      "triangles": 664,
+      "vertices": 850,
+      "budget": 2000,
+      "budget_class": "small",
+      "bytes": 35180,
+      "bounds": {
+        "min": [
+          -0.36,
+          0.0,
+          -0.312
+        ],
+        "max": [
+          0.36,
+          1.242,
+          0.312
+        ],
+        "size": [
+          0.72,
+          1.242,
+          0.624
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "leather",
+        "parchment",
+        "wood_dark"
+      ],
+      "anchors": [],
+      "nodes": [
+        "lectern",
+        "lectern_desk"
+      ],
+      "use": "Carved reading desk with open book."
+    },
+    {
+      "id": "desk_scribe",
+      "file": "desk_scribe.glb",
+      "triangles": 1486,
+      "vertices": 2342,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 91392,
+      "bounds": {
+        "min": [
+          -0.6,
+          0.0,
+          -0.522
+        ],
+        "max": [
+          0.6,
+          1.161,
+          0.32
+        ],
+        "size": [
+          1.2,
+          1.161,
+          0.843
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "bronze_aged",
+        "iron_rusted",
+        "leather",
+        "parchment",
+        "wax",
+        "wood_dark"
+      ],
+      "anchors": [
+        "desk_scribe_candle_flame_anchor"
+      ],
+      "nodes": [
+        "desk_scribe",
+        "desk_scribe_candle_flame_anchor"
+      ],
+      "use": "Scriptorium writing desk with inkwell, quill, scrolls, candle."
+    },
+    {
+      "id": "altar",
+      "file": "altar.glb",
+      "triangles": 7637,
+      "vertices": 8976,
+      "budget": 15000,
+      "budget_class": "hero",
+      "bytes": 341172,
+      "bounds": {
+        "min": [
+          -1.756,
+          0.0,
+          -1.158
+        ],
+        "max": [
+          1.753,
+          2.01,
+          1.158
+        ],
+        "size": [
+          3.509,
+          2.01,
+          2.316
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "bronze_aged",
+        "cloth_wool",
+        "iron_rusted",
+        "stone_plate",
+        "stone_wall",
+        "wax"
+      ],
+      "anchors": [
+        "altar_l0_c0_flame_anchor",
+        "altar_l0_c1_flame_anchor",
+        "altar_l0_c2_flame_anchor",
+        "altar_l0_c3_flame_anchor",
+        "altar_l0_c4_flame_anchor",
+        "altar_l0_c5_flame_anchor",
+        "altar_l1_c0_flame_anchor",
+        "altar_l1_c1_flame_anchor",
+        "altar_l1_c2_flame_anchor",
+        "altar_l1_c3_flame_anchor",
+        "altar_l1_c4_flame_anchor",
+        "altar_l1_c5_flame_anchor",
+        "altar_m_c0_flame_anchor",
+        "altar_m_c1_flame_anchor",
+        "altar_m_c2_flame_anchor"
+      ],
+      "nodes": [
+        "altar",
+        "altar_cloth",
+        "altar_l0_c0_flame_anchor",
+        "altar_l0_c1_flame_anchor",
+        "altar_l0_c2_flame_anchor",
+        "altar_l0_c3_flame_anchor",
+        "altar_l0_c4_flame_anchor",
+        "altar_l0_c5_flame_anchor",
+        "altar_l1_c0_flame_anchor",
+        "altar_l1_c1_flame_anchor",
+        "altar_l1_c2_flame_anchor",
+        "altar_l1_c3_flame_anchor",
+        "altar_l1_c4_flame_anchor",
+        "altar_l1_c5_flame_anchor",
+        "altar_m_c0_flame_anchor",
+        "altar_m_c1_flame_anchor",
+        "altar_m_c2_flame_anchor"
+      ],
+      "use": "Stone altar on a dais with cloth runner, frontal, cross and candle clusters."
+    },
+    {
+      "id": "pew",
+      "file": "pew.glb",
+      "triangles": 596,
+      "vertices": 1180,
+      "budget": 2000,
+      "budget_class": "small",
+      "bytes": 42724,
+      "bounds": {
+        "min": [
+          -1.26,
+          0.0,
+          -0.41
+        ],
+        "max": [
+          1.26,
+          1.17,
+          0.3
+        ],
+        "size": [
+          2.52,
+          1.17,
+          0.71
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "wood_dark"
+      ],
+      "anchors": [],
+      "nodes": [
+        "pew"
+      ],
+      "use": "Wooden church bench 2.5 m with poppy-head ends; faces +Z."
+    },
+    {
+      "id": "candle_cluster",
+      "file": "candle_cluster.glb",
+      "triangles": 1631,
+      "vertices": 1768,
+      "budget": 2000,
+      "budget_class": "small",
+      "bytes": 69684,
+      "bounds": {
+        "min": [
+          -0.207,
+          0.0,
+          -0.213
+        ],
+        "max": [
+          0.197,
+          0.416,
+          0.2
+        ],
+        "size": [
+          0.403,
+          0.416,
+          0.413
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "iron_rusted",
+        "wax"
+      ],
+      "anchors": [
+        "candle_cluster_c0_flame_anchor",
+        "candle_cluster_c1_flame_anchor",
+        "candle_cluster_c2_flame_anchor",
+        "candle_cluster_c3_flame_anchor",
+        "candle_cluster_c4_flame_anchor",
+        "candle_cluster_c5_flame_anchor",
+        "candle_cluster_c6_flame_anchor"
+      ],
+      "nodes": [
+        "candle_cluster",
+        "candle_cluster_c0_flame_anchor",
+        "candle_cluster_c1_flame_anchor",
+        "candle_cluster_c2_flame_anchor",
+        "candle_cluster_c3_flame_anchor",
+        "candle_cluster_c4_flame_anchor",
+        "candle_cluster_c5_flame_anchor",
+        "candle_cluster_c6_flame_anchor"
+      ],
+      "use": "Seven melted candles on a wax pool; one flame anchor per wick."
+    },
+    {
+      "id": "candelabra",
+      "file": "candelabra.glb",
+      "triangles": 3283,
+      "vertices": 3712,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 141448,
+      "bounds": {
+        "min": [
+          -0.386,
+          0.0,
+          -0.287
+        ],
+        "max": [
+          0.386,
+          1.873,
+          0.44
+        ],
+        "size": [
+          0.773,
+          1.873,
+          0.727
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "iron_rusted",
+        "wax"
+      ],
+      "anchors": [
+        "candelabra_c0_flame_anchor",
+        "candelabra_c1_flame_anchor",
+        "candelabra_c2_flame_anchor",
+        "candelabra_c3_flame_anchor",
+        "candelabra_c4_flame_anchor"
+      ],
+      "nodes": [
+        "candelabra",
+        "candelabra_c0_flame_anchor",
+        "candelabra_c1_flame_anchor",
+        "candelabra_c2_flame_anchor",
+        "candelabra_c3_flame_anchor",
+        "candelabra_c4_flame_anchor"
+      ],
+      "use": "Iron floor candelabra with five candles."
+    },
+    {
+      "id": "torch_sconce",
+      "file": "torch_sconce.glb",
+      "triangles": 852,
+      "vertices": 1056,
+      "budget": 2000,
+      "budget_class": "small",
+      "bytes": 42348,
+      "bounds": {
+        "min": [
+          -0.06,
+          0.0,
+          0.0
+        ],
+        "max": [
+          0.06,
+          0.724,
+          0.47
+        ],
+        "size": [
+          0.12,
+          0.724,
+          0.47
+        ]
+      },
+      "origin": "wall_mount: y=0 at the bottom of the mounting plate, z=0 on the wall face, piece extends to +Z",
+      "materials": [
+        "cloth_wool",
+        "iron_rusted",
+        "wood_dark"
+      ],
+      "anchors": [
+        "torch_flame_anchor",
+        "torch_light_anchor"
+      ],
+      "nodes": [
+        "torch_sconce",
+        "torch_flame_anchor",
+        "torch_light_anchor"
+      ],
+      "use": "Wall torch in an iron bracket; torch_light_anchor + torch_flame_anchor."
+    },
+    {
+      "id": "brazier",
+      "file": "brazier.glb",
+      "triangles": 2150,
+      "vertices": 3622,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 131284,
+      "bounds": {
+        "min": [
+          -0.55,
+          0.0,
+          -0.44
+        ],
+        "max": [
+          0.55,
+          0.902,
+          0.61
+        ],
+        "size": [
+          1.099,
+          0.902,
+          1.05
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "flame",
+        "iron_rusted"
+      ],
+      "anchors": [
+        "brazier_flame_anchor",
+        "brazier_light_anchor"
+      ],
+      "nodes": [
+        "brazier",
+        "brazier_flame_anchor",
+        "brazier_light_anchor"
+      ],
+      "use": "Iron brazier on a tripod with coals/embers; brazier_light_anchor."
+    },
+    {
+      "id": "censer",
+      "file": "censer.glb",
+      "triangles": 3904,
+      "vertices": 4787,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 179080,
+      "bounds": {
+        "min": [
+          -0.104,
+          0.0,
+          -0.104
+        ],
+        "max": [
+          0.104,
+          1.115,
+          0.108
+        ],
+        "size": [
+          0.208,
+          1.115,
+          0.212
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "bronze_aged",
+        "iron_rusted"
+      ],
+      "anchors": [
+        "censer_flame_anchor",
+        "censer_top_anchor"
+      ],
+      "nodes": [
+        "censer",
+        "censer_flame_anchor",
+        "censer_top_anchor"
+      ],
+      "use": "Thurible on three chains; censer_top_anchor is the hand/hang point."
+    },
+    {
+      "id": "banner_torn",
+      "file": "banner_torn.glb",
+      "triangles": 628,
+      "vertices": 513,
+      "budget": 2000,
+      "budget_class": "small",
+      "bytes": 24532,
+      "bounds": {
+        "min": [
+          -0.72,
+          0.095,
+          -0.035
+        ],
+        "max": [
+          0.72,
+          3.07,
+          0.082
+        ],
+        "size": [
+          1.44,
+          2.974,
+          0.117
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "cloth_wool",
+        "iron_rusted",
+        "leather",
+        "wood_dark"
+      ],
+      "anchors": [
+        "banner_mount_anchor"
+      ],
+      "nodes": [
+        "banner_torn",
+        "banner_mount_anchor"
+      ],
+      "use": "Hanging torn banner on a rod; cloth grid is subdivided vertically for vertex-shader sway (weight by height)."
+    },
+    {
+      "id": "sarcophagus",
+      "file": "sarcophagus.glb",
+      "triangles": 2758,
+      "vertices": 3463,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 130576,
+      "bounds": {
+        "min": [
+          -1.303,
+          0.0,
+          -0.624
+        ],
+        "max": [
+          1.312,
+          1.15,
+          0.62
+        ],
+        "size": [
+          2.615,
+          1.15,
+          1.244
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "stone_plate",
+        "stone_wall"
+      ],
+      "anchors": [],
+      "nodes": [
+        "sarcophagus",
+        "sarcophagus_lid"
+      ],
+      "use": "Stone tomb with blind arcade; sarcophagus_lid is a separate node."
+    },
+    {
+      "id": "reliquary_chest",
+      "file": "reliquary_chest.glb",
+      "triangles": 2976,
+      "vertices": 5134,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 201232,
+      "bounds": {
+        "min": [
+          -0.489,
+          0.0,
+          -0.305
+        ],
+        "max": [
+          0.489,
+          0.8,
+          0.305
+        ],
+        "size": [
+          0.977,
+          0.8,
+          0.61
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "bronze_aged",
+        "cloth_wool",
+        "parchment",
+        "wood_dark"
+      ],
+      "anchors": [],
+      "nodes": [
+        "reliquary_chest",
+        "chest_teeth_lower",
+        "chest_lid",
+        "chest_teeth"
+      ],
+      "use": "Ornate reliquary chest; chest_lid pivots at the back hinge (rotate -X to open) and carries chest_teeth."
+    },
+    {
+      "id": "statue_blind_porter",
+      "file": "statue_blind_porter.glb",
+      "triangles": 3672,
+      "vertices": 3822,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 146792,
+      "bounds": {
+        "min": [
+          -0.62,
+          -0.004,
+          -0.622
+        ],
+        "max": [
+          0.619,
+          2.48,
+          0.619
+        ],
+        "size": [
+          1.239,
+          2.484,
+          1.241
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "iron_rusted",
+        "stone_plate"
+      ],
+      "anchors": [],
+      "nodes": [
+        "statue_blind_porter",
+        "statue_blind_porter_key"
+      ],
+      "use": "Hooded eyeless monk statue holding an iron key, on a pedestal (2.4 m)."
+    },
+    {
+      "id": "well_dry",
+      "file": "well_dry.glb",
+      "triangles": 3202,
+      "vertices": 5063,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 185416,
+      "bounds": {
+        "min": [
+          -1.3,
+          -0.8,
+          -0.96
+        ],
+        "max": [
+          1.4,
+          2.52,
+          0.962
+        ],
+        "size": [
+          2.7,
+          3.32,
+          1.922
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "iron_rusted",
+        "leather",
+        "stone_wall",
+        "wood_dark"
+      ],
+      "anchors": [],
+      "nodes": [
+        "well_dry"
+      ],
+      "use": "Dry stone well with roofed crank, rope and bucket; shaft extends below y=0."
+    },
+    {
+      "id": "pillar_candle_stand",
+      "file": "pillar_candle_stand.glb",
+      "triangles": 1448,
+      "vertices": 1680,
+      "budget": 2000,
+      "budget_class": "small",
+      "bytes": 65788,
+      "bounds": {
+        "min": [
+          -0.26,
+          0.0,
+          -0.26
+        ],
+        "max": [
+          0.26,
+          1.449,
+          0.26
+        ],
+        "size": [
+          0.52,
+          1.449,
+          0.52
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "iron_rusted",
+        "stone_plate",
+        "wax"
+      ],
+      "anchors": [
+        "pillar_candle_stand_flame_anchor"
+      ],
+      "nodes": [
+        "pillar_candle_stand",
+        "pillar_candle_stand_flame_anchor"
+      ],
+      "use": "Short stone column with a fat dripping candle."
+    },
+    {
+      "id": "bone_pile",
+      "file": "bone_pile.glb",
+      "triangles": 1454,
+      "vertices": 1550,
+      "budget": 2000,
+      "budget_class": "small",
+      "bytes": 66064,
+      "bounds": {
+        "min": [
+          -0.398,
+          -0.016,
+          -0.467
+        ],
+        "max": [
+          0.502,
+          0.154,
+          0.416
+        ],
+        "size": [
+          0.9,
+          0.17,
+          0.882
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "parchment"
+      ],
+      "anchors": [],
+      "nodes": [
+        "bone_pile"
+      ],
+      "use": "Subtle scatter of bones and a skull."
+    },
+    {
+      "id": "cart_wood",
+      "file": "cart_wood.glb",
+      "triangles": 2836,
+      "vertices": 4938,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 177356,
+      "bounds": {
+        "min": [
+          -1.196,
+          0.0,
+          -0.71
+        ],
+        "max": [
+          0.999,
+          1.106,
+          0.71
+        ],
+        "size": [
+          2.195,
+          1.106,
+          1.42
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "iron_rusted",
+        "wood_dark"
+      ],
+      "anchors": [],
+      "nodes": [
+        "cart_wood",
+        "cart_wood_body"
+      ],
+      "use": "Two-wheeled wooden handcart resting on its shafts."
+    },
+    {
+      "id": "crank_wheel",
+      "file": "crank_wheel.glb",
+      "triangles": 1540,
+      "vertices": 2597,
+      "budget": 6000,
+      "budget_class": "medium",
+      "bytes": 97404,
+      "bounds": {
+        "min": [
+          -0.68,
+          -0.003,
+          -0.404
+        ],
+        "max": [
+          0.68,
+          1.63,
+          0.95
+        ],
+        "size": [
+          1.36,
+          1.633,
+          1.354
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "bronze_aged",
+        "iron_rusted",
+        "stone_plate",
+        "wood_dark"
+      ],
+      "anchors": [],
+      "nodes": [
+        "crank_wheel",
+        "crank_wheel_rotor"
+      ],
+      "use": "Manivela Conservada: geared crank wheel on a stone pedestal; crank_wheel_rotor rotates about local Z."
+    },
+    {
+      "id": "formation_plate",
+      "file": "formation_plate.glb",
+      "triangles": 728,
+      "vertices": 768,
+      "budget": 1000,
+      "budget_class": "plate",
+      "bytes": 30404,
+      "bounds": {
+        "min": [
+          -0.8,
+          0.0,
+          -0.6
+        ],
+        "max": [
+          0.8,
+          0.08,
+          0.6
+        ],
+        "size": [
+          1.6,
+          0.08,
+          1.2
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "stone_plate"
+      ],
+      "anchors": [],
+      "nodes": [
+        "formation_plate"
+      ],
+      "use": "Tactical sector plate 1.6 x 1.2 m with carved groove ring (top at y=0.08)."
+    },
+    {
+      "id": "formation_divider",
+      "file": "formation_divider.glb",
+      "triangles": 252,
+      "vertices": 526,
+      "budget": 1000,
+      "budget_class": "plate",
+      "bytes": 19756,
+      "bounds": {
+        "min": [
+          -0.513,
+          -0.003,
+          -0.129
+        ],
+        "max": [
+          0.513,
+          0.449,
+          0.13
+        ],
+        "size": [
+          1.026,
+          0.452,
+          0.259
+        ]
+      },
+      "origin": "bottom_center: origin at the centre of the footprint, y=0 on the floor/base",
+      "materials": [
+        "stone_plate"
+      ],
+      "anchors": [],
+      "nodes": [
+        "formation_divider"
+      ],
+      "use": "Low carved stone rail 1 m long separating rows/sides."
+    }
+  ]
+}

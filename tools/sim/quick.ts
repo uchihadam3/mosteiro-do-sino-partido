@@ -1,0 +1,11 @@
+import { newCampaign } from '@mosteiro/core';
+import { installContent, autoplayCampaign } from '@mosteiro/content';
+installContent();
+const classes = ['guerreiro','paladino','arcanista','clerigo','arqueiro','ladino'];
+const n = Number(process.argv[2] ?? 1), route = (process.argv[3] ?? 'leste') as any, seed = process.argv[4] ?? 'seed1';
+const s = newCampaign({ seed, dungeonId: 'd1', heroes: classes.slice(0, n).map((c, i) => ({ classId: c, name: c + i })) });
+const r = autoplayCampaign(s, { route, optionals: true, decipher: true });
+console.log(r.outcome, 'cmds', r.commands, 'combats', r.combats, 'completed', r.state.completed.join(','), 'gold', r.state.gold);
+console.log('errors', r.errors.length, r.errors.slice(0, 15));
+console.log(r.state.log.slice(-8).map(x=>x.text).join('\n'));
+if (r.state.combat) console.log(r.state.combat.log.slice(-25).map(x=>x.text).join('\n'), r.state.combat.phase, r.state.combat.pending);
