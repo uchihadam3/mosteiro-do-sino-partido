@@ -38,7 +38,8 @@ export function App() {
     void d.loadScene('campanario');
     d.setMode('title');
     setDiorama(d);
-    (window as unknown as { __diorama: Diorama }).__diorama = d;
+    (window as unknown as { __diorama: Diorama; __session: typeof session }).__diorama = d;
+    (window as unknown as { __session: typeof session }).__session = session;
     const off = session.onEvents((evs) => d.play(evs));
     void debugBoot(setRoute);
     const save = () => void flushAutosave();

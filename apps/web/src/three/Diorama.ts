@@ -1125,8 +1125,10 @@ export class Diorama {
       this.camLook.set(Math.sin(a) * 1.5, 1.4, -3.5);
     } else {
       const narrow = aspect < 1.45;
-      this.camTarget.set(Math.sin(t * 0.15) * 0.2, narrow ? 13.2 : 11.0, narrow ? 11.2 : 9.4);
-      this.camLook.set(0, 0.2, -0.3);
+      // phones in landscape: the HUD eats the bottom of a short screen, so frame the board higher and a bit tighter
+      const wide = aspect > 1.9;
+      this.camTarget.set(Math.sin(t * 0.15) * 0.2, narrow ? 13.2 : wide ? 13.4 : 11.0, narrow ? 11.2 : wide ? 10.6 : 9.4);
+      this.camLook.set(0, 0.2, wide ? 0.55 : -0.3);
     }
     this.camPos.lerp(this.camTarget, Math.min(1, dt * 1.8));
     this.camera.position.copy(this.camPos);

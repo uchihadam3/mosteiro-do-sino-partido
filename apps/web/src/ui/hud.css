@@ -622,6 +622,9 @@
   background: currentColor;
 }
 .intents {
+  /* intent cards sit above the floating 3D nameplates (.labels, z 5) */
+  position: relative;
+  z-index: 6;
   grid-column: 2;
   display: flex;
   gap: 8px;
@@ -1766,5 +1769,85 @@ select {
   }
   .heroes-col.many .hc-row:not(.conds) {
     margin-top: 3px;
+  }
+}
+
+/* ------------------------------------------------------------------ phones in landscape: compact hero cards so a 5-hero party always fits */
+@media (max-height: 520px) {
+  .heroes-col {
+    gap: 4px;
+    grid-row: 2 / 5;
+    max-height: calc(100dvh - 64px);
+  }
+  .bottom {
+    grid-column: 2 / -1;
+    min-width: 0;
+  }
+  .heroes-col .hero-card {
+    padding: 4px 8px 5px 10px;
+  }
+  .heroes-col .hc-top .emb {
+    width: 18px;
+    height: 18px;
+  }
+  .heroes-col .hc-tempo {
+    width: 16px;
+    height: 16px;
+  }
+  .heroes-col .hc-hp {
+    margin-top: 2px;
+    gap: 6px;
+  }
+  .heroes-col .hc-hp .num {
+    font-size: var(--fs-xs);
+    min-width: 34px;
+  }
+  .heroes-col.many .hc-row {
+    display: none;
+  }
+  .heroes-col .hc-row {
+    margin-top: 2px;
+    min-height: 0;
+  }
+}
+@media (max-height: 520px) {
+  .tempo-panel {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: 6px 10px 8px;
+    gap: 5px 10px;
+  }
+  .tempo-panel .tp-head {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .tempo-panel .tp-hint {
+    display: none;
+  }
+  .tempo-panel .tp-foot {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .tempo-panel .tp-foot .btn {
+    padding: 6px 14px;
+    min-height: 0;
+  }
+  .tempo-panel .tp-rows {
+    grid-column: 1 / -1;
+    gap: 4px;
+  }
+  .tp-row {
+    grid-template-columns: minmax(90px, 1fr) repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .tp-btn {
+    min-height: 28px;
+    padding: 2px 6px;
+  }
+  .tp-btn .ico,
+  .tp-name .ico {
+    width: 16px;
+    height: 16px;
   }
 }

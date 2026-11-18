@@ -395,9 +395,9 @@ function TempoPanel({ S }: { S: CombatState }) {
   const vigia = S.figures.some((f) => f.typeId === 'vigia' && f.status === 'active');
   return (
     <div className="tempo-panel panel ornate">
-      <div className="row" style={{ alignItems: 'baseline' }}>
+      <div className="row tp-head" style={{ alignItems: 'baseline' }}>
         <div className="kicker grow">Escolha o Tempo</div>
-        <span className="xs muted">{vigia ? 'O Vigia fortalece a Intenção contra quem escolher o mesmo Tempo dela.' : 'Rápido age antes dos inimigos rápidos; Pesado age por último.'}</span>
+        <span className="xs muted tp-hint">{vigia ? 'O Vigia fortalece a Intenção contra quem escolher o mesmo Tempo dela.' : 'Rápido age antes dos inimigos rápidos; Pesado age por último.'}</span>
       </div>
       <div className="tp-rows">
         {mine.map((h) => (
@@ -417,7 +417,7 @@ function TempoPanel({ S }: { S: CombatState }) {
         ))}
         {mine.length < heroes.length && <div className="xs muted">Aguardando os outros jogadores escolherem…</div>}
       </div>
-      <div className="row" style={{ justifyContent: 'flex-end' }}>
+      <div className="row tp-foot" style={{ justifyContent: 'flex-end' }}>
         <button className="btn primary" disabled={!all} onClick={() => void act({ t: 'combat', cmd: { t: 'confirmTempo' } }).then((e) => !e && audio.play('cycle_start', { volume: 0.5 }))}>
           Confirmar Tempos
         </button>
