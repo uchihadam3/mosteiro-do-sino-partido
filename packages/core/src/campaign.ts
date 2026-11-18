@@ -740,7 +740,7 @@ function applyCampaign(s: CampaignState, cmd: CampaignCommand) {
 }
 
 // ============================================================================ inventory (§16, §27)
-function findItem(s: CampaignState, uidv: string): { where: 'armazem' | 'backpack' | 'equip'; hero?: HeroRecord; slot?: string; ref: ItemRef } | null {
+export function findItem(s: CampaignState, uidv: string): { where: 'armazem' | 'backpack' | 'equip'; hero?: HeroRecord; slot?: string; ref: ItemRef } | null {
   const a = s.armazem.find((i) => i.uid === uidv);
   if (a) return { where: 'armazem', ref: a };
   for (const h of s.heroes) {
