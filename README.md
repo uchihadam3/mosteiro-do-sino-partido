@@ -1,5 +1,8 @@
 # Mosteiro do Sino Partido — V2 (digital)
 
+**Jogar agora:** https://uchihadam3.github.io/mosteiro-do-sino-partido/ — no PC ou no celular; dá para instalar como app
+(botão "Instalar" na tela inicial) e o jogo instalado se atualiza sozinho a cada nova versão publicada.
+
 Versão digital do dungeon crawler tático cooperativo **Mosteiro do Sino Partido — V2**, cobrindo a
 **Dungeon 1 no Modo Básico**. A fonte de verdade das regras é a **REGRA MESTRA V2 — PASS 14**; o código cita as
 seções (`§`) que implementa e marca como `HIPOTESE` tudo o que é interpretação (ver
