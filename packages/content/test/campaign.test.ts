@@ -63,7 +63,7 @@ describe('Segredos do Básico §61 (aceites 04, 05, 06, 15)', () => {
   });
   it('No máximo 1 Raro de rota; Oeste não oferece o raro Leste', () => {
     const r = autoplayCampaign(camp(2, 'rare'), { route: 'oeste', optionals: true, decipher: false });
-    const afterRoute = r.seenOptions.slice(r.seenOptions.findIndex((o) => o.includes('go_can')) + 1);
+    const afterRoute = r.seenOptions.slice(r.seenOptions.map((o) => o.includes('go_can')).lastIndexOf(true) + 1);
     for (const o of afterRoute) expect(o).not.toContain('go_scr');
     expect(r.state.completed.filter((x) => x.startsWith('RARO')).length).toBeLessThanOrEqual(1);
     expect(r.state.completed).not.toContain('RARO-L');
