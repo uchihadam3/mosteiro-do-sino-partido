@@ -12,7 +12,6 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import type { CombatState, DomainEvent, Figure, SectorKey } from '@mosteiro/core';
 import { buildEnemy, buildHero, CLASS_ACCENT, type Rig } from './characters';
 import { buildEnemySkinned, buildHeroSkinned, hasSkinnedEnemy } from './skinned';
-import { buildWbEnemy, buildWbHero, hasWbEnemy } from './wbChars';
 import { buildScene, type BuiltScene } from './scenes';
 import { VFX } from './vfx';
 import { model, pbr, setAnisotropy, flat, sprite } from './assets';
@@ -287,13 +286,7 @@ export class Diorama {
     if (v) this.removeFig(f.id);
     let rig: Rig;
     try {
-      // high-detail baked characters first; KayKit skinned prefabs and procedural rigs remain as fallbacks
-      try {
-        rig = f.side === 'H' ? await buildWbHero(f.typeId) : hasWbEnemy(f.typeId) ? await buildWbEnemy(f.typeId) : await buildEnemy(f.typeId);
-      } catch (e) {
-        console.warn('detailed character failed, using skinned prefab', e);
-        rig = f.side === 'H' ? await buildHeroSkinned(f.typeId, weaponIcon) : hasSkinnedEnemy(f.typeId) ? await buildEnemySkinned(f.typeId) : await buildEnemy(f.typeId);
-      }
+      rig = f.side === 'H' ? await buildHeroSkinned(f.typeId, weaponIcon) : hasSkinnedEnemy(f.typeId) ? await buildEnemySkinned(f.typeId) : await buildEnemy(f.typeId);
     } catch (e) {
       console.warn('skinned prefab failed, using procedural', e);
       rig = f.side === 'H' ? buildHero({ classId: f.typeId, weaponIcon }) : await buildEnemy(f.typeId);

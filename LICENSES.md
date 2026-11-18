@@ -10,13 +10,7 @@ licença a ele. Ver a nota sobre assets gerados na seção 3.
 
 ## 1. Assets de terceiros incluídos no build
 
-### Personagens principais — Worlds Beneath
-
-- Os 6 heróis e os 13 inimigos exibidos no jogo (`apps/web/public/assets/characters/wb/`) são assados a partir do
-  sistema procedural de personagens do **Worlds Beneath** (repositório `crypt-of-whispers`), projeto do mesmo dono
-  deste repositório. Processo e mapeamento em `tools/characters/README.md`. Mesma titularidade do restante do jogo.
-
-### KayKit — personagens (fallback)
+### KayKit — personagens
 
 
 - **KayKit Adventurers 1.0** e **KayKit Skeletons 1.0**, por **Kay Lousberg** (kaylousberg.com).
@@ -89,8 +83,7 @@ malhas, texturas ou ícones de terceiros:
 | `assets/textures/` (PBR, sprites de VFX) | `tools/python/textures/build_textures.py`, `sprites.py` | `tools/python/textures/README.md`: obra original; "mesma licença do restante do repositório" |
 | `assets/icons/` (SVG + sprite) e `public/icons/app-*.png` | `tools/python/textures/build_icons.py`, `build_app_icons.py` | idem texturas |
 | `assets/models/` (cenário GLB) | `tools/python/models/build_models.py` (numpy, sem Blender) | `tools/python/models/README.md`: geometria original; "coberta pela licença do próprio projeto" |
-| `assets/characters/wb/` | assados do Worlds Beneath (`tools/characters/`) | do dono do projeto |
-| `assets/characters/*.glb` (fallback) | derivados do KayKit (seção 1) | CC0 1.0 (origem KayKit) |
+| `assets/characters/` | derivados do KayKit (seção 1) | CC0 1.0 (origem KayKit) |
 
 Atenção: como o repositório não declara licença própria, as texturas, ícones e modelos de cenário ficam, na prática,
 sem licença explícita até que o dono do projeto escolha uma. Só o áudio tem declaração explícita (CC0).

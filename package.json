@@ -20,13 +20,9 @@
     "sim": "tsx tools/sim/run-sim.ts"
   },
   "devDependencies": {
-    "@gltf-transform/core": "^4.1.1",
-    "@gltf-transform/extensions": "^4.1.1",
-    "@gltf-transform/functions": "^4.1.1",
     "@playwright/test": "^1.49.1",
     "@types/ws": "^8.5.13",
     "eslint": "^9.15.0",
-    "meshoptimizer": "^0.22.0",
     "prettier": "^3.3.3",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
