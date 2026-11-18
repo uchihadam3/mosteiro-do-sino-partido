@@ -130,7 +130,8 @@ class AudioDirector {
       src.connect(g).connect(a.category === 'music' || a.category === 'sting' ? this.musicBus : this.sfxBus);
       src.start(this.ctx.currentTime + (opts.delay ?? 0));
     });
-    if (getSettings().subtitles && a.category === 'sting' && a.description) this.onCaption?.(a.description);
+    const cap = CAPTIONS[id];
+    if (cap && getSettings().subtitles) this.onCaption?.(cap);
   }
 
   setMusic(id: string | null, force = false) {
@@ -198,5 +199,22 @@ class AudioDirector {
 function dbToGain(db: number) {
   return Math.pow(10, db / 20);
 }
+
+/** Accessibility captions (pt-BR) for the sounds that carry game information. */
+const CAPTIONS: Record<string, string> = {
+  sting_victory: '[coro triunfal e sino maior]',
+  sting_defeat: '[sino rachado, o coro silencia]',
+  sting_secret: '[sinos agudos — algo foi revelado]',
+  sting_boss_intro: '[badalada imensa e tambores]',
+  sting_reward: '[sinos e moedas]',
+  bell_toll_long: '[o sino dobra longamente]',
+  bell_toll_short: '[uma badalada]',
+  bell_great_cracked: '[o grande sino rachado ressoa]',
+  chain_rattle: '[correntes chacoalham]',
+  door_stone: '[porta de pedra se arrasta]',
+  body_fall: '[um corpo tomba]',
+  rise_up: '[alguém se levanta]',
+  heal: '[luz de cura]',
+};
 
 export const audio = new AudioDirector();

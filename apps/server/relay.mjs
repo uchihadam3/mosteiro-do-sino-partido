@@ -42,7 +42,7 @@ wss.on('connection', (ws) => {
     if (!room || !id) return;
     const peers = rooms.get(room);
     peers?.delete(id);
-    if (peers) for (const p of peers.values()) p.readyState === 1 && p.send(JSON.stringify({ left: id }));
+    if (peers) for (const p of peers.values()) if (p.readyState === 1) p.send(JSON.stringify({ left: id }));
     if (peers && peers.size === 0) rooms.delete(room);
   });
 });

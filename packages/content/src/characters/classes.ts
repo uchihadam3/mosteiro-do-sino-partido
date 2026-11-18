@@ -1571,7 +1571,8 @@ export const CLASS_HANDLERS: Record<string, (c: Ctx, a: Record<string, unknown>)
     const t = fig(c, a.targetId as string);
     const kind = a.kind as 'push' | 'pull';
     if (a.optionId === 'none') {
-      kind === 'push' ? push(c, t, a.sourceId as string) : pull(c, t, a.sourceId as string);
+      if (kind === 'push') push(c, t, a.sourceId as string);
+      else pull(c, t, a.sourceId as string);
       return;
     }
     markUse(t, 'combat', 'fivela');

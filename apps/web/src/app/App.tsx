@@ -10,6 +10,7 @@ import { NewGame } from '../ui/NewGame';
 import { OnlineLobby } from '../ui/OnlineLobby';
 import { GameScreens } from '../ui/GameScreens';
 import { Toasts } from '../ui/Toasts';
+import { Captions } from '../ui/Captions';
 import { PerfPanel } from '../ui/PerfPanel';
 import { UpdateBanner } from '../ui/UpdateBanner';
 
@@ -122,6 +123,7 @@ export function App() {
       {route === 'online' && <OnlineLobby />}
       {route === 'game' && s.state && <GameScreens />}
       <Toasts />
+      <Captions />
       <UpdateBanner />
       {settings.showPerf && diorama && <PerfPanel diorama={diorama} />}
     </Ctx.Provider>

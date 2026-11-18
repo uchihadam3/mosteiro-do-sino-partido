@@ -235,6 +235,8 @@ export type Op =
   | { op: 'finishAttack'; attack: AttackSpec; roll: RollResult; choices: string[] }
   | { op: 'step'; figureId: string; steps: number; ignoreEngagement: boolean; reason: string; passThroughEnemies?: boolean }
   | { op: 'call'; fn: string; args: Record<string, unknown> }
+  /** Start the first Cycle once every start-of-combat choice is made (§25: before the first Intentions). */
+  | { op: 'beginCycle' }
   | { op: 'log'; text: string; kind?: LogEntry['kind'] }
   | { op: 'checkEnd' };
 

@@ -45,7 +45,8 @@ function mesh(geo: THREE.BufferGeometry, mat: THREE.Material, pos?: [number, num
   const m = new THREE.Mesh(geo, mat);
   if (pos) m.position.set(...pos);
   if (rot) m.rotation.set(...rot);
-  if (scale !== undefined) typeof scale === 'number' ? m.scale.setScalar(scale) : m.scale.set(...scale);
+  if (typeof scale === 'number') m.scale.setScalar(scale);
+  else if (scale !== undefined) m.scale.set(...scale);
   m.castShadow = true;
   m.receiveShadow = true;
   return m;

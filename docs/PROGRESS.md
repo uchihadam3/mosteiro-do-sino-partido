@@ -16,11 +16,12 @@ pontos de UX listados na seção 4.
 
 | Verificação | Comando | Resultado |
 |---|---|---|
-| Testes unitários/integração (Vitest) | `npx vitest run` | **43 passaram** em 3 arquivos: `packages/core/test/rules.test.ts` (14), `packages/content/test/combat.test.ts` (10), `packages/content/test/campaign.test.ts` (19) |
+| Testes unitários/integração (Vitest) | `npx vitest run` | **50 passaram** em 4 arquivos: `packages/core/test/rules.test.ts` (14), `packages/content/test/combat.test.ts` (12), `packages/content/test/campaign.test.ts` (19), `apps/web/test/permissions.test.ts` (5) |
 | Typecheck | `npm run typecheck` | sem erros |
 | Build de produção | `npm run build` | sem erros (chunks: `index` 615 kB, `three` 573 kB, `react` 141 kB, antes do gzip) |
 | Pipelines Python | `python3 -m pytest tools/python -q` | **503 passaram**: áudio 225, modelos 126, texturas/ícones 152 |
-| Lint | `npm run lint` | **falha**: ESLint 9 não encontra `eslint.config.*` (o repositório não tem configuração) |
+| Lint | `npm run lint` | 0 erros, 8 avisos (variáveis sem uso) |
+| Simulação de balanceamento | `npm run sim -- 10` | 0 erros de motor em 100 campanhas; bot simples vence ~60% no solo e ~100% com 2–5 heróis |
 | E2E (Playwright) | `npm run e2e` | **não executado nesta revisão** (lento). `test-results/.last-run.json` local registra a última execução como `passed` |
 
 Specs E2E (11 testes):
@@ -63,9 +64,9 @@ Regras e conteúdo:
 2. **7 itens com `implemented: false`** (Orbe Gravítico, Couro do Caçador, Cetro do Peregrino, Malha do Peregrino,
    Luvas de Empunhadura, Faixa do Sobrevivente, Grevas do Ímpeto). O Couro do Caçador é a armadura inicial equipada do
    Arqueiro; cinco deles estão nos baralhos de loot/Vitrine e podem ser sorteados.
-3. Várias interpretações de texto vago (ver [`OPEN_DESIGN_QUESTIONS.md`](OPEN_DESIGN_QUESTIONS.md)), incluindo algumas
-   não marcadas no código: Terceira Badalada como ação extra de Severin (Q-TERCEIRA), categoria Global nos ataques do
-   Vigia (Q-VIGIA-CAT), escolha do Manto depois de ver as Intenções (Q-MANTO-ORDEM).
+3. Várias interpretações de texto vago (ver [`OPEN_DESIGN_QUESTIONS.md`](OPEN_DESIGN_QUESTIONS.md)), por exemplo
+   Terceira Badalada resolvida na fase Pesada do mesmo Ciclo (Q-TERCEIRA) e categoria Global nos ataques do Vigia
+   (Q-VIGIA-CAT).
 4. Base: cartas da Vitrine não compradas não voltam ao pool; Reserva do Mercador não tem visita seguinte; `leaveBase`
    encerra a campanha (`complete`) porque não existe Dungeon 2.
 5. Condições não persistem entre combates; o uso de consumíveis fora de combate (`useOutOfCombat`) descarta o item sem
@@ -87,12 +88,9 @@ Testes:
 
 App e ferramentas:
 
-12. `npm run lint` falha (sem `eslint.config.*`); `npm run sim` aponta para `tools/sim/run-sim.ts`, que não existe (use
-    `npx tsx tools/sim/quick.ts` ou `tools/sim/combatlog.ts`). `tools/python/audit/` e `tools/python/sim/` estão vazios.
-13. A opção "Legendas de áudio" não mostra nada: `AudioDirector.onCaption` nunca é atribuído
-    (`apps/web/src/audio/AudioDirector.ts:36,133`).
-14. Online: `buy`, `sell`, `transfer`, `assignLoot`, `deploy`, `useOutOfCombat` e `raiseOutOfCombat` não são
-    restritos por assento (`apps/web/src/state/session.ts` → `permission`); qualquer jogador conectado pode executá-los.
+12. `tools/python/audit/` e `tools/python/sim/` estão vazios (a simulação vive em `tools/sim/`).
+13. ~~Legendas de áudio sem efeito~~ — corrigido: legendas pt-BR para os sons que carregam informação (`ui/Captions.tsx`).
+14. ~~Comandos de inventário/loja/loot sem restrição por assento~~ — corrigido em `state/permissions.ts`, com testes.
     O modo PeerJS depende do servidor de sinalização público do PeerJS.
 15. A UI é só PT-BR; não há camada de localização.
 16. Desempenho: há presets, modo Auto com degradação por FPS e painel de desempenho, mas **não há baseline de FPS medido
@@ -103,14 +101,11 @@ App e ferramentas:
 
 ## 5. Próximos passos sugeridos
 
-1. Adicionar `eslint.config.js` (typescript-eslint já está nas devDependencies) e corrigir o script `sim`.
 2. Testes unitários por habilidade de classe, por condição (§15) e por Intenção de cada inimigo, com sementes fixas e
    estados montados à mão; endurecer os testes condicionais listados no item 9.
-3. Decidir com o design as questões da seção B de `OPEN_DESIGN_QUESTIONS.md`, em especial Q-TERCEIRA, Q-MANTO-ORDEM e
+3. Decidir com o design as questões da seção B de `OPEN_DESIGN_QUESTIONS.md`, em especial Q-TERCEIRA e
    Q-CONDICOES-ENTRE-COMBATES, e então marcar no código.
 4. Implementar os 7 itens pendentes ou retirá-los dos baralhos até lá.
-5. Ligar `AudioDirector.onCaption` a um componente de legenda.
-6. Restringir por assento os comandos de inventário/loja/loot no modo online.
 7. Medir e registrar baseline de FPS (desktop intermediário e Android intermediário) com o `PerfPanel`.
 8. Generalizar o que ainda é específico da D1 (`BossState`, `leaveBase`, baralhos globais) antes da Dungeon 2;
    preparar a camada do Modo Avançado (§38/§58) sem alterar o combate.

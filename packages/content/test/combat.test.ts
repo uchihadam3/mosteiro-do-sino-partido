@@ -180,3 +180,35 @@ describe('Composições exatas por party (aceite 03)', () => {
 void emptyConditions;
 void emptyCounters;
 export type { Figure };
+
+describe('início do Combate (§25)', () => {
+  it('a escolha do Manto do Primeiro Caminho acontece antes das primeiras Intenções', () => {
+    const { figs } = campaignHeroes(['guerreiro']);
+    figs[0].sector = 'H:F3';
+    figs[0].equipment!.armor = { uid: 'manto-1', itemId: 'manto_primeiro_caminho' };
+    let S = createCombat({ encounterId: 'TEST', seed: 'manto', partySize: 1, heroes: figs, enemies: [{ typeId: 'penitente', sector: 'E:F3' }], cover: [], reinforcementEntries: ['E:R3'], reinforcements: [], objectives: [], skipDeploy: true });
+    expect(S.pending?.kind).toBe('choice');
+    expect(S.cycle).toBe(0);
+    expect(Object.values(S.enemyTypes).every((t) => t.revealed === null)).toBe(true);
+    const p = S.pending as Extract<NonNullable<CombatState['pending']>, { kind: 'choice' }>;
+    const refugio = p.options.find((o) => /refug/i.test(o.id))!;
+    S = run(S, { t: 'answer', pendingId: p.id, answer: { kind: 'choice', optionId: refugio.id } });
+    expect(S.cycle).toBe(1);
+    expect(S.enemyTypes['penitente'].revealed).not.toBeNull();
+    expect(S.figures[0].conditions.guardado).toBeTruthy();
+  });
+});
+
+describe('Imobilizado (Q-IMOB)', () => {
+  it('aplicado durante a própria Ativação, dura até o fim da Ativação seguinte', async () => {
+    const { applyCondition } = await import('@mosteiro/core');
+    let S = combat(['guerreiro'], [{ typeId: 'penitente', sector: 'E:R1' }], ['H:F3']);
+    S = untilHeroTurn(S, { h1: 'rapido' });
+    if (S.phase === 'heroBand') S = run(S, { t: 'activate', figureId: 'h1' });
+    expect(S.activeId).toBe('h1');
+    const c = ctxOf(S);
+    applyCondition(c, S.figures.find((f) => f.id === 'h1')!, 'imobilizado', 1, null);
+    S = run(S, { t: 'end', figureId: 'h1' });
+    expect(S.figures.find((f) => f.id === 'h1')!.conditions.imobilizado).toBeTruthy();
+  });
+});

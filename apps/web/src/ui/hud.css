@@ -1851,3 +1851,20 @@ select {
     height: 16px;
   }
 }
+
+/* ------------------------------------------------------------------ sound captions */
+.caption {
+  position: fixed;
+  left: 50%;
+  bottom: calc(118px * var(--ui-scale, 1));
+  transform: translateX(-50%);
+  z-index: 90;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: rgba(8, 6, 6, 0.78);
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  font-style: italic;
+  pointer-events: none;
+  animation: rise 0.25s ease both;
+}

@@ -313,9 +313,13 @@ export function applyCondition(c: Ctx, target: Figure, cond: ConditionId, n = 1,
       }
       setCond(c, target, 'atordoado', true);
       return;
+    case 'imobilizado':
+      // Q-IMOB: applied during the figure's own Activation, it must survive that Activation's end (lasts through the next one)
+      if (c.S.activeId === target.id) target.counters.activation['imobAppliedNow'] = 1;
+      setCond(c, target, cond, true);
+      return;
     case 'quebrado':
     case 'exposto':
-    case 'imobilizado':
     case 'guardado':
     case 'furtivo':
     case 'semReacoes':

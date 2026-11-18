@@ -285,7 +285,9 @@ function startCombat(c: Ctx) {
   for (const h of heroes(c)) for (const { h: hk } of hooksOf(h)) hk.onCombatStart?.(c, h);
   for (const e of enemies(c)) reg().enemies[e.typeId]?.onCombatStart?.(c, e);
   S.phase = 'tempo';
-  beginCycle(c);
+  // start-of-combat choices (Manto, Olho de Falcão, Julgar...) resolve first; Intentions are revealed after them
+  pushOps(c, [{ op: 'beginCycle' }], false);
+  drain(c);
 }
 
 function beginCycle(c: Ctx) {
@@ -1053,6 +1055,9 @@ function runOp(c: Ctx, op: Op) {
       if (h) h(c, op.args);
       return;
     }
+    case 'beginCycle':
+      beginCycle(c);
+      return;
   }
 }
 

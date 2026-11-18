@@ -53,10 +53,14 @@ Sobre o E2E:
 - WebGL roda via SwiftShader (`--use-angle=swiftshader`), então funciona em máquina sem GPU, mas é lento
   (timeout de 240 s por teste).
 
-Scripts que **não funcionam** no estado atual (ver [`docs/PROGRESS.md`](docs/PROGRESS.md)):
+Simulação e lint:
 
-- `npm run lint`: o ESLint 9 exige `eslint.config.*` e o repositório não tem esse arquivo.
-- `npm run sim`: aponta para `tools/sim/run-sim.ts`, que não existe. Os simuladores existentes são:
+```bash
+npm run sim -- 20 1-5                                     # 20 campanhas D1 por linha (1–5 heróis × 2 rotas), vitórias/ouro/erros
+npm run lint                                              # ESLint 9 (flat config em eslint.config.js)
+```
+
+Simuladores pontuais:
 
 ```bash
 npx tsx tools/sim/quick.ts 3 leste seed1                     # campanha D1 completa por autoplay (n heróis, rota, semente)
