@@ -20,15 +20,37 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
-  // big immutable assets (models/textures/audio/icons/fonts/hashed bundles): cache-first
-  if (/\/assets\/(models|textures|audio|icons)\//.test(url.pathname) || /\.(woff2?|js|css)$/.test(url.pathname)) {
+  // hashed bundles (js/css/fonts): immutable → cache-first in the per-build shell cache
+  if (/\.(woff2?|js|css)$/.test(url.pathname) && !/\/assets\/(models|textures|audio|icons|characters)\//.test(url.pathname)) {
     e.respondWith(
-      caches.open(url.pathname.includes('/assets/') && !/\.(js|css)$/.test(url.pathname) ? ASSETS : SHELL).then(async (c) => {
+      caches.open(SHELL).then(async (c) => {
         const hit = await c.match(req);
         if (hit) return hit;
         const res = await fetch(req);
         if (res.ok) c.put(req, res.clone());
         return res;
+      }),
+    );
+    return;
+  }
+  // big game assets (not content-hashed): stale-while-revalidate — instant & offline from cache,
+  // refreshed in the background so an update to a model/sound reaches installed players on the next launch.
+  if (/\/assets\/(models|textures|audio|icons|characters)\//.test(url.pathname)) {
+    e.respondWith(
+      caches.open(ASSETS).then(async (c) => {
+        const hit = await c.match(req);
+        const refresh = fetch(req)
+          .then((res) => {
+            if (res.ok) c.put(req, res.clone());
+            return res;
+          })
+          .catch(() => undefined);
+        if (hit) {
+          e.waitUntil(refresh);
+          return hit;
+        }
+        const res = await refresh;
+        return res || Response.error();
       }),
     );
     return;

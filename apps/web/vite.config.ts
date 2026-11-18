@@ -13,7 +13,7 @@ export default defineConfig({
       // stamp the service worker with the build id so installed copies detect updates
       name: 'sw-version',
       generateBundle() {
-        const sw = readFileSync(new URL('./src/pwa/sw.js', import.meta.url), 'utf8').replace('__BUILD_ID__', BUILD_ID);
+        const sw = readFileSync(new URL('./src/pwa/sw.js', import.meta.url), 'utf8').replaceAll('__BUILD_ID__', BUILD_ID);
         this.emitFile({ type: 'asset', fileName: 'sw.js', source: sw });
         this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ version: pkg.version, build: BUILD_ID }) });
       },
