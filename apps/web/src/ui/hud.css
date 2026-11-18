@@ -1868,3 +1868,27 @@ select {
   pointer-events: none;
   animation: rise 0.25s ease both;
 }
+
+/* map header clears the floating menu button in the top-right corner */
+.map .map-head {
+  padding-right: 46px;
+}
+/* party slots: names stay readable (body font, flexible width) */
+.party-slot .grow {
+  min-width: 0;
+  flex: 1;
+}
+.party-slot.filled {
+  padding: 8px 6px 8px 10px;
+  gap: 6px;
+}
+.party-slot input {
+  font-family: var(--font-prose);
+  font-size: var(--fs);
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+}
+.party-slot > .ico,
+.party-slot > svg {
+  flex: none;
+}

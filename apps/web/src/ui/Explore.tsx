@@ -39,7 +39,7 @@ function MapPanel({ st }: { st: CampaignState }) {
   const done = new Set(st.completed.map((e) => d.encounters.find((x) => x.id === e)?.locationId));
   return (
     <div className="map panel ornate">
-      <div className="row" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+      <div className="row map-head" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
         <span className="kicker">Mapa</span>
         <span className="xs muted">{st.flags['route'] ? `Rota ${st.flags['route'] === 'leste' ? 'Leste' : 'Oeste'}` : 'Rota não escolhida'}</span>
       </div>
@@ -66,7 +66,8 @@ function MapPanel({ st }: { st: CampaignState }) {
             <g key={l.id} className="node" transform={`translate(${l.map.x} ${l.map.y})`}>
               {isHere && <circle r="4.6" fill="none" stroke="#e6cf8f" strokeWidth="0.5"><animate attributeName="r" values="3.6;5.2;3.6" dur="2.4s" repeatCount="indefinite" /></circle>}
               <circle r="2.6" fill={done.has(l.id) ? '#6d5124' : visited ? '#3a2e22' : '#1d1915'} stroke={isHere ? '#e6cf8f' : l.public ? '#8c6a3f' : '#a58cff'} strokeWidth="0.6" />
-              <text y={l.map.y > 85 ? -4.2 : 6.4} textAnchor="middle">
+              {/* the bottom-most node (Pórtico) is labelled to its side so it never collides with the node above it */}
+              <text x={l.map.y > 85 ? 4.2 : 0} y={l.map.y > 85 ? 1.2 : 6.4} textAnchor={l.map.y > 85 ? 'start' : 'middle'}>
                 {l.name.replace(/ d[aoe]s? .*/, '').replace('Relicário', 'Relicário').slice(0, 22)}
               </text>
             </g>
@@ -133,6 +134,7 @@ export function Explore() {
   const loc = d.locations.find((l) => l.id === st.node) ?? d.locations[0];
   const opts = d.options(st);
   const [inv, setInv] = useState(false);
+  const [confirmOpt, setConfirmOpt] = useState<{ id: string; label: string; warning: string } | null>(null);
   const fallen = st.heroes.filter((h) => h.status === 'caido');
   return (
     <div className="overlay screen-fade">
@@ -174,7 +176,7 @@ export function Explore() {
                   style={{ animationDelay: `${i * 60}ms` }}
                   onMouseEnter={() => audio.play('ui_hover', { volume: 0.35 })}
                   onClick={() => {
-                    if (o.warning && !confirm(o.warning)) return;
+                    if (o.warning) return setConfirmOpt({ id: o.id, label: o.label, warning: o.warning });
                     void run({ t: 'explore', optionId: o.id }, 'door_stone');
                   }}
                 >
@@ -197,6 +199,31 @@ export function Explore() {
           </div>
           <PartyStrip st={st} onOpen={() => setInv(true)} />
         </div>
+        {confirmOpt && (
+          <div className="modal-back" onClick={() => setConfirmOpt(null)}>
+            <div className="modal panel ornate" role="alertdialog" aria-label={confirmOpt.label} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+              <div className="kicker">Sem volta</div>
+              <h2 className="h2">{confirmOpt.label}</h2>
+              <div className="divider" />
+              <p className="small" style={{ color: 'var(--warn)' }}>{confirmOpt.warning}</p>
+              <div className="actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button className="btn" autoFocus onClick={() => setConfirmOpt(null)}>
+                  Ainda não
+                </button>
+                <button
+                  className="btn primary"
+                  onClick={() => {
+                    const id = confirmOpt.id;
+                    setConfirmOpt(null);
+                    void run({ t: 'explore', optionId: id }, 'door_stone');
+                  }}
+                >
+                  Seguir em frente
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       {inv && <InventoryModal onClose={() => setInv(false)} />}
     </div>

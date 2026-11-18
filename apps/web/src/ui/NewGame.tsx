@@ -100,7 +100,7 @@ export function NewGame() {
                   );
                 return (
                   <div key={i} className="party-slot filled" style={{ ['--acc' as string]: CLASS_COLOR[p.classId] }}>
-                    <Icon id={`class_${p.classId}`} size={30} style={{ color: CLASS_COLOR[p.classId] }} />
+                    <Icon id={`class_${p.classId}`} size={22} style={{ color: CLASS_COLOR[p.classId] }} />
                     <div className="grow col" style={{ gap: 3 }}>
                       <input value={p.name} maxLength={18} aria-label="Nome do herói" onChange={(e) => setParty(party.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
                       {players.length > 1 && (
