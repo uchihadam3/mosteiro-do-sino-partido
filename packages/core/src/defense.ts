@@ -54,7 +54,7 @@ export function runEnemyAttack(c: Ctx, spec: EnemyAttackSpec) {
   // Sangramento on enemy attack
   if (src.conditions.sangramento > 0) {
     src.conditions.sangramento--;
-    dealDamage(c, src, 1, { direct: true, sourceId: null, school: 'blood', label: 'Sangramento' });
+    dealDamage(c, src, 1, { direct: true, sourceId: null, school: 'blood', label: 'Sangramento', condition: 'sangramento' });
     if (!isActive(src)) return;
   }
   pushOps(

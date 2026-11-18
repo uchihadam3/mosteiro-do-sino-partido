@@ -59,7 +59,7 @@ const investida: ActionDef = {
   },
   attackOptions: () => [{ id: 'g_inv:passo', label: 'Impulso: Passo 1', source: '', cost: { impulso: 1 } }],
   afterAttackOption: (c, f, a, r, opt) => {
-    if (opt === 'g_inv:passo') pushOps(c, [{ op: 'step', figureId: f.id, steps: 1, ignoreEngagement: false, reason: 'Investida' }], false);
+    if (opt === 'g_inv:passo') pushOps(c, [{ op: 'step', figureId: f.id, steps: 1, ignoreEngagement: false, reason: 'Investida', origin: 'class' }], false);
   },
   onResolve: (c, f, a, r, out) => {
     if (out.hit && f.res) {

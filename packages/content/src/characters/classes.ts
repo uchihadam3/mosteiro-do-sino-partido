@@ -31,6 +31,7 @@ import {
   setCond,
   startHeroAttack,
   tryFig,
+  techniqueGuard,
   stepDestinations,
   heroMove,
   leaveEngagementCost,
@@ -46,7 +47,7 @@ import {
   RUNE_FORMS,
   RUNE_INTENTS,
 } from '@mosteiro/core';
-import { bowAllows, diceOf, heroDie, inIdeal, nearestAllyDistance, stepLater, targetOf, weaponAttack, weaponCatOf, weaponOf } from './common';
+import { bowAllows, diceOf, heroDie, inIdeal, nearestAllyDistance, spellPull, stepLater, targetOf, weaponAttack, weaponCatOf, weaponOf } from './common';
 
 const C = (section: string) => ({ section, status: 'CANONICO' as const });
 const H = (section: string, note: string) => ({ section, status: 'HIPOTESE' as const, note });
@@ -124,7 +125,7 @@ const guerreiroActions: ActionDef[] = [
       heroMove(c, f, cmd.sector!, { kind: 'passo', ignoreEngagement: true });
       if (linked(f, 1)) {
         setSeq(c, f, 2);
-        applyCondition(c, f, 'guardado', 1, f.id);
+        techniqueGuard(c, f, f);
       }
     },
   },
@@ -262,7 +263,7 @@ const paladinoActions: ActionDef[] = [
     attackOptions: () => [impulsoOpt('p_gr:guardado', 'Impulso: Guardado em você', 1, 'gr'), impulsoOpt('p_gr:empurrar', 'Impulso: Empurrar 1', 1, 'gr')],
     afterAttackOption: (c, f, a, r, opt, out) => {
       if (!out.hit) return;
-      if (opt === 'p_gr:guardado') applyCondition(c, f, 'guardado', 1, f.id);
+      if (opt === 'p_gr:guardado') techniqueGuard(c, f, f);
       const t = tryFig(c, a.targetId);
       if (opt === 'p_gr:empurrar' && t) push(c, t, f.id);
     },
@@ -297,7 +298,9 @@ const paladinoActions: ActionDef[] = [
     source: C('§18.2'),
     targeting: { type: 'ally', range: 'supportOrSelf' },
     validate: (c, f, cmd) => (targetOf(c, cmd).conditions.guardado ? 'O alvo já está Guardado (não acumula).' : null),
-    execute: (c, f, cmd) => applyCondition(c, targetOf(c, cmd), 'guardado', 1, f.id),
+    execute: (c, f, cmd) => {
+      techniqueGuard(c, f, targetOf(c, cmd));
+    },
   },
   {
     id: 'p_imposicao',
@@ -549,7 +552,7 @@ const arcanistaActions: ActionDef[] = [
       if (hasTalent(f, 'a_canalizacao_estavel') && cmd.option !== 'instab') res.instabilidade = Math.max(0, res.instabilidade - 1);
       log(c, 'resource', `${f.name} canaliza (${cmd.option === 'instab' ? 'Instabilidade' : RUNE_LABEL[cmd.option as RuneId]}).`);
       c.events.push({ type: 'resource', figureId: f.id, resource: 'runes', value: Object.values(res.runes).filter(Boolean).length });
-      if (hasItem(f, 'cajado_runico')) stepLater(c, f, 1, false, 'Cajado Rúnico');
+      if (hasItem(f, 'cajado_runico')) stepLater(c, f, 1, false, 'Cajado Rúnico', 'weapon');
     },
   },
   spell({
@@ -639,7 +642,7 @@ const arcanistaActions: ActionDef[] = [
     validate: (c, f, cmd) => (cmd.sectors && enemies(c).some((e) => cmd.sectors!.includes(e.sector)) ? null : 'Nenhum inimigo na área.'),
     execute: (c, f, cmd) => {
       const ts = enemies(c).filter((e) => cmd.sectors!.includes(e.sector));
-      startHeroAttack(c, { sourceId: f.id, targetId: ts[0].id, extraTargets: ts.slice(1).map((x) => x.id), techId: 'a_poco', name: 'Poço Gravitacional', cat: 'distancia', dice: focusDice(f), dano: 0, school: 'arcane', spell: true, control: true, data: { intent: 'vinculo', form: 'explosao' }, pre: cmd.pre });
+      startHeroAttack(c, { sourceId: f.id, targetId: ts[0].id, extraTargets: ts.slice(1).map((x) => x.id), techId: 'a_poco', name: 'Poço Gravitacional', cat: 'distancia', dice: focusDice(f), dano: 0, school: 'arcane', spell: true, control: true, data: { intent: 'vinculo', form: 'explosao', forcedMove: 'pull' }, pre: cmd.pre });
     },
     extra: {
       attackOptions: () => [impulsoOpt('a_poco:imob', 'Impulso: Imobilizar o alvo principal')],
@@ -647,7 +650,7 @@ const arcanistaActions: ActionDef[] = [
         if (!out.hit) return;
         for (const id of [a.targetId, ...a.extraTargets]) {
           const t = tryFig(c, id);
-          if (t && isActive(t) && !t.isBoss && !t.isMiniboss) pull(c, t, f.id);
+          if (t && isActive(t) && !t.isBoss && !t.isMiniboss) spellPull(c, f, t, out.spent);
         }
       },
       afterAttackOption: (c, f, a, r, opt, out) => {
@@ -667,7 +670,7 @@ const arcanistaActions: ActionDef[] = [
     targeting: { type: 'area2', side: 'H' },
     execute: (c, f, cmd) => {
       const allies = heroes(c).filter((h) => cmd.sectors!.includes(h.sector));
-      for (const h of allies) pushOps(c, [{ op: 'step', figureId: h.id, steps: 1 + (hasTalent(f, 'a_dobra_superior') ? 1 : 0), ignoreEngagement: false, reason: 'Dobra Espacial' }], false);
+      for (const h of allies) pushOps(c, [{ op: 'step', figureId: h.id, steps: 1 + (hasTalent(f, 'a_dobra_superior') ? 1 : 0), ignoreEngagement: false, reason: 'Dobra Espacial', origin: 'class' }], false);
       pushOps(c, [{ op: 'call', fn: 'arcanista:dobraEnemy', args: { id: f.id } }], false);
     },
   }),
@@ -942,7 +945,7 @@ const clerigoActions: ActionDef[] = [
     targeting: { type: 'ally', range: 'supportOrSelf' },
     execute: (c, f, cmd) => {
       const t = targetOf(c, cmd);
-      pushOps(c, [{ op: 'step', figureId: t.id, steps: t.conditions.guardado ? 2 : 1, ignoreEngagement: false, reason: 'Guia do Peregrino' }], false);
+      pushOps(c, [{ op: 'step', figureId: t.id, steps: t.conditions.guardado ? 2 : 1, ignoreEngagement: false, reason: 'Guia do Peregrino', origin: 'class' }], false);
     },
   },
   {
@@ -1517,7 +1520,7 @@ export const CLASS_HANDLERS: Record<string, (c: Ctx, a: Record<string, unknown>)
     const h = fig(c, a.figureId as string);
     if (a.optionId === 'cura') heal(c, h, 1, a.clericId as string);
     if (a.optionId === 'guardado') applyCondition(c, h, 'guardado', 1, a.clericId as string);
-    if (a.optionId === 'passo') pushOps(c, [{ op: 'step', figureId: h.id, steps: 1, ignoreEngagement: false, reason: 'AMÉM' }]);
+    if (a.optionId === 'passo') pushOps(c, [{ op: 'step', figureId: h.id, steps: 1, ignoreEngagement: false, reason: 'AMÉM', origin: 'class' }]);
   },
   'clerigo:bastaoStep': (c, a) => {
     const f = fig(c, a.id as string);
@@ -1529,7 +1532,7 @@ export const CLASS_HANDLERS: Record<string, (c: Ctx, a: Record<string, unknown>)
   },
   'clerigo:bastaoPick': (c, a) => {
     if (a.optionId === 'none') return;
-    pushOps(c, [{ op: 'step', figureId: a.optionId as string, steps: 1, ignoreEngagement: false, reason: 'Bastão do Peregrino' }]);
+    pushOps(c, [{ op: 'step', figureId: a.optionId as string, steps: 1, ignoreEngagement: false, reason: 'Bastão do Peregrino', origin: 'weapon' }]);
   },
   'reaction:afterEnemyMove': (c, a) => {
     const e = tryFig(c, a.enemyId as string);

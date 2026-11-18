@@ -217,6 +217,12 @@ export interface DefenseState {
 // ---------------------------------------------------------------------------
 // Ops — the interpreter's work queue. Everything serializable.
 // ---------------------------------------------------------------------------
+/**
+ * What granted a Passo (Grevas do Ímpeto only improves 'class' = Habilidade de Classe and
+ * 'weapon' = Assinatura de Arma/Foco; never armor, accessory or the Tempo Rápido Passo).
+ */
+export type StepOrigin = 'class' | 'weapon' | 'armor' | 'accessory' | 'other';
+
 export type Op =
   | { op: 'enemyActivate'; id: string }
   | { op: 'enemyPlan'; id: string }
@@ -233,7 +239,7 @@ export type Op =
   | { op: 'summon'; typeId: string; count: number; sourceId: string; reason: string }
   | { op: 'afterIntent'; figureId: string; intentId: string; typeId: string }
   | { op: 'finishAttack'; attack: AttackSpec; roll: RollResult; choices: string[] }
-  | { op: 'step'; figureId: string; steps: number; ignoreEngagement: boolean; reason: string; passThroughEnemies?: boolean }
+  | { op: 'step'; figureId: string; steps: number; ignoreEngagement: boolean; reason: string; passThroughEnemies?: boolean; origin?: StepOrigin }
   | { op: 'call'; fn: string; args: Record<string, unknown> }
   /** Start the first Cycle once every start-of-combat choice is made (§25: before the first Intentions). */
   | { op: 'beginCycle' }

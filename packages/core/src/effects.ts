@@ -4,7 +4,7 @@
  */
 import type { ConditionId, Figure, LogEntry, SectorKey, VfxSchool } from './types';
 import type { Ctx, EffectSpec, Op } from './state';
-import { reg, type Hooks } from './registry';
+import { reg, type DotCondition, type Hooks } from './registry';
 import { adjacent, connections, hasRoom, isActive, parseSector, sk } from './board';
 
 // ----------------------------------------------------------------- lookups
@@ -121,6 +121,8 @@ export interface DamageInfo {
   label?: string;
   /** Damage came from a hero attack pipeline (it calls onEnemyDefeated with the attack). */
   fromAttack?: boolean;
+  /** Dano Direto caused by this Condition (Faixa do Sobrevivente). */
+  condition?: DotCondition;
 }
 
 /**
@@ -131,6 +133,14 @@ export interface DamageInfo {
 export function dealDamage(c: Ctx, target: Figure, amount: number, info: DamageInfo): number {
   if (!isActive(target) || amount <= 0) return 0;
   let dmg = amount;
+  // Faixa do Sobrevivente: reduce Dano Direto caused by Veneno/Sangramento/Queimando (the Condition stays).
+  if (info.direct && info.condition) {
+    for (const { h } of hooksOf(target)) {
+      const red = h.reduceConditionDamage?.(c, target, info.condition, dmg) ?? 0;
+      if (red > 0) dmg = Math.max(0, dmg - red);
+    }
+    if (dmg <= 0) return 0;
+  }
   if (!info.skipGuard && target.conditions.guardado && dmg > 0) {
     dmg = consumeGuard(c, target, dmg);
   }
@@ -234,8 +244,21 @@ export function heal(c: Ctx, target: Figure, amount: number, sourceId: string | 
   if (healed > 0) {
     c.events.push({ type: 'heal', targetId: target.id, amount: healed });
     log(c, 'heal', `${target.name} recupera ${healed} HP. HP ${target.hp}/${target.maxHp}.`);
+    if (opts.technique && src) for (const { h } of hooksOf(src)) h.onTechniqueHeal?.(c, src, target, healed);
   }
   return healed;
+}
+
+/**
+ * Guardado granted by a hero Técnica (class/talent technique). Applies it and, only if it was actually granted
+ * (target active and not already Guardado), fires the source's `onTechniqueGuard` hooks (Cetro/Malha do Peregrino).
+ */
+export function techniqueGuard(c: Ctx, src: Figure, target: Figure): boolean {
+  if (!isActive(target) || target.conditions.guardado) return false;
+  applyCondition(c, target, 'guardado', 1, src.id);
+  if (!target.conditions.guardado) return false;
+  for (const { h } of hooksOf(src)) h.onTechniqueGuard?.(c, src, target);
+  return true;
 }
 
 // ----------------------------------------------------------------- conditions
@@ -299,7 +322,7 @@ export function applyCondition(c: Ctx, target: Figure, cond: ConditionId, n = 1,
       if (C.queimando) {
         // §15 Queimando: reapplying deals 1 Dano Direto immediately; no extra marker.
         log(c, 'condition', `${target.name} já está Queimando: sofre 1 Dano Direto imediato.`);
-        dealDamage(c, target, 1, { direct: true, sourceId, school: 'fire', label: 'Queimando reaplicado' });
+        dealDamage(c, target, 1, { direct: true, sourceId, school: 'fire', label: 'Queimando reaplicado', condition: 'queimando' });
         return;
       }
       setCond(c, target, 'queimando', true);
@@ -350,6 +373,7 @@ export function push(c: Ctx, target: Figure, sourceId: string | null): boolean {
   const dest = sk(p.side, 'R', p.col);
   if (!hasRoom(c.S.figures, dest, target.id)) {
     log(c, 'move', `Empurrar falha: ${dest} está cheio.`);
+    forcedMoveBlocked(c, target, sourceId, 'push');
     return false;
   }
   forcedMove(c, target, dest, sourceId);
@@ -368,10 +392,17 @@ export function pull(c: Ctx, target: Figure, sourceId: string | null): boolean {
   const dest = sk(p.side, 'F', p.col);
   if (!hasRoom(c.S.figures, dest, target.id)) {
     log(c, 'move', `Puxar falha: ${dest} está cheio.`);
+    forcedMoveBlocked(c, target, sourceId, 'pull');
     return false;
   }
   forcedMove(c, target, dest, sourceId);
   return true;
+}
+
+/** A valid Empurrar/Puxar failed only because the destination is full: notify the (hero) source's hooks. */
+function forcedMoveBlocked(c: Ctx, target: Figure, sourceId: string | null, kind: 'push' | 'pull') {
+  const src = tryFig(c, sourceId);
+  if (src && src.side !== target.side) for (const { h } of hooksOf(src)) h.onForcedMoveBlocked?.(c, src, target, kind);
 }
 
 export function forcedMove(c: Ctx, target: Figure, dest: SectorKey, _sourceId: string | null) {
@@ -407,7 +438,7 @@ export function bleedTick(c: Ctx, f: Figure) {
     f.conditions.sangramento--;
     c.events.push({ type: 'condition', targetId: f.id, condition: 'sangramento', added: false });
     log(c, 'condition', `Sangramento: ${f.name} sofre 1 Dano Direto (restam ${f.conditions.sangramento}).`);
-    dealDamage(c, f, 1, { direct: true, sourceId: null, school: 'blood', label: 'Sangramento', skipGuard: false });
+    dealDamage(c, f, 1, { direct: true, sourceId: null, school: 'blood', label: 'Sangramento', skipGuard: false, condition: 'sangramento' });
   }
 }
 

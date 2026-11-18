@@ -1,14 +1,25 @@
 import {
   adjacent,
   canTarget,
+  canUse,
+  connections,
   enemies,
   faixaOf,
   fig,
+  forcedMove,
+  hasRoom,
   heroes,
+  log,
   lowerGrade,
+  markUse,
+  parseSector,
+  pull,
   pushOps,
   reg,
+  sk,
   startHeroAttack,
+  type SectorKey,
+  type StepOrigin,
   type ActionCmd,
   type AttackCat,
   type Attr,
@@ -117,8 +128,32 @@ export function weaponAttack(c: Ctx, f: Figure, cmd: ActionCmd, o: WeaponAttackO
   });
 }
 
-export function stepLater(c: Ctx, f: Figure, steps: number, ignoreEngagement: boolean, reason: string) {
-  pushOps(c, [{ op: 'step', figureId: f.id, steps, ignoreEngagement, reason }], false);
+/** Queue a Passo. `origin` defaults to 'class' (Habilidade de Classe) — relevant for Grevas do Ímpeto. */
+export function stepLater(c: Ctx, f: Figure, steps: number, ignoreEngagement: boolean, reason: string, origin: StepOrigin = 'class') {
+  pushOps(c, [{ op: 'step', figureId: f.id, steps, ignoreEngagement, reason, origin }], false);
+}
+
+/** Attack option id for Orbe Gravítico redirecting a spell's forced movement of `targetId` to `dest`. */
+export function orbeOptionId(targetId: string, dest: SectorKey) {
+  return `orbe_gravitico|${targetId}|${dest}`;
+}
+
+/**
+ * Puxar caused by a spell (Poço Gravitacional). If the Arcanista chose an Orbe Gravítico redirection for this target
+ * and the spell would really move it (valid Puxar with room), it moves to the chosen connected legal Sector instead.
+ */
+export function spellPull(c: Ctx, f: Figure, t: Figure, spent: string[]): boolean {
+  const opt = spent.find((s) => s.startsWith(`orbe_gravitico|${t.id}|`));
+  const dest = opt?.split('|')[2] as SectorKey | undefined;
+  const p = parseSector(t.sector);
+  const wouldMove = p.row === 'R' && !t.conditions.ignoraEmpurrao && hasRoom(c.S.figures, sk(p.side, 'F', p.col), t.id);
+  if (dest && wouldMove && connections(t.sector).includes(dest) && hasRoom(c.S.figures, dest, t.id) && canUse(f, 'activation', 'orbeGravitico')) {
+    markUse(f, 'activation', 'orbeGravitico');
+    log(c, 'item', `Orbe Gravítico: ${t.name} é desviado para ${dest}.`);
+    forcedMove(c, t, dest, f.id);
+    return true;
+  }
+  return pull(c, t, f.id);
 }
 
 /** Faixa legality for bows (§18.5). */

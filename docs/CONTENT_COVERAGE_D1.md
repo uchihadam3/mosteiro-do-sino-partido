@@ -15,9 +15,9 @@ Todas as 6 classes conferem com §18 em HP, Armadura inicial e Graus de atributo
 |---|---|---|---|---|---|
 | Guerreiro | 14 / 1 | Poder, Determinação | Sequência (I→II→III) | Marcial | Espada Longa, Machado de Batalha, Lança, Martelo de Guerra, Cota de Malha |
 | Paladino | 13 / 1 | Poder, Espírito | Convicção (máx. 3) + Julgado | Marcial, Sagrado | Espada e Escudo do Juramento, Martelo do Juramento, Lança da Alvorada, Cota do Juramento |
-| Arcanista | 11 / 0 | Arcano, Precisão | Matriz Rúnica (6 Runas) + Instabilidade (máx. 3) | Arcano | Cajado Rúnico, Varinha Prismática, Orbe Gravítico ✘, Vestes do Aprendiz ◐ |
+| Arcanista | 11 / 0 | Arcano, Precisão | Matriz Rúnica (6 Runas) + Instabilidade (máx. 3) | Arcano | Cajado Rúnico, Varinha Prismática, Orbe Gravítico ◐ (Q-ORBE), Vestes do Aprendiz ◐ |
 | Clérigo | 12 / 0 | Espírito, Determinação | Liturgia (3 Versos) + AMÉM | Sagrado | Bastão do Peregrino, Sino da Vigília, Censário do Julgamento, Vestes Consagradas |
-| Arqueiro | 10 / 0 | Precisão, Agilidade | Mira (começa 1, máx. 3) + Faixas | Arco | Arco Curto, Arco Recurvo, Arco Longo, Couro do Caçador ✘ |
+| Arqueiro | 10 / 0 | Precisão, Agilidade | Mira (começa 1, máx. 3) + Faixas | Arco | Arco Curto, Arco Recurvo, Arco Longo, Couro do Caçador ◐ (Q-COURO-CACADOR) |
 | Ladino | 11 / 0 | Sombra, Agilidade | Brechas (nos alvos) + Furtivo | Finesse | Adagas Gêmeas, Rapieira, Lâmina Serrilhada, Couro das Sombras |
 
 Na criação, as duas primeiras armas da lista viram Primária/Secundária e as demais vão para o Armazém
@@ -196,7 +196,7 @@ O mapa (`apps/web/src/ui/Explore.tsx`) desenha só os locais em `state.revealed`
 | Lança da Alvorada | Paladino | Poder+Espírito · 2 · Alcance | ✔ |
 | Cajado Rúnico | Arcanista | Arcano+Espírito · 1 · Distância | ✔ |
 | Varinha Prismática | Arcanista | Arcano+Precisão · 1 · Distância | ✔ |
-| **Orbe Gravítico** | Arcanista | Arcano+Determinação · 1 · Distância | **✘** (redirecionar movimento de feitiço não está exposto) |
+| Orbe Gravítico | Arcanista | Arcano+Determinação · 1 · Distância | ◐ (Q-ORBE: desvia o Puxar do Poço Gravitacional) |
 | Bastão do Peregrino | Clérigo | Espírito+Precisão · 1 · Distância | ✔ |
 | Sino da Vigília | Clérigo | (efeito sobre Intercessão) | ✔ |
 | Censário do Julgamento | Clérigo | (Queimando com Impulso) | ✔ |
@@ -209,7 +209,7 @@ O mapa (`apps/web/src/ui/Explore.tsx`) desenha só os locais em `state.revealed`
 ### Armas comuns (§20) — 10
 
 Espada Balanceada ✔ · Machado de Mão ✔ · Lança de Caça ✔ · Besta de Mão ◐ (Q-BESTA) · Arco de Teixo ✔ ·
-Cajado de Quartzo ◐ (Q-FOCOS-COMUNS) · Orbe de Chumbo ◐ (Q-FOCOS-COMUNS) · **Cetro do Peregrino ✘** (e Q-FOCOS-COMUNS) ·
+Cajado de Quartzo ◐ (Q-FOCOS-COMUNS) · Orbe de Chumbo ◐ (Q-FOCOS-COMUNS) · Cetro do Peregrino ◐ (Q-FOCOS-COMUNS, Q-CETRO) ·
 Maça Consagrada ◐ (Q-MACA) · Adaga Ritual ◐ (Q-ADAGA).
 
 ### Armas raras (§21/§57) — 10
@@ -221,17 +221,17 @@ Varinha do Eco ✔ · Orbe do Espaço Curvo ✔ · Bastão da Misericórdia ✔ 
 
 | Raridade | Itens |
 |---|---|
-| Inicial | Cota de Malha ✔ · Cota do Juramento ✔ · Vestes do Aprendiz ◐ (Q-VESTES) · Vestes Consagradas ✔ · **Couro do Caçador ✘** · Couro das Sombras ✔ |
+| Inicial | Cota de Malha ✔ · Cota do Juramento ✔ · Vestes do Aprendiz ◐ (Q-VESTES) · Vestes Consagradas ✔ · Couro do Caçador ◐ (Q-COURO-CACADOR) · Couro das Sombras ✔ |
 | Comum | Couro Reforçado ✔ · Manto do Viajante ✔ · Gibão do Batedor ✔ (WATCH) · Cota de Escamas ✔ · Cota Rebitada ✔ (WATCH) · Placas de Campanha ✔ |
-| Rara | Couraça do Veterano ✔ · Couro do Passo Livre ✔ · Manto Rúnico ✔ · Couro de Escamas Negras ✔ · **Malha do Peregrino ✘** · Bastião de Ferro ✔ |
+| Rara | Couraça do Veterano ✔ · Couro do Passo Livre ✔ · Manto Rúnico ✔ · Couro de Escamas Negras ✔ · Malha do Peregrino ◐ (Q-MALHA) · Bastião de Ferro ✔ |
 | Épica | Manto do Primeiro Caminho ✔ (só pelo REL-E01) |
 
 ### Acessórios (§23) — 16
 
 | Raridade | Itens |
 |---|---|
-| Comum | Botas de Trilha ✔ · Fivela de Ferro ✔ · Pingente de Âmbar ✔ · Lente de Bronze ◐ (Q-LENTE, simplificada) · Kit de Campo ✔ · **Luvas de Empunhadura ✘** · **Faixa do Sobrevivente ✘** · Corda e Gancho ✔ |
-| Raro | **Grevas do Ímpeto ✘** · Anel do Julgamento ✔ · Ícone da Mãe Velada ✔ · Lente Rúnica ✔ · Aljava Serrilhada ✔ · Estojo do Arrombador ✔ · Broche do Abrigo ✔ · Talismã do Último Passo ✔ |
+| Comum | Botas de Trilha ✔ · Fivela de Ferro ✔ · Pingente de Âmbar ✔ · Lente de Bronze ◐ (Q-LENTE, simplificada) · Kit de Campo ✔ · Luvas de Empunhadura ◐ (Q-LUVAS) · Faixa do Sobrevivente ◐ (Q-FAIXA) · Corda e Gancho ✔ |
+| Raro | Grevas do Ímpeto ◐ (Q-GREVAS) · Anel do Julgamento ✔ · Ícone da Mãe Velada ✔ · Lente Rúnica ✔ · Aljava Serrilhada ✔ · Estojo do Arrombador ✔ · Broche do Abrigo ✔ · Talismã do Último Passo ✔ |
 
 ### Consumíveis (§24) — 10 (preço)
 
@@ -242,20 +242,20 @@ rolagem) ✔ · Pó Cegante (3) ✔ · Selo de Resistência (4, reativo) ✔.
 O uso fora de Combate (§24: Antídoto, Bandagem, Unguento) existe só no redutor (`useOutOfCombat`): ele descarta o item
 sem efeito (as condições são limpas ao fim de cada combate no fluxo digital) e não há botão na UI.
 
-### Resumo dos itens `implemented: false` (7)
+### Resumo dos itens `implemented: false` (0)
 
-| Item | Tipo | Onde aparece |
+Nenhum. Os 7 itens que estavam pendentes agora têm efeito, todos com uma interpretação marcada (◐) e teste em
+`packages/content/test/items.test.ts`:
+
+| Item | Tipo | Hipótese |
 |---|---|---|
-| Orbe Gravítico | arma inicial do Arcanista | Armazém inicial do Arcanista |
-| Couro do Caçador | armadura inicial do Arqueiro | **equipada por padrão no Arqueiro** |
-| Cetro do Peregrino | arma comum | baralho Comum (loot e Vitrine) |
-| Malha do Peregrino | armadura rara | baralho Raro (loot e Vitrine) |
-| Luvas de Empunhadura | acessório comum | baralho Comum |
-| Faixa do Sobrevivente | acessório comum | baralho Comum |
-| Grevas do Ímpeto | acessório raro | baralho Raro |
-
-Cinco desses itens podem ser sorteados como loot ou aparecer na Vitrine e não fazem nada além dos números base
-(Armadura/dados/Dano).
+| Orbe Gravítico | arma inicial do Arcanista | Q-ORBE |
+| Couro do Caçador | armadura inicial do Arqueiro (equipada por padrão) | Q-COURO-CACADOR |
+| Cetro do Peregrino | arma comum | Q-CETRO (e Q-FOCOS-COMUNS) |
+| Malha do Peregrino | armadura rara | Q-MALHA |
+| Luvas de Empunhadura | acessório comum | Q-LUVAS |
+| Faixa do Sobrevivente | acessório comum | Q-FAIXA |
+| Grevas do Ímpeto | acessório raro | Q-GREVAS |
 
 ## 10. Baralhos de loot (`LOOT_POOLS`)
 

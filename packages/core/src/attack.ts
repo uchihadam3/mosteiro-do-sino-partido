@@ -220,6 +220,9 @@ export function finishHeroAttack(c: Ctx, a: AttackSpec, roll: RollResult, choice
       if (t) t.conditions.brechas = Math.max(0, t.conditions.brechas - o.cost.brecha);
     }
   }
+  // Impulsos of this roll not spent by any chosen option stay available to "if the roll produced Impulso,
+  // spend 1" effects that trigger during resolution (Luvas de Empunhadura). Cleared after resolution.
+  c.S.flags[impulsoLeftKey(src)] = Math.max(0, roll.impulsos - chosen.reduce((n, o) => n + (o.cost.impulso ?? 0), 0));
   const out: AttackOutcome = {
     hit: false,
     results: [],
@@ -264,7 +267,23 @@ export function finishHeroAttack(c: Ctx, a: AttackSpec, roll: RollResult, choice
     if (t && t.status === 'dead') for (const { h } of hooksOf(src)) h.onEnemyDefeated?.(c, src, t, { byAttack: a });
   }
   void R;
+  delete c.S.flags[impulsoLeftKey(src)];
   pushOps(c, [{ op: 'checkEnd' }], false);
+}
+
+function impulsoLeftKey(f: Figure) {
+  return `__impulsoLeft:${f.id}`;
+}
+/** Impulsos of the hero roll currently being resolved that no chosen option spent (0 outside a resolution). */
+export function unspentImpulsos(c: Ctx, f: Figure): number {
+  return Number(c.S.flags[impulsoLeftKey(f)] ?? 0);
+}
+/** Spend 1 of those unspent Impulsos; false if none is left. */
+export function spendUnspentImpulso(c: Ctx, f: Figure): boolean {
+  const n = unspentImpulsos(c, f);
+  if (n < 1) return false;
+  c.S.flags[impulsoLeftKey(f)] = n - 1;
+  return true;
 }
 
 function applyOpt(c: Ctx, src: Figure, a: AttackSpec, r: RollResult, o: AttackOption, out: AttackOutcome, tech: ReturnType<typeof findAction>, when: 'pre' | 'post') {

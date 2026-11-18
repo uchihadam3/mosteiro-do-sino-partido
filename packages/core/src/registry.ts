@@ -4,7 +4,7 @@
  * without changing the engine (Fase 6).
  */
 import type { AttackCat, Attr, Figure, Grade, RollResult, SectorKey, Tempo } from './types';
-import type { AttackOption, AttackOutcome, AttackSpec, Ctx, DefenseState, EnemyAttackSpec } from './state';
+import type { AttackOption, AttackOutcome, AttackSpec, Ctx, DefenseState, EnemyAttackSpec, StepOrigin } from './state';
 
 export type Status = 'CANONICO' | 'PLAYTEST' | 'WATCH' | 'ABERTO' | 'HIPOTESE';
 
@@ -61,7 +61,21 @@ export interface Hooks {
   onHealOther?(c: Ctx, f: Figure, target: Figure, amount: number): number; // returns bonus
   onGuardConsumed?(c: Ctx, f: Figure, reduced: number): number; // returns extra reduction
   onCantil?(c: Ctx, f: Figure): void;
+  /** Dano Direto caused by Veneno/Sangramento/Queimando on this figure (Faixa do Sobrevivente). Return reduction. */
+  reduceConditionDamage?(c: Ctx, f: Figure, cond: DotCondition, amount: number): number;
+  /** An enemy's voluntary movement just made it Engaged with this hero (Couro do Caçador). */
+  onEnemyEngaged?(c: Ctx, f: Figure, enemy: Figure): void;
+  /** A Técnica of this hero actually granted Guardado to `target` (Cetro/Malha do Peregrino). */
+  onTechniqueGuard?(c: Ctx, f: Figure, target: Figure): void;
+  /** A Técnica of this hero actually restored HP to `target` (target may be the hero itself). */
+  onTechniqueHeal?(c: Ctx, f: Figure, target: Figure, healed: number): void;
+  /** Extra connections for a Passo this hero is about to take (Grevas do Ímpeto). Return the bonus. */
+  stepBonus?(c: Ctx, f: Figure, info: { steps: number; origin: StepOrigin | undefined; reason: string }): number;
+  /** A valid Empurrar/Puxar by this hero failed only because the destination was full (Luvas de Empunhadura). */
+  onForcedMoveBlocked?(c: Ctx, f: Figure, target: Figure, kind: 'push' | 'pull'): void;
 }
+
+export type DotCondition = 'veneno' | 'sangramento' | 'queimando';
 
 export type TargetSpec =
   | { type: 'none' }

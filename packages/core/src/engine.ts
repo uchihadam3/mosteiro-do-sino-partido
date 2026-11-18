@@ -35,7 +35,7 @@ import {
 import { NeedTieBreak } from './ai';
 import { finishHeroAttack, findAction, rerollDie, validateChoices } from './attack';
 import { beginDefense, commitDefense, resolveConditionResponse, resolveDefense, resolveEgide, runEffect, runEnemyAttack } from './defense';
-import { adjacent, connections, hasRoom, isActive, isEngaged, parseSector, sectorEngaged, sk, isValidArea2, allSectors, canTarget } from './board';
+import { adjacent, connections, engagedWith, hasRoom, isActive, isEngaged, oppositeFront, parseSector, sectorEngaged, sk, isValidArea2, allSectors, canTarget } from './board';
 
 // ============================================================================ init
 export interface EnemyPlacement {
@@ -402,7 +402,7 @@ function endCycle(c: Ctx) {
   log(c, 'cycle', `Fim do Ciclo ${S.cycle}.`);
   // Queimando (§15): every Burning figure suffers 1 Dano Direto; enemies then remove it.
   for (const f of S.figures.filter((x) => isActive(x) && x.conditions.queimando)) {
-    dealDamage(c, f, 1, { direct: true, sourceId: null, school: 'fire', label: 'Queimando' });
+    dealDamage(c, f, 1, { direct: true, sourceId: null, school: 'fire', label: 'Queimando', condition: 'queimando' });
     if (f.side === 'E' && f.conditions.queimando) setCond(c, f, 'queimando', false);
   }
   // expire "até o fim do Ciclo atual"
@@ -534,7 +534,7 @@ function endHeroActivation(c: Ctx, f: Figure) {
   if (isActive(f) && f.conditions.veneno > 0) {
     f.conditions.veneno--;
     log(c, 'condition', `Veneno: ${f.name} sofre 1 Dano Direto (restam ${f.conditions.veneno}).`);
-    dealDamage(c, f, 1, { direct: true, sourceId: null, school: 'poison', label: 'Veneno' });
+    dealDamage(c, f, 1, { direct: true, sourceId: null, school: 'poison', label: 'Veneno', condition: 'veneno' });
   }
   // HIPÓTESE Q-IMOB: Imobilizado lasts until the end of the affected figure's next Activation.
   if (f.conditions.imobilizado && f.counters.activation['imobAppliedNow'] !== 1) setCond(c, f, 'imobilizado', false);
@@ -954,7 +954,7 @@ function runOp(c: Ctx, op: Op) {
       if (e && isActive(e)) {
         if (e.conditions.veneno > 0) {
           e.conditions.veneno--;
-          dealDamage(c, e, 1, { direct: true, sourceId: null, school: 'poison', label: 'Veneno' });
+          dealDamage(c, e, 1, { direct: true, sourceId: null, school: 'poison', label: 'Veneno', condition: 'veneno' });
         }
         if (isActive(e) && e.conditions.imobilizado && e.counters.activation['imobAppliedNow'] !== 1) setCond(c, e, 'imobilizado', false);
       }
@@ -995,6 +995,14 @@ function runOp(c: Ctx, op: Op) {
       log(c, 'move', `${f.name} move-se para ${cur}.`);
       if (!op.forced) bleedTick(c, f);
       afterEnterSector(c, f, from);
+      // Couro do Caçador: heroes that this enemy's voluntary movement has just Engaged.
+      if (f.side === 'E' && op.voluntary && isActive(f)) {
+        const before = oppositeFront(from);
+        for (const h of heroes(c)) {
+          if (h.sector === before || !engagedWith(f, S.figures).some((x) => x.id === h.id)) continue;
+          for (const { h: hk } of hooksOf(h)) hk.onEnemyEngaged?.(c, h, f);
+        }
+      }
       // Arqueiro Tiro de Interceptação window
       if (f.side === 'E' && op.voluntary) reg().handlers['reaction:afterEnemyMove']?.(c, { enemyId: f.id, from });
       return;
@@ -1042,12 +1050,22 @@ function runOp(c: Ctx, op: Op) {
     case 'step': {
       const f = tryFig(c, op.figureId);
       if (!f || !isActive(f)) return;
-      const dests = stepDestinations(c, f, op.steps, op.ignoreEngagement).filter((k) => leaveEngagementCost(c, f, k, op.ignoreEngagement) <= (f.ap ?? 0));
+      let steps = op.steps;
+      let reason = op.reason;
+      // Grevas do Ímpeto and similar: bonus connections depending on what granted the Passo.
+      for (const { h } of hooksOf(f)) {
+        const bonus = h.stepBonus?.(c, f, { steps, origin: op.origin, reason }) ?? 0;
+        if (bonus > 0) {
+          steps += bonus;
+          reason = `${reason} (Passo ${steps})`;
+        }
+      }
+      const dests = stepDestinations(c, f, steps, op.ignoreEngagement).filter((k) => leaveEngagementCost(c, f, k, op.ignoreEngagement) <= (f.ap ?? 0));
       if (!dests.length) {
         log(c, 'move', `${f.name}: nenhum destino legal para o Passo.`);
         return;
       }
-      S.pending = { id: newId(c, 'p'), controllers: [f.id], kind: 'step', figureId: f.id, steps: op.steps, ignoreEngagement: op.ignoreEngagement, destinations: dests, reason: op.reason };
+      S.pending = { id: newId(c, 'p'), controllers: [f.id], kind: 'step', figureId: f.id, steps, ignoreEngagement: op.ignoreEngagement, destinations: dests, reason };
       return;
     }
     case 'call': {

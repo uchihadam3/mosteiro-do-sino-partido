@@ -9,14 +9,14 @@ O Modo Básico da Dungeon 1 é jogável do Pórtico até Severin, com as duas ro
 Cripta/Vigia, para 1 a 5 heróis, sozinho, em hot-seat ou online. O motor roda headless e um jogador automático completa
 todas as combinações de party e rota (seção 3).
 
-O que **não** está pronto: Modo Avançado, Arena, Dungeons 2–8, talentos T2–T4, 7 itens com efeito pendente e alguns
-pontos de UX listados na seção 4.
+O que **não** está pronto: Modo Avançado, Arena, Dungeons 2–8, talentos T2–T4 e alguns pontos de UX listados na
+seção 4.
 
 ## 2. Verificações executadas nesta revisão
 
 | Verificação | Comando | Resultado |
 |---|---|---|
-| Testes unitários/integração (Vitest) | `npx vitest run` | **50 passaram** em 4 arquivos: `packages/core/test/rules.test.ts` (14), `packages/content/test/combat.test.ts` (12), `packages/content/test/campaign.test.ts` (19), `apps/web/test/permissions.test.ts` (5) |
+| Testes unitários/integração (Vitest) | `npx vitest run` | **61 passaram** em 5 arquivos: `packages/core/test/rules.test.ts` (14), `packages/content/test/combat.test.ts` (12), `packages/content/test/campaign.test.ts` (20), `packages/content/test/items.test.ts` (10), `apps/web/test/permissions.test.ts` (5) |
 | Typecheck | `npm run typecheck` | sem erros |
 | Build de produção | `npm run build` | sem erros (chunks: `index` 615 kB, `three` 573 kB, `react` 141 kB, antes do gzip) |
 | Pipelines Python | `python3 -m pytest tools/python -q` | **503 passaram**: áudio 225, modelos 126, texturas/ícones 152 |
@@ -61,9 +61,10 @@ Regras e conteúdo:
 
 1. **Talentos**: só T1 tem efeito (18 de 72). Heróis começam com 0 Pontos de Talento, então nenhum talento está ativo
    durante a D1; os T1 implementados não têm teste.
-2. **7 itens com `implemented: false`** (Orbe Gravítico, Couro do Caçador, Cetro do Peregrino, Malha do Peregrino,
-   Luvas de Empunhadura, Faixa do Sobrevivente, Grevas do Ímpeto). O Couro do Caçador é a armadura inicial equipada do
-   Arqueiro; cinco deles estão nos baralhos de loot/Vitrine e podem ser sorteados.
+2. **Nenhum item com `implemented: false`.** Os 7 que estavam pendentes (Orbe Gravítico, Couro do Caçador, Cetro do
+   Peregrino, Malha do Peregrino, Luvas de Empunhadura, Faixa do Sobrevivente, Grevas do Ímpeto) têm efeito, mas cada um
+   depende de uma interpretação a confirmar (Q-ORBE, Q-COURO-CACADOR, Q-CETRO, Q-MALHA, Q-LUVAS, Q-FAIXA, Q-GREVAS em
+   `OPEN_DESIGN_QUESTIONS.md`); testes em `packages/content/test/items.test.ts`.
 3. Várias interpretações de texto vago (ver [`OPEN_DESIGN_QUESTIONS.md`](OPEN_DESIGN_QUESTIONS.md)), por exemplo
    Terceira Badalada resolvida na fase Pesada do mesmo Ciclo (Q-TERCEIRA) e categoria Global nos ataques do Vigia
    (Q-VIGIA-CAT).
@@ -78,7 +79,7 @@ Testes:
 
 8. Poucas habilidades de classe têm teste direto (`g_corte`, `ar_disparo`, `reposicionar`, `levantar`); o resto é
    exercido apenas pelo autoplay. Condições (§15), Empurrar/Puxar, Reações, Furtivo/Esconder-se e efeitos de itens não
-   têm testes unitários.
+   têm testes unitários (exceto os 7 itens de `packages/content/test/items.test.ts`).
 9. Asserções fracas: o teste de Cobertura só verifica se o disparo acertar e não testa Dano Direto apesar do nome; os
    testes de caminho principal aceitam `gameover` como resultado; o teste da Cripta só verifica as Marcas se a Cripta
    foi revelada; o teste da Base retorna cedo se a campanha não vencer. Com as sementes atuais todos chegam à vitória,
@@ -105,7 +106,7 @@ App e ferramentas:
    estados montados à mão; endurecer os testes condicionais listados no item 9.
 3. Decidir com o design as questões da seção B de `OPEN_DESIGN_QUESTIONS.md`, em especial Q-TERCEIRA e
    Q-CONDICOES-ENTRE-COMBATES, e então marcar no código.
-4. Implementar os 7 itens pendentes ou retirá-los dos baralhos até lá.
+4. Confirmar com o design as hipóteses dos 7 itens implementados por último (Q-ORBE … Q-GREVAS).
 7. Medir e registrar baseline de FPS (desktop intermediário e Android intermediário) com o `PerfPanel`.
 8. Generalizar o que ainda é específico da D1 (`BossState`, `leaveBase`, baralhos globais) antes da Dungeon 2;
    preparar a camada do Modo Avançado (§38/§58) sem alterar o combate.

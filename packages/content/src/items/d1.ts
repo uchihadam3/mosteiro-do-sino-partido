@@ -6,8 +6,10 @@ import {
   adjacent,
   applyCondition,
   canUse,
+  connections,
   enemies,
   hasCover,
+  hasRoom,
   heroes,
   isActive,
   isEngaged,
@@ -17,8 +19,11 @@ import {
   push,
   pushOps,
   raiseLowest,
+  reg,
   setCond,
   sk,
+  spendUnspentImpulso,
+  stepDestinations,
   tryFig,
   type ActionDef,
   type AttackOption,
@@ -26,7 +31,7 @@ import {
   type Figure,
   type ItemDef,
 } from '@mosteiro/core';
-import { inIdeal } from '../characters/common';
+import { inIdeal, orbeOptionId } from '../characters/common';
 
 const C = (section: string) => ({ section, status: 'CANONICO' as const });
 const H = (section: string, note: string) => ({ section, status: 'HIPOTESE' as const, note });
@@ -105,7 +110,7 @@ const STARTING: ItemDef[] = [
     afterAttackOption: (c, f, a, r, opt, out) => {
       const t = tryFig(c, a.targetId);
       if (opt === 'lanca:empurrar' && out.hit && t) push(c, t, f.id);
-      if (opt === 'lanca:passo') pushOps(c, [{ op: 'step', figureId: f.id, steps: 1, ignoreEngagement: false, reason: 'Lança' }], false);
+      if (opt === 'lanca:passo') pushOps(c, [{ op: 'step', figureId: f.id, steps: 1, ignoreEngagement: false, reason: 'Lança', origin: 'weapon' }], false);
     },
   }),
   weapon({
@@ -229,9 +234,25 @@ const STARTING: ItemDef[] = [
     dano: 1,
     cat: 'distancia',
     icon: 'item_orb',
-    implemented: false,
     text: 'Foco: Arcano + Determinação, Dano 1. Uma vez por Ativação, quando feitiço mover não-Boss, mude a direção para Setor conectado legal.',
-    source: H('§19 Arcanista', 'Redirecionamento de movimento ainda não exposto na UI (Poço/Dobra usam destino padrão).'),
+    source: H('§19 Arcanista', 'Q-ORBE: vale para o Puxar do Poço Gravitacional (a Dobra já escolhe o destino); só quando o feitiço realmente moveria o alvo; escolha feita junto com os gastos da rolagem.'),
+    // Q-ORBE: the redirection is offered as a free post-roll option (one target, one connected Sector with room);
+    // it applies only if the spell would really move the target (valid Puxar with room) — Poço resolves it via spellPull.
+    attackOptions: (c, f, a, r) => {
+      if (!a.spell || a.data['forcedMove'] !== 'pull' || r.successes < 1 || !canUse(f, 'activation', 'orbeGravitico')) return [];
+      const out: AttackOption[] = [];
+      for (const id of [a.targetId, ...a.extraTargets]) {
+        const t = tryFig(c, id);
+        if (!t || !isActive(t) || t.isBoss || t.isMiniboss) continue;
+        const p = parseSector(t.sector);
+        const normal = sk(p.side, 'F', p.col);
+        if (p.row !== 'R' || !hasRoom(c.S.figures, normal, t.id)) continue;
+        for (const k of connections(t.sector)) {
+          if (k !== normal && hasRoom(c.S.figures, k, t.id)) out.push({ id: orbeOptionId(t.id, k), label: `Orbe Gravítico: desviar ${t.name} para ${k}`, source: '', cost: {}, requiresHit: true, group: 'orbe_gravitico' });
+        }
+      }
+      return out;
+    },
   }),
   weapon({
     id: 'bastao_peregrino',
@@ -304,7 +325,7 @@ const STARTING: ItemDef[] = [
     source: C('§18.5 / §19'),
     afterAttack: (c, f, a, r) => {
       const t = tryFig(c, a.targetId);
-      if (a.weapon && r.impulsos > 0 && t && inIdeal(f, t)) pushOps(c, [{ op: 'step', figureId: f.id, steps: 1, ignoreEngagement: false, reason: 'Arco Recurvo' }], false);
+      if (a.weapon && r.impulsos > 0 && t && inIdeal(f, t)) pushOps(c, [{ op: 'step', figureId: f.id, steps: 1, ignoreEngagement: false, reason: 'Arco Recurvo', origin: 'weapon' }], false);
     },
   }),
   weapon({
@@ -342,7 +363,7 @@ const STARTING: ItemDef[] = [
     source: C('§19 Ladino'),
     attackOptions: (c, f, a) => (a.weapon ? [imp('adagas:passo', 'Adagas: Impulso → Passo 1 (se gastou Brecha)', 1, false)] : []),
     afterAttackOption: (c, f, a, r, opt, out) => {
-      if (opt === 'adagas:passo' && out.spent.some((s) => s.startsWith('brecha:'))) pushOps(c, [{ op: 'step', figureId: f.id, steps: 1, ignoreEngagement: false, reason: 'Adagas Gêmeas' }], false);
+      if (opt === 'adagas:passo' && out.spent.some((s) => s.startsWith('brecha:'))) pushOps(c, [{ op: 'step', figureId: f.id, steps: 1, ignoreEngagement: false, reason: 'Adagas Gêmeas', origin: 'weapon' }], false);
     },
   }),
   weapon({
@@ -433,8 +454,16 @@ const STARTING_ARMOR: ItemDef[] = [
     weight: 'leve',
     icon: 'item_armor_light',
     text: 'Armadura 0. Uma vez por Combate, depois que um inimigo voluntariamente se tornar Engajado com você, Passo 1 ignorando o custo extra de sair de Engajamento.',
-    source: C('§22'),
-    implemented: false,
+    source: H('§22', 'Q-COURO-CACADOR: o Passo é opcional; o uso por Combate só é gasto se você realmente se mover.'),
+    // Q-COURO-CACADOR: the Passo is optional; the once-per-Combat use is spent only if the hero actually moves.
+    onEnemyEngaged: (c, f, e) => {
+      if (!isActive(f) || !canUse(f, 'combat', 'couroCacador') || !stepDestinations(c, f, 1, true).length) return;
+      log(c, 'item', `Couro do Caçador: ${e.name} engaja ${f.name}, que pode dar Passo 1.`);
+      pushOps(c, [
+        { op: 'step', figureId: f.id, steps: 1, ignoreEngagement: true, reason: 'Couro do Caçador', origin: 'armor' },
+        { op: 'call', fn: 'couroCacador:check', args: { id: f.id, from: f.sector } },
+      ]);
+    },
   }),
   armor({
     id: 'couro_sombras',
@@ -498,7 +527,7 @@ const COMMON_WEAPONS: ItemDef[] = [
     source: C('§20'),
     afterAttack: (c, f, a, r) => {
       const t = tryFig(c, a.targetId);
-      if (a.weapon && r.impulsos > 0 && t && parseSector(f.sector).row === 'R' && parseSector(t.sector).row === 'F') pushOps(c, [{ op: 'step', figureId: f.id, steps: 1, ignoreEngagement: false, reason: 'Lança de Caça' }], false);
+      if (a.weapon && r.impulsos > 0 && t && parseSector(f.sector).row === 'R' && parseSector(t.sector).row === 'F') pushOps(c, [{ op: 'step', figureId: f.id, steps: 1, ignoreEngagement: false, reason: 'Lança de Caça', origin: 'weapon' }], false);
     },
   }),
   weapon({
@@ -563,7 +592,12 @@ const COMMON_WEAPONS: ItemDef[] = [
       }
     },
   }),
-  weapon({ id: 'cetro_peregrino', name: 'Cetro do Peregrino', rarity: 'comum', proficiency: ['Sagrado'], focus: true, dice: ['espirito', 'precisao'], dano: 1, cat: 'distancia', icon: 'item_staff', text: 'Foco Sagrado. Depois de Técnica que concede Guardado, você ou herói faz Passo 1.', source: H('§20', 'Q-FOCOS-COMUNS: dados = Espírito + Precisão, Dano 1, Distância.'), implemented: false }),
+  weapon({ id: 'cetro_peregrino', name: 'Cetro do Peregrino', rarity: 'comum', proficiency: ['Sagrado'], focus: true, dice: ['espirito', 'precisao'], dano: 1, cat: 'distancia', icon: 'item_staff', text: 'Foco Sagrado. Depois de Técnica que concede Guardado, você ou herói faz Passo 1.', source: H('§20', 'Q-FOCOS-COMUNS: dados = Espírito + Precisão, Dano 1, Distância. Q-CETRO: Técnica = técnica de classe/talento (AMÉM não conta).'),
+    // Q-CETRO: fires after each own Técnica that actually grants Guardado (Proteção Sagrada, Golpe Radiante, Passo Tático).
+    onTechniqueGuard: (c, f) => {
+      pushOps(c, [{ op: 'call', fn: 'cetro:step', args: { id: f.id } }], false);
+    },
+  }),
   weapon({
     id: 'maca_consagrada',
     name: 'Maça Consagrada',
@@ -745,7 +779,7 @@ const RARE_WEAPONS: ItemDef[] = [
     afterAttackOption: (c, f, a, r, opt) => {
       if (opt === 'vulto:passo') {
         markUse(f, 'activation', 'vulto');
-        pushOps(c, [{ op: 'step', figureId: f.id, steps: 1, ignoreEngagement: false, reason: 'Adagas do Vulto' }], false);
+        pushOps(c, [{ op: 'step', figureId: f.id, steps: 1, ignoreEngagement: false, reason: 'Adagas do Vulto', origin: 'weapon' }], false);
       }
     },
   }),
@@ -876,7 +910,11 @@ const RARE_ARMOR: ItemDef[] = [
       }
     },
   }),
-  armor({ id: 'malha_peregrino', name: 'Malha do Peregrino', rarity: 'raro', armor: 1, weight: 'media', text: 'Armadura 1. Uma vez por Ciclo, depois que uma Técnica realmente curar você/aliado Adjacente ou conceder Guardado a outro aliado Adjacente, receba Guardado.', source: C('§22'), implemented: false }),
+  armor({ id: 'malha_peregrino', name: 'Malha do Peregrino', rarity: 'raro', armor: 1, weight: 'media', text: 'Armadura 1. Uma vez por Ciclo, depois que uma Técnica realmente curar você/aliado Adjacente ou conceder Guardado a outro aliado Adjacente, receba Guardado.', source: H('§22', 'Q-MALHA: “uma Técnica” = Técnica do próprio portador.'),
+    // Q-MALHA: only the wearer's own Técnicas count; heals that restore 0 HP and Guardado on yourself don't.
+    onTechniqueHeal: (c, f, t, healed) => malhaGuard(c, f, healed > 0 && (t.id === f.id || adjacent(f, t))),
+    onTechniqueGuard: (c, f, t) => malhaGuard(c, f, t.id !== f.id && adjacent(f, t)),
+  }),
   armor({ id: 'bastiao_ferro', name: 'Bastião de Ferro', rarity: 'raro', armor: 1, weight: 'pesada', icon: 'item_armor_heavy', text: 'Armadura 1. Âncora: ao terminar a Ativação na Frente sem movimento voluntário, pode ficar Ancorado até sua próxima Ativação (sem movimento voluntário; o primeiro Ataque que causar Dano trata sua Armadura como 2). Movimento forçado encerra a Âncora.', source: C('§22'),
     onActivationEnd: (c, f) => {
       if (parseSector(f.sector).row === 'F' && (f.movedThisActivation ?? 0) === 0) {
@@ -887,6 +925,14 @@ const RARE_ARMOR: ItemDef[] = [
     },
   }),
 ];
+
+/** Malha do Peregrino: once per Cycle the wearer receives Guardado (not spent while already Guardado). */
+function malhaGuard(c: Ctx, f: Figure, ok: boolean) {
+  if (!ok || !isActive(f) || f.conditions.guardado || !canUse(f, 'cycle', 'malha')) return;
+  markUse(f, 'cycle', 'malha');
+  log(c, 'item', `Malha do Peregrino: ${f.name} recebe Guardado.`);
+  applyCondition(c, f, 'guardado', 1, f.id);
+}
 
 export const MANTO: ItemDef = armor({
   id: 'manto_primeiro_caminho',
@@ -945,12 +991,41 @@ const COMMON_ACC: ItemDef[] = [
     },
   }),
   acc({ id: 'kit_campo', name: 'Kit de Campo', rarity: 'comum', text: 'Uma vez por Combate, antes de Teste de Objetivo/Campo de Batalha seu ou de aliado Adjacente, adicione D6, máximo 3 dados.', source: C('§23') }),
-  acc({ id: 'luvas_empunhadura', name: 'Luvas de Empunhadura', rarity: 'comum', text: 'Uma vez por Ativação, quando Empurrar/Puxar válido contra inimigo comum falhar apenas porque o destino está cheio, se a rolagem de origem produziu Impulso, gaste 1 para aplicar Exposto. Boss não conta.', source: C('§23'), implemented: false }),
-  acc({ id: 'faixa_sobrevivente', name: 'Faixa do Sobrevivente', rarity: 'comum', text: 'Uma vez por Combate, quando Veneno/Sangramento/Queimando causar Dano Direto, reduza esse Dano em 1; a Condição continua.', source: C('§23'), implemented: false }),
+  acc({ id: 'luvas_empunhadura', name: 'Luvas de Empunhadura', rarity: 'comum', text: 'Uma vez por Ativação, quando Empurrar/Puxar válido contra inimigo comum falhar apenas porque o destino está cheio, se a rolagem de origem produziu Impulso, gaste 1 para aplicar Exposto. Boss não conta.', source: H('§23', 'Q-LUVAS: “inimigo comum” = categoria Comum; o Impulso gasto é um que nenhuma opção da rolagem usou, gasto automaticamente.'),
+    // Q-LUVAS: "inimigo comum" = enemy tier 'comum' (not Raro/Elite/Especial/Miniboss/Boss). The Impulso must be one of the
+    // source roll's Impulsos left unspent by the chosen options; it is spent automatically (it would be lost otherwise).
+    onForcedMoveBlocked: (c, f, t) => {
+      if (t.side !== 'E' || !isActive(t) || t.isBoss || t.isMiniboss || reg().enemies[t.typeId]?.tier !== 'comum') return;
+      if (!canUse(f, 'activation', 'luvas') || !spendUnspentImpulso(c, f)) return;
+      markUse(f, 'activation', 'luvas');
+      log(c, 'item', `Luvas de Empunhadura: ${f.name} gasta 1 Impulso e deixa ${t.name} Exposto.`);
+      applyCondition(c, t, 'exposto', 1, f.id);
+    },
+  }),
+  acc({ id: 'faixa_sobrevivente', name: 'Faixa do Sobrevivente', rarity: 'comum', text: 'Uma vez por Combate, quando Veneno/Sangramento/Queimando causar Dano Direto, reduza esse Dano em 1; a Condição continua.', source: H('§23', 'Q-FAIXA: automático no primeiro Dano Direto dessas Condições, antes do Guardado.'),
+    // Q-FAIXA: applied automatically to the first such Dano Direto of the Combat (incl. Queimando reaplicado), before
+    // Guardado (so a 1-Dano tick does not consume Guardado); the Condition is not removed.
+    reduceConditionDamage: (c, f, cond, amount) => {
+      if (amount <= 0 || !canUse(f, 'combat', 'faixa')) return 0;
+      markUse(f, 'combat', 'faixa');
+      log(c, 'item', `Faixa do Sobrevivente: ${f.name} reduz em 1 o Dano Direto de ${cond === 'veneno' ? 'Veneno' : cond === 'sangramento' ? 'Sangramento' : 'Queimando'}.`);
+      return 1;
+    },
+  }),
   acc({ id: 'corda_gancho', name: 'Corda e Gancho', rarity: 'comum', text: 'Uma vez por Combate, para Objetivo/Interação de Campo de Batalha no mesmo Setor ou Adjacente, trate um Setor aliado conectado como Adjacente e pague o custo normal.', source: C('§23') }),
 ];
 const RARE_ACC: ItemDef[] = [
-  acc({ id: 'grevas_impeto', name: 'Grevas do Ímpeto', rarity: 'raro', icon: 'item_accessory_boots', text: 'Uma vez por Ciclo, o primeiro efeito de Habilidade de Classe ou Assinatura de Arma/Foco que conceder Passo 1 pode conceder Passo 2.', source: C('§23'), implemented: false }),
+  acc({ id: 'grevas_impeto', name: 'Grevas do Ímpeto', rarity: 'raro', icon: 'item_accessory_boots', text: 'Uma vez por Ciclo, o primeiro efeito de Habilidade de Classe ou Assinatura de Arma/Foco que conceder Passo 1 pode conceder Passo 2. Não melhora Passo já 2+, Passo Rápido, Acessório ou Armadura.', source: H('§23', 'Q-GREVAS: vale para o Passo 1 que o portador recebe (de qualquer Habilidade de Classe ou Assinatura de Arma/Foco); o primeiro do Ciclo consome o uso.'),
+    // Q-GREVAS: "Assinatura de Arma/Foco" = the effect printed on a weapon/focus card (origin 'weapon'); "Habilidade de
+    // Classe" = class techniques, passives, reactions, AMÉM and talents (origin 'class'). The first eligible Passo 1 the
+    // wearer receives in the Cycle offers up to 2 connections (choosing 1 or not moving is allowed) and spends the use.
+    stepBonus: (c, f, info) => {
+      if (info.steps !== 1 || (info.origin !== 'class' && info.origin !== 'weapon') || !canUse(f, 'cycle', 'grevas')) return 0;
+      markUse(f, 'cycle', 'grevas');
+      log(c, 'item', `Grevas do Ímpeto: o Passo 1 de ${f.name} (${info.reason}) pode ser Passo 2.`);
+      return 1;
+    },
+  }),
   acc({ id: 'anel_julgamento', name: 'Anel do Julgamento', rarity: 'raro', icon: 'item_accessory_ring', text: 'Uma vez por Ciclo, depois de Ataque que cause Dano contra inimigo que já estava Exposto/Quebrado, receba Guardado. Afinidade Paladino: se o alvo estiver Julgado, pode dar esse Guardado a aliado Adjacente.', source: C('§23'),
     afterAttack: (c, f, a, r, out) => {
       const m = isMain(a, out);
@@ -1162,6 +1237,30 @@ export const ITEM_HANDLERS: Record<string, (c: Ctx, a: Record<string, unknown>) 
   'smoke:rogueCheck': (c, a) => {
     const sectors = a.sectors as string[];
     for (const h of heroes(c)) if (h.typeId === 'ladino' && sectors.includes(h.sector) && !enemies(c).some((e) => adjacent(e, h))) applyCondition(c, h, 'furtivo', 1, h.id);
+  },
+  'couroCacador:check': (c, a) => {
+    const f = tryFig(c, a.id as string);
+    if (f && f.sector !== a.from) markUse(f, 'combat', 'couroCacador');
+  },
+  'cetro:step': (c, a) => {
+    const f = tryFig(c, a.id as string);
+    if (!f || !isActive(f)) return;
+    const opts = heroes(c).filter((h) => stepDestinations(c, h, 1, false).length);
+    if (!opts.length) return;
+    c.S.pending = {
+      id: `p-cetro-${f.id}-${c.S.nextId++}`,
+      controllers: [f.id],
+      kind: 'choice',
+      prompt: 'Cetro do Peregrino: você ou um herói faz Passo 1.',
+      figureId: f.id,
+      handler: 'cetro:pick',
+      options: [{ id: 'none', label: 'Não usar' }, ...opts.map((h) => ({ id: h.id, label: h.name }))],
+      args: {},
+    };
+  },
+  'cetro:pick': (c, a) => {
+    if (a.optionId === 'none') return;
+    pushOps(c, [{ op: 'step', figureId: a.optionId as string, steps: 1, ignoreEngagement: false, reason: 'Cetro do Peregrino', origin: 'weapon' }]);
   },
   'talisma:check': (c, a) => {
     const f = tryFig(c, a.id as string);
