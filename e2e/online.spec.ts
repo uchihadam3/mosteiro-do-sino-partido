@@ -21,7 +21,8 @@ const phase = (p: Page) => p.evaluate(() => (window as any).__session.state?.pha
 test('online co-op: two players split a 3-hero party, seats are enforced, decisions need both players', async ({ browser }) => {
   const host = await openLobby(browser, 'Ana');
   await host.page.getByRole('button', { name: 'Criar sala' }).click();
-  const code = (await host.page.locator('.display').first().innerText()).trim();
+  await expect(host.page.locator('.room-code')).toHaveText(/^[A-Z0-9]{6}$/, { timeout: 30_000 });
+  const code = (await host.page.locator('.room-code').innerText()).trim();
   expect(code).toMatch(/^[A-Z0-9]{6}$/);
 
   const guest = await openLobby(browser, 'Beto');

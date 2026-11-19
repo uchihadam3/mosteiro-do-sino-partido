@@ -162,7 +162,7 @@ export function OnlineLobby() {
                 <div className="m-room">
                   <div className="grow">
                     <div className="k-kicker">Código da sala</div>
-                    <div className="display">{room}</div>
+                    <div className="display room-code">{room}</div>
                   </div>
                   <div className="acts">
                     <button className="k-btn sm" onClick={() => void copy()}>
