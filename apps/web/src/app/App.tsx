@@ -143,9 +143,33 @@ async function debugBoot(setRoute: (r: Route) => void) {
     st = campaignDispatch(st, { t: 'closeNarrative' }).state;
   }
   if (q.get('node')) st = { ...st, node: q.get('node')!, flags: { ...st.flags, route: 'leste', routeDone: true, rareOffered: true } };
-  if (mode === 'combat') {
+  if (mode === 'combat' || mode === 'reward') {
     st = structuredClone(st);
     startEncounter(st, q.get('enc') ?? 'GAL-E01');
+  }
+  if (mode === 'reward') {
+    // ?debug=reward&enc=GAL-E01 — autoplay the encounter with the headless AI until the loot screen.
+    const { nextCombatCommand } = await import('@mosteiro/content');
+    for (let i = 0; i < 6000 && st.phase === 'combat' && st.combat; i++) {
+      const before = st.combat;
+      const cmd = nextCombatCommand(before);
+      if (!cmd) break;
+      const r = campaignDispatch(st, { t: 'combat', cmd });
+      if (!r.error) st = r.state;
+      else if (cmd.t === 'action' && before.activeId) {
+        const e = campaignDispatch(st, { t: 'combat', cmd: { t: 'end', figureId: before.activeId } });
+        if (e.error) break;
+        st = e.state;
+      } else break;
+    }
+  }
+  if (mode === 'base') {
+    // ?debug=base&gold=40 — jump straight to the Base after Dungeon 1.
+    const { enterBase } = await import('@mosteiro/core');
+    st = structuredClone(st);
+    st.narrative = null;
+    enterBase(st);
+    st.gold = Number(q.get('gold') ?? 40);
   }
   session.startLocal(st);
   setRoute('game');

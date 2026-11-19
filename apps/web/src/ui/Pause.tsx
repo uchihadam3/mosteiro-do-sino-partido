@@ -3,10 +3,26 @@ import { useApp } from '../app/App';
 import { useSession } from '../app/hooks';
 import { session } from '../state/session';
 import { exportSave, flushAutosave, listSlots, MANUAL_SLOTS, saveSlot, type SlotInfo } from '../state/persistence';
-import { SettingsModal } from './Settings';
+import { SettingsModal, Sheet } from './Settings';
 import { Icon } from './Icon';
 import { toast } from './Toasts';
 import { RulesModal } from './Rules';
+import './menus.css';
+
+function Row({ icon, label, sub, onClick, danger }: { icon: string; label: string; sub?: string; onClick(): void; danger?: boolean }) {
+  return (
+    <button className={`m-rowbtn ${danger ? 'danger' : ''}`} onClick={onClick}>
+      <span className="m-ico-disc">
+        <Icon id={icon} />
+      </span>
+      <span className="lbl">
+        {label}
+        {sub && <span className="sub">{sub}</span>}
+      </span>
+      <span className="chev" aria-hidden />
+    </button>
+  );
+}
 
 export function PauseMenu({ onClose }: { onClose(): void }) {
   const { go } = useApp();
@@ -16,75 +32,44 @@ export function PauseMenu({ onClose }: { onClose(): void }) {
   useEffect(() => void listSlots().then(setSlots), [view]);
   if (view === 'settings') return <SettingsModal onClose={() => setView('main')} />;
   if (view === 'rules') return <RulesModal onClose={() => setView('main')} />;
+  const quit = async () => {
+    await flushAutosave();
+    session.close();
+    onClose();
+    go('title');
+  };
+  if (view === 'save')
+    return (
+      <Sheet kicker="Pausa" title="Salvar em slot" onClose={() => setView('main')}>
+        <div className="m-rows">
+          {MANUAL_SLOTS.map((slot, i) => {
+            const info = slots.find((x) => x.slot === slot);
+            return (
+              <Row
+                key={slot}
+                icon="save"
+                label={`Slot ${i + 1}`}
+                sub={info ? `${info.summary} · ${new Date(info.savedAt).toLocaleString('pt-BR')}` : 'Vazio'}
+                onClick={async () => {
+                  await saveSlot(slot, s.state!, `Slot ${i + 1}`);
+                  toast(`Salvo no Slot ${i + 1}.`);
+                  setView('main');
+                }}
+              />
+            );
+          })}
+        </div>
+      </Sheet>
+    );
   return (
-    <div className="modal-back" onClick={onClose}>
-      <div className="modal panel ornate" style={{ width: 'min(460px, 94vw)' }} onClick={(e) => e.stopPropagation()}>
-        <div className="kicker">Pausa</div>
-        <h2 className="h2">Mosteiro do Sino Partido</h2>
-        <div className="divider" />
-        {view === 'main' && (
-          <div className="col">
-            <button className="btn primary" onClick={onClose}>
-              Retomar
-            </button>
-            {s.role !== 'client' && (
-              <button className="btn" onClick={() => setView('save')}>
-                <Icon id="save" /> Salvar em slot
-              </button>
-            )}
-            <button className="btn" onClick={() => setView('rules')}>
-              <Icon id="info" /> Referência de regras
-            </button>
-            <button className="btn" onClick={() => setView('settings')}>
-              <Icon id="settings" /> Configurações
-            </button>
-            {s.state && (
-              <button className="btn" onClick={() => exportSave(s.state!)}>
-                <Icon id="load" /> Exportar save
-              </button>
-            )}
-            <button
-              className="btn danger"
-              onClick={async () => {
-                await flushAutosave();
-                session.close();
-                onClose();
-                go('title');
-              }}
-            >
-              Sair para o menu (progresso salvo)
-            </button>
-          </div>
-        )}
-        {view === 'save' && (
-          <div className="col">
-            {MANUAL_SLOTS.map((slot, i) => {
-              const info = slots.find((x) => x.slot === slot);
-              return (
-                <button
-                  key={slot}
-                  className="slot"
-                  onClick={async () => {
-                    await saveSlot(slot, s.state!, `Slot ${i + 1}`);
-                    toast(`Salvo no Slot ${i + 1}.`);
-                    setView('main');
-                  }}
-                >
-                  <Icon id="save" />
-                  <div className="grow">
-                    <div className="sl">Slot {i + 1}</div>
-                    <div className="small">{info ? info.summary : 'Vazio'}</div>
-                    {info && <div className="xs muted">{new Date(info.savedAt).toLocaleString('pt-BR')}</div>}
-                  </div>
-                </button>
-              );
-            })}
-            <button className="btn" onClick={() => setView('main')}>
-              Voltar
-            </button>
-          </div>
-        )}
+    <Sheet kicker="Mosteiro do Sino Partido" title="Pausa" onClose={onClose} foot={<button className="k-cta" onClick={onClose}>Retomar</button>}>
+      <div className="m-rows">
+        {s.role !== 'client' && <Row icon="save" label="Salvar" sub="Guardar num dos 3 slots" onClick={() => setView('save')} />}
+        <Row icon="info" label="Regras" sub="Referência rápida" onClick={() => setView('rules')} />
+        <Row icon="settings" label="Configurações" sub="Som, imagem e acessibilidade" onClick={() => setView('settings')} />
+        {s.state && <Row icon="load" label="Exportar save" sub="Baixar arquivo .json" onClick={() => exportSave(s.state!)} />}
+        <Row icon="back" label="Sair para o menu" sub="Seu progresso fica salvo" danger onClick={() => void quit()} />
       </div>
-    </div>
+    </Sheet>
   );
 }

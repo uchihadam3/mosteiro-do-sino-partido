@@ -4,206 +4,426 @@ import { maxTalentTier } from '@mosteiro/content';
 import { useSession } from '../app/hooks';
 import { useApp } from '../app/App';
 import { Icon } from './Icon';
-import { Inventory, ItemCard, run } from './Inventory';
+import { Inventory, run } from './Inventory';
 import { ATTR_NAME, ATTR_ORDER, CLASS_COLOR } from './data';
 import { session } from '../state/session';
+import { VoteBar } from './Explore';
+import { Sheet } from './Settings';
+import { ItemDetail } from './Reward';
+import { toast } from './Toasts';
+import './menus.css';
 
-type Tab = 'herois' | 'equip' | 'mercado';
+type Tab = 'loja' | 'equip' | 'herois' | 'servicos';
+type Kind = 'comum' | 'raro' | 'consumivel' | 'usado';
+type Ware = { id: string; kind: Kind; idx: number };
+
+const acc = (classId: string) => ({ '--acc': CLASS_COLOR[classId] }) as React.CSSProperties;
 
 export function Base() {
   const s = useSession();
   const st = s.state!;
-  const [tab, setTab] = useState<Tab>('herois');
+  const { go } = useApp();
+  const [tab, setTab] = useState<Tab>('loja');
   const [heroId, setHeroId] = useState(st.heroes[0].id);
+  const unspent = st.heroes.some((h) => h.masteryPoints > 0 || h.talentPoints > 0);
+  const done = st.phase === 'complete';
+  const tabs: [Tab, string, string][] = [
+    ['loja', 'Loja', 'gold'],
+    ['equip', 'Equipar', 'mochila'],
+    ['herois', 'Heróis', 'talento'],
+    ['servicos', 'Serviços', 'act_item'],
+  ];
   return (
-    <div className="overlay screen-fade">
-      <div className="frame base">
-        <div className="screen-head" style={{ paddingRight: 60 }}>
-          <div className="grow">
-            <div className="kicker">Base · após a Dungeon {st.dungeonsCompleted}</div>
-            <h2 className="h2">Refúgio dos Peregrinos</h2>
-          </div>
-          <span className="chip gold" style={{ fontSize: 'var(--fs)' }}>
-            <Icon id="gold" /> {st.gold} ouro
-          </span>
-          <div className="tabs">
-            {(
-              [
-                ['herois', 'Heróis'],
-                ['equip', 'Equipamento'],
-                ['mercado', 'Mercado'],
-              ] as [Tab, string][]
-            ).map(([k, l]) => (
-              <button key={k} className={`tab ${tab === k ? 'on' : ''}`} style={{ borderRadius: 8, borderBottom: '1px solid var(--line)' }} onClick={() => setTab(k)}>
-                {l}
-              </button>
-            ))}
-          </div>
+    <div className="k-screen m-base">
+      <div className="k-head m-head-pad">
+        <div className="k-title">
+          <div className="k-kicker">Base · D{st.dungeonsCompleted} vencida</div>
+          <h1 className="k-h1">
+            Refúgio<span className="m-pc-inline"> dos Peregrinos</span>
+          </h1>
         </div>
-        {tab === 'herois' && <Heroes heroId={heroId} setHeroId={setHeroId} />}
+        <span className="m-gold-pill" aria-label={`${st.gold} ouro`}>
+          <Icon id="gold" /> {st.gold}
+        </span>
+      </div>
+      <div className="m-tabbar">
+        <div className="k-tabs" role="tablist">
+          {tabs.map(([k, l, ic]) => (
+            <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>
+              <Icon id={ic} /> {l}
+              {k === 'herois' && unspent && <span className="dot" aria-label="pontos para gastar" />}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="k-body">
+        {tab === 'loja' && <Shop heroId={heroId} />}
         {tab === 'equip' && <Inventory heroId={heroId} setHeroId={setHeroId} inBase sell />}
-        {tab === 'mercado' && <Market heroId={heroId} />}
+        {tab === 'herois' && <Heroes heroId={heroId} setHeroId={setHeroId} />}
+        {tab === 'servicos' && <Services />}
+      </div>
+      <div className="k-foot">
+        {done ? (
+          <>
+            <div className="k-note">A Dungeon 2 ainda está em desenvolvimento. Seu progresso fica salvo.</div>
+            <button className="k-btn" onClick={() => { session.close(); go('title'); }}>
+              <Icon id="back" /> Menu principal
+            </button>
+          </>
+        ) : (
+          <>
+            <VoteBar voteKey="leaveBase" />
+            <button className="k-cta" onClick={() => void run({ t: 'leaveBase' }, 'ui_confirm')}>
+              <Icon id="map_path" /> Partir
+            </button>
+          </>
+        )}
       </div>
     </div>
+  );
+}
+
+function priceOf(id: string, kind: Kind) {
+  const r = reg().items[id];
+  if (kind === 'consumivel') return r.price ?? 2;
+  if (kind === 'raro') return PRICES.raro.buy;
+  if (kind === 'usado') return r.rarity === 'raro' ? PRICES.raro.buy : r.rarity === 'epico' ? PRICES.epico.buy : PRICES.comum.buy;
+  return PRICES.comum.buy;
+}
+
+function WareCard({ w, onOpen }: { w: Ware; onOpen(): void }) {
+  const s = useSession();
+  const st = s.state!;
+  const d = reg().items[w.id];
+  const p = priceOf(w.id, w.kind);
+  return (
+    <button className={`m-ware r-${d.rarity} ${st.gold < p ? 'poor' : ''}`} onClick={onOpen}>
+      {st.base?.reserva === w.id && <span className="tagr">Reservado</span>}
+      <span className="art">
+        <Icon id={d.icon} />
+      </span>
+      <span className="nm">{d.name}</span>
+      <span className="m-rar">{w.kind === 'consumivel' ? 'Consumível' : w.kind === 'usado' ? 'Usado' : d.rarity === 'raro' ? 'Raro' : 'Comum'}</span>
+      <span className="price">
+        <Icon id="gold" /> {p}
+      </span>
+    </button>
+  );
+}
+
+function Shop({ heroId }: { heroId: string }) {
+  const s = useSession();
+  const st = s.state!;
+  const B = st.base!;
+  const [sel, setSel] = useState<Ware | null>(null);
+  const wares = (ids: string[], kind: Kind): Ware[] => ids.map((id, idx) => ({ id, kind, idx }));
+  const section = (title: string, list: Ware[], empty: string) => (
+    <>
+      <div className="k-section">{title}</div>
+      {list.length === 0 ? (
+        <div className="m-empty">{empty}</div>
+      ) : (
+        <div className="m-shop">
+          {list.map((w) => (
+            <WareCard key={w.kind + w.id + w.idx} w={w} onOpen={() => setSel(w)} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+  return (
+    <>
+      {section('Vitrine', [...wares(B.vitrine.comum, 'comum'), ...wares(B.vitrine.raro, 'raro')], 'A Vitrine está vazia.')}
+      {section('Consumíveis', wares(B.consumables, 'consumivel'), 'Nenhum consumível nesta visita.')}
+      {section('Usados', wares(st.usados, 'usado'), 'Nada no Estoque de Usados. Itens vendidos aparecem aqui.')}
+      <div className="m-hint" style={{ marginTop: 14 }}>Compras vão para o Armazém. Venda na aba “Equipar”.</div>
+      {sel && <SelSheet sel={sel} heroId={heroId} onClose={() => setSel(null)} />}
+    </>
+  );
+}
+
+function SelSheet({ sel, heroId, onClose }: { sel: Ware; heroId: string; onClose(): void }) {
+  const s = useSession();
+  const st = s.state!;
+  const B = st.base!;
+  const price = priceOf(sel.id, sel.kind);
+  const isVitrine = sel.kind === 'comum' || sel.kind === 'raro';
+  const remessa = sel.kind === 'comum' ? 'remessaComum' : 'remessaRara';
+  return (
+    <Sheet
+      title={sel.kind === 'consumivel' ? 'Consumível' : sel.kind === 'usado' ? 'Estoque de Usados' : 'Vitrine'}
+      onClose={onClose}
+      foot={
+        <>
+          <button
+            className="k-cta"
+            disabled={st.gold < price}
+            onClick={() => {
+              void run({ t: 'buy', itemId: sel.id, kind: sel.kind, heroId: 'armazem' }, 'ui_coin').then((err) => !err && toast(`${reg().items[sel.id].name} foi para o Armazém.`));
+              onClose();
+            }}
+          >
+            Comprar · <Icon id="gold" /> {price}
+          </button>
+          {isVitrine && (
+            <div className="k-row" style={{ width: 'min(420px, 100%)' }}>
+              <button
+                className="k-btn sm grow"
+                style={{ flex: 1 }}
+                disabled={st.gold < 1}
+                onClick={() => void run({ t: 'service', id: 'reserva', index: sel.kind === 'comum' ? sel.idx : B.vitrine.comum.length + sel.idx }, 'ui_coin').then((err) => !err && toast('Reservado para a próxima visita.'))}
+              >
+                <Icon id="selo_peso" /> Reservar · 1
+              </button>
+              <button
+                className="k-btn sm grow"
+                style={{ flex: 1 }}
+                disabled={!!B.servicesUsed[remessa] || st.gold < (sel.kind === 'comum' ? 2 : 3)}
+                onClick={() => {
+                  void run({ t: 'service', id: remessa, index: sel.idx }, 'ui_page');
+                  onClose();
+                }}
+              >
+                <Icon id="load" /> Trocar · {sel.kind === 'comum' ? 2 : 3}
+              </button>
+            </div>
+          )}
+        </>
+      }
+    >
+      <ItemDetail id={sel.id} hero={st.heroes.find((h) => h.id === heroId)} />
+      {st.gold < price && <div className="m-item-note bad">Ouro insuficiente ({st.gold}/{price}).</div>}
+    </Sheet>
+  );
+}
+
+function Services() {
+  const s = useSession();
+  const st = s.state!;
+  const B = st.base!;
+  const [pick, setPick] = useState<'remessaComum' | 'remessaRara' | 'reserva' | null>(null);
+  const list: { id: 'remessaComum' | 'remessaRara' | 'reserva'; t: string; d: string; cost: number; icon: string; used: boolean }[] = [
+    { id: 'remessaComum', t: 'Nova Remessa Comum', d: 'Troca 1 Comum da Vitrine. 1× por visita.', cost: 2, icon: 'item_sword', used: !!B.servicesUsed.remessaComum },
+    { id: 'remessaRara', t: 'Nova Remessa Rara', d: 'Troca 1 Raro da Vitrine. 1× por visita.', cost: 3, icon: 'item_orb', used: !!B.servicesUsed.remessaRara },
+    { id: 'reserva', t: 'Reserva do Mercador', d: 'Guarda 1 carta para a próxima visita.', cost: 1, icon: 'selo_peso', used: false },
+  ];
+  const cards = pick === 'remessaComum' ? B.vitrine.comum.map((id, i) => ({ id, index: i })) : pick === 'remessaRara' ? B.vitrine.raro.map((id, i) => ({ id, index: i })) : [...B.vitrine.comum, ...B.vitrine.raro].map((id, i) => ({ id, index: i }));
+  return (
+    <>
+      <div className="m-services">
+        {list.map((x) => (
+          <button key={x.id} className="m-service" disabled={x.used || st.gold < x.cost} onClick={() => setPick(x.id)}>
+            <span className="k-emblem">
+              <Icon id={x.icon} />
+            </span>
+            <span className="grow" style={{ flex: 1, minWidth: 0 }}>
+              <div className="t">{x.t}</div>
+              <div className="d">{x.used ? 'Já usado nesta visita.' : x.d}</div>
+            </span>
+            <span className="m-coin">
+              <Icon id="gold" /> {x.cost}
+            </span>
+          </button>
+        ))}
+      </div>
+      <div className="m-hint" style={{ marginTop: 14 }}>Sem cura nem Maestria pagas. Venda rende metade do preço.</div>
+      {pick && (
+        <Sheet kicker={list.find((x) => x.id === pick)!.t} title={pick === 'reserva' ? 'Reservar qual carta?' : 'Trocar qual carta?'} onClose={() => setPick(null)}>
+          {cards.length === 0 ? (
+            <div className="m-empty">Nenhuma carta disponível.</div>
+          ) : (
+            <div className="m-shop">
+              {cards.map((c) => {
+                const d = reg().items[c.id];
+                return (
+                  <button
+                    key={c.id + c.index}
+                    className={`m-ware r-${d.rarity}`}
+                    onClick={() => {
+                      void run({ t: 'service', id: pick, index: c.index }, pick === 'reserva' ? 'ui_coin' : 'ui_page');
+                      setPick(null);
+                    }}
+                  >
+                    {B.reserva === c.id && <span className="tagr">Reservado</span>}
+                    <span className="art">
+                      <Icon id={d.icon} />
+                    </span>
+                    <span className="nm">{d.name}</span>
+                    <span className="m-rar">{d.rarity === 'raro' ? 'Raro' : 'Comum'}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </Sheet>
+      )}
+    </>
   );
 }
 
 function Heroes({ heroId, setHeroId }: { heroId: string; setHeroId(id: string): void }) {
   const s = useSession();
   const st = s.state!;
-  const { go } = useApp();
-  const h = st.heroes.find((x) => x.id === heroId)!;
+  const h = st.heroes.find((x) => x.id === heroId) ?? st.heroes[0];
   const cls = reg().classes[h.classId];
   const talents = Object.values(reg().talents).filter((t) => t.classId === h.classId);
   const maxTier = maxTalentTier(st.dungeonsCompleted);
-  return (
-    <div className="base-body" style={{ gridTemplateColumns: 'minmax(260px, 0.9fr) minmax(0, 1.6fr)' }}>
-      <div className="panel col" style={{ padding: 14, minHeight: 0 }}>
-        <div className="tabs" style={{ flexWrap: 'wrap' }}>
-          {st.heroes.map((x) => (
-            <button key={x.id} className={`tab ${x.id === h.id ? 'on' : ''}`} style={{ borderRadius: 8, borderBottom: '1px solid var(--line)', color: x.id === h.id ? CLASS_COLOR[x.classId] : undefined }} onClick={() => setHeroId(x.id)}>
-              {x.name}
-            </button>
-          ))}
-        </div>
-        <div className="row">
-          <Icon id={`class_${h.classId}`} size={42} style={{ color: CLASS_COLOR[h.classId] }} />
-          <div className="grow">
-            <div className="h3">{h.name}</div>
-            <div className="small muted">{cls.name} · {cls.epithet}</div>
-          </div>
-        </div>
-        <div className="row" style={{ gap: 8 }}>
-          <span className="chip gold">Maestria: {h.masteryPoints}</span>
-          <span className="chip gold">Talento: {h.talentPoints}</span>
-        </div>
-        <div className="kicker">Maestria — aumente um Grau</div>
-        <div className="col" style={{ gap: 4 }}>
-          {ATTR_ORDER.map((a) => {
-            const g = h.attrs[a];
-            const cost = MASTERY_COST[g];
-            return (
-              <div key={a} className="row small" style={{ gap: 8 }}>
-                <Icon id={`attr_${a}`} style={{ color: 'var(--ink-3)' }} />
-                <span className="grow">{ATTR_NAME[a as Attr]}</span>
-                <span className="display" style={{ color: 'var(--gold-2)', minWidth: 36 }}>D{g}</span>
-                <button className="btn sm" disabled={g >= 12 || h.masteryPoints < (cost ?? 99) || !s.controls(h.id)} onClick={() => void run({ t: 'mastery', heroId: h.id, attr: a }, 'level_up')}>
-                  {g >= 12 ? 'Máx.' : `D${g + 2} · ${cost}`}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      <div className="panel col" style={{ padding: 14, minHeight: 0 }}>
-        <div className="row">
-          <div className="kicker grow">Árvore de Talentos</div>
-          <span className="xs muted">T1 disponível · T2 após D3 · T3 após D5 · T4 após D7</span>
-        </div>
-        <div className="scroll-y" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 10, flex: 1 }}>
-          {cls.talentPaths.map((p) => (
-            <div key={p.id} className="col" style={{ gap: 6 }}>
-              <div className="display" style={{ color: CLASS_COLOR[h.classId], textAlign: 'center' }}>{p.name}</div>
-              {talents
-                .filter((t) => t.path === p.id)
-                .sort((a, b) => a.tier - b.tier)
-                .map((t) => {
-                  const owned = h.talents.includes(t.id);
-                  const locked = t.tier > maxTier;
-                  return (
-                    <button
-                      key={t.id}
-                      className="loot"
-                      style={{ textAlign: 'left', cursor: owned || locked ? 'default' : 'pointer', opacity: locked ? 0.45 : 1, borderColor: owned ? CLASS_COLOR[h.classId] : undefined }}
-                      disabled={owned || locked || h.talentPoints < 1 || !s.controls(h.id)}
-                      onClick={() => void run({ t: 'talent', heroId: h.id, talentId: t.id }, 'level_up')}
-                    >
-                      <div className="row">
-                        <span className="chip">T{t.tier}</span>
-                        <span className="nm grow">{t.name}</span>
-                        {owned && <Icon id="check" style={{ color: 'var(--ok)' }} />}
-                        {locked && <Icon id="map_lock" />}
-                      </div>
-                      <div className="tx">{t.text}</div>
-                    </button>
-                  );
-                })}
-            </div>
-          ))}
-        </div>
-        <div className="divider" />
-        <div className="row">
-          <div className="grow small muted">A Dungeon 2 ainda está em desenvolvimento. Seu progresso fica salvo e seguirá quando ela chegar.</div>
-          <button className="btn" onClick={() => { session.close(); go('title'); }}>
-            Menu principal
+  const mine = s.controls(h.id);
+  const [path, setPath] = useState(0);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const infoT = info ? reg().talents[info] : null;
+  const pathList = (pid: string) =>
+    talents
+      .filter((t) => t.path === pid)
+      .sort((a, b) => a.tier - b.tier)
+      .map((t) => {
+        const owned = h.talents.includes(t.id);
+        const locked = t.tier > maxTier;
+        const can = !owned && !locked && h.talentPoints > 0 && mine;
+        return (
+          <button key={t.id} className={`m-talent ${owned ? 'owned' : locked ? 'locked' : can ? 'can' : ''}`} onClick={() => setInfo(t.id)}>
+            <span className="tier">T{t.tier}</span>
+            <span style={{ minWidth: 0 }}>
+              <div className="nm">{t.name}</div>
+              <div className="tx">{t.text}</div>
+            </span>
+            <span className="st">{owned ? <Icon id="check" /> : locked ? <Icon id="map_lock" /> : can ? <Icon id="talento" /> : null}</span>
           </button>
+        );
+      });
+  const saveName = () => {
+    const n = (renaming ?? '').trim();
+    if (n && n !== h.name) void run({ t: 'renameHero', heroId: h.id, name: n }, 'ui_confirm');
+    setRenaming(null);
+  };
+  return (
+    <div style={acc(h.classId)}>
+      <div className="m-herostrip" role="tablist" aria-label="Heróis">
+        {st.heroes.map((x) => {
+          const pts = x.masteryPoints + x.talentPoints;
+          return (
+            <button key={x.id} role="tab" aria-selected={x.id === h.id} className={`m-heropick ${x.id === h.id ? 'on' : ''}`} style={acc(x.classId)} onClick={() => { setHeroId(x.id); setRenaming(null); }}>
+              <span className="k-emblem">
+                <Icon id={`class_${x.classId}`} />
+              </span>
+              <span className="n">{x.name}</span>
+              {pts > 0 && <span className="m-badge">{pts}</span>}
+            </button>
+          );
+        })}
+      </div>
+      <div className="m-heroes-pc">
+        <div className="k-stack">
+          <div className="m-herocard">
+            <span className="k-emblem lg">
+              <Icon id={`class_${h.classId}`} />
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {renaming !== null ? (
+                <div className="m-rename">
+                  <input className="k-input" autoFocus value={renaming} maxLength={18} onChange={(e) => setRenaming(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveName()} aria-label="Nome do herói" />
+                  <button className="k-round" onClick={saveName} aria-label="Salvar nome">
+                    <Icon id="check" />
+                  </button>
+                </div>
+              ) : (
+                <div className="nm">
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name}</span>
+                  {mine && (
+                    <button onClick={() => setRenaming(h.name)} aria-label="Renomear">
+                      <Icon id="verso" />
+                    </button>
+                  )}
+                </div>
+              )}
+              <div className="cl">
+                {cls.name} · {cls.epithet}
+              </div>
+              <div className="m-points">
+                <span className={`k-chip ${h.masteryPoints ? 'gold' : ''}`}>
+                  <Icon id="maestria" /> Maestria {h.masteryPoints}
+                </span>
+                <span className={`k-chip ${h.talentPoints ? 'gold' : ''}`}>
+                  <Icon id="talento" /> Talento {h.talentPoints}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div className="k-section">Maestria</div>
+            <div className="m-attrs">
+              {ATTR_ORDER.map((a) => {
+                const g = h.attrs[a];
+                const cost = MASTERY_COST[g];
+                const can = g < 12 && h.masteryPoints >= (cost ?? 99) && mine;
+                return (
+                  <div key={a} className="m-attr">
+                    <Icon id={`attr_${a}`} />
+                    <div className="a">
+                      <div className="n">{ATTR_NAME[a as Attr]}</div>
+                      <div className="g">D{g}</div>
+                    </div>
+                    <button className="m-plus" disabled={!can} aria-label={`Subir ${ATTR_NAME[a as Attr]}`} onClick={() => void run({ t: 'mastery', heroId: h.id, attr: a }, 'level_up')}>
+                      {g >= 12 ? 'Máx.' : `D${g + 2}`}
+                      {g < 12 && <small>{cost} pt</small>}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        <div>
+          <div className="k-section">Talentos</div>
+          <div className="m-paths m-only-phone">
+            <div className="k-tabs">
+              {cls.talentPaths.map((p, i) => (
+                <button key={p.id} className={path === i ? 'on' : ''} onClick={() => setPath(i)}>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="m-talents m-only-phone">{cls.talentPaths[path] && pathList(cls.talentPaths[path].id)}</div>
+          <div className="m-talents-cols m-only-pc">
+            {cls.talentPaths.map((p) => (
+              <div key={p.id} className="m-talents">
+                <div className="m-pathname">{p.name}</div>
+                {pathList(p.id)}
+              </div>
+            ))}
+          </div>
+          <div className="m-hint" style={{ marginTop: 10 }}>T1 agora · T2 após a D3 · T3 após a D5 · T4 após a D7</div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Market({ heroId }: { heroId: string }) {
-  const s = useSession();
-  const st = s.state!;
-  const B = st.base!;
-  const [sel, setSel] = useState<{ id: string; kind: 'comum' | 'raro' | 'consumivel' | 'usado'; idx: number } | null>(null);
-  const price = (id: string, kind: string) => (kind === 'consumivel' ? reg().items[id].price ?? 2 : kind === 'raro' ? PRICES.raro.buy : kind === 'usado' ? (reg().items[id].rarity === 'raro' ? PRICES.raro.buy : reg().items[id].rarity === 'epico' ? PRICES.epico.buy : PRICES.comum.buy) : PRICES.comum.buy);
-  const Row = ({ ids, kind }: { ids: string[]; kind: 'comum' | 'raro' | 'consumivel' | 'usado' }) => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 6 }}>
-      {ids.length === 0 && <div className="xs muted">Nada disponível.</div>}
-      {ids.map((id, i) => (
-        <button key={id + i} className="slot" style={sel?.id === id && sel.kind === kind ? { borderColor: 'var(--gold-2)' } : undefined} onClick={() => setSel({ id, kind, idx: i })}>
-          <Icon id={reg().items[id].icon} />
-          <div className="grow" style={{ minWidth: 0 }}>
-            <div className="small" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{reg().items[id].name}</div>
-            <div className="xs" style={{ color: 'var(--gold-2)' }}>
-              {price(id, kind)} ouro{B.reserva === id ? ' · reservado' : ''}
-            </div>
-          </div>
-        </button>
-      ))}
-    </div>
-  );
-  return (
-    <div className="base-body">
-      <div className="panel col scroll-y" style={{ padding: 14 }}>
-        <div className="kicker">Vitrine — Comuns</div>
-        <Row ids={B.vitrine.comum} kind="comum" />
-        <div className="kicker">Vitrine — Raros</div>
-        <Row ids={B.vitrine.raro} kind="raro" />
-        <div className="kicker">Consumíveis (1 cópia por visita)</div>
-        <Row ids={B.consumables} kind="consumivel" />
-        <div className="kicker">Estoque de Usados</div>
-        <Row ids={st.usados} kind="usado" />
-      </div>
-      <div className="panel col" style={{ padding: 14 }}>
-        {sel ? (
-          <>
-            <ItemCard it={sel.id} hero={st.heroes.find((h) => h.id === heroId)} />
-            <div className="divider" />
-            <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
-              <button className="btn primary sm" disabled={st.gold < price(sel.id, sel.kind)} onClick={() => { void run({ t: 'buy', itemId: sel.id, kind: sel.kind, heroId: 'armazem' }, 'ui_coin'); setSel(null); }}>
-                Comprar ({price(sel.id, sel.kind)} ouro) → Armazém
+      {infoT && (
+        <Sheet
+          kicker={`Talento T${infoT.tier} · ${cls.talentPaths.find((p) => p.id === infoT.path)?.name ?? ''}`}
+          title={infoT.name}
+          onClose={() => setInfo(null)}
+          foot={
+            h.talents.includes(infoT.id) ? (
+              <div className="k-note">Já aprendido.</div>
+            ) : infoT.tier > maxTier ? (
+              <div className="k-note">Libera após a Dungeon {infoT.tier === 2 ? 3 : infoT.tier === 3 ? 5 : 7}.</div>
+            ) : (
+              <button
+                className="k-cta"
+                disabled={h.talentPoints < 1 || !mine}
+                onClick={() => {
+                  void run({ t: 'talent', heroId: h.id, talentId: infoT.id }, 'level_up');
+                  setInfo(null);
+                }}
+              >
+                <Icon id="talento" /> Aprender · 1 pt
               </button>
-              {sel.kind !== 'consumivel' && sel.kind !== 'usado' && (
-                <button className="btn sm" disabled={st.gold < 1} onClick={() => void run({ t: 'service', id: 'reserva', index: sel.kind === 'comum' ? sel.idx : B.vitrine.comum.length + sel.idx }, 'ui_coin')}>
-                  Reservar (1 ouro)
-                </button>
-              )}
-              {(sel.kind === 'comum' || sel.kind === 'raro') && (
-                <button className="btn sm" disabled={!!B.servicesUsed[sel.kind === 'comum' ? 'remessaComum' : 'remessaRara']} onClick={() => { void run({ t: 'service', id: sel.kind === 'comum' ? 'remessaComum' : 'remessaRara', index: sel.idx }, 'ui_page'); setSel(null); }}>
-                  Nova Remessa ({sel.kind === 'comum' ? 2 : 3} ouro)
-                </button>
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="small muted">
-            Selecione uma carta. Preços: Comum 8 · Raro 14 · Épico recomprado 24. Venda: metade. Serviços: Nova Remessa Comum (2) e Rara (3), uma por visita; Reserva do Mercador (1). Sem cura ou Maestria pagas (§31–32).
-          </div>
-        )}
-      </div>
+            )
+          }
+        >
+          <div className="m-item-text">{infoT.text}</div>
+        </Sheet>
+      )}
     </div>
   );
 }
