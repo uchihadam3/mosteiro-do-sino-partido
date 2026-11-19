@@ -1,47 +1,79 @@
 import React, { useState } from 'react';
-import { reg, type SectorKey } from '@mosteiro/core';
+import { type SectorKey } from '@mosteiro/core';
 import { useSession } from '../app/hooks';
 import { Icon } from './Icon';
 import { Inventory, run } from './Inventory';
 import { CLASS_COLOR } from './data';
 import { VoteBar } from './Explore';
+import { HeroDisc } from './party/Sheet';
+import './party.css';
 
+/** 5×2 hero sectors. Tap a hero, then tap a sector (setFormation). */
 export function FormationBoard({ pick, setPick }: { pick: string | null; setPick(id: string | null): void }) {
   const s = useSession();
   const st = s.state!;
   const rows: ('F' | 'R')[] = ['F', 'R'];
+  const picked = pick ? st.heroes.find((h) => h.id === pick) : null;
   return (
-    <div>
-      <div className="row xs muted" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
-        <span>▲ Inimigos à frente</span>
-        <span>{pick ? 'Escolha o Setor' : 'Toque num herói para movê-lo'}</span>
+    <div className="pt-form">
+      <div className="pt-enemy">
+        <span>▲</span> Inimigos à frente <span>▲</span>
       </div>
-      <div className="mini-board">
-        {rows.flatMap((r) =>
-          [1, 2, 3, 4, 5].map((c) => {
-            const k = `H:${r}${c}` as SectorKey;
-            const here = st.heroes.filter((h) => st.formation[h.id] === k);
-            return (
-              <div
-                key={k}
-                className="mb-cell"
-                style={pick && here.length < 2 ? { borderColor: 'var(--gold)' } : undefined}
-                onClick={() => {
-                  if (pick) {
-                    void run({ t: 'setFormation', heroId: pick, sector: k }, 'step_stone_1');
-                    setPick(null);
-                  } else if (here[0]) setPick(here[0].id);
-                }}
-              >
-                <span className="rl">{r === 'F' ? 'Frente' : 'Ret.'} {c}</span>
-                {here.map((h) => (
-                  <Icon key={h.id} id={`class_${h.classId}`} style={{ color: CLASS_COLOR[h.classId], filter: pick === h.id ? 'drop-shadow(0 0 6px #ffd27a)' : undefined }} />
-                ))}
-              </div>
-            );
-          }),
-        )}
+      {rows.map((r) => (
+        <div key={r} className="pt-frow">
+          <div className="pt-frow-l">{r === 'F' ? 'Frente' : 'Retaguarda'}</div>
+          <div className="pt-fcells">
+            {[1, 2, 3, 4, 5].map((c) => {
+              const k = `H:${r}${c}` as SectorKey;
+              const here = st.heroes.filter((h) => st.formation[h.id] === k);
+              const open = !!pick && (here.length < 2 || here.some((h) => h.id === pick));
+              return (
+                <div
+                  key={k}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${r === 'F' ? 'Frente' : 'Retaguarda'} ${c}${here.length ? `: ${here.map((h) => h.name).join(', ')}` : ''}`}
+                  className={`pt-cell ${open ? 'open' : ''} ${here.length ? 'busy' : ''} ${here.length > 1 ? 'two' : ''}`}
+                  onClick={() => {
+                    if (pick) {
+                      void run({ t: 'setFormation', heroId: pick, sector: k }, 'step_stone_1');
+                      setPick(null);
+                    } else if (here[0]) setPick(here[0].id);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') (e.currentTarget as HTMLElement).click();
+                  }}
+                >
+                  <span className="pt-cn">{c}</span>
+                  {here.map((h) => (
+                    <span
+                      key={h.id}
+                      className={`pt-fig ${pick === h.id ? 'on' : ''}`}
+                      style={{ ['--acc' as string]: CLASS_COLOR[h.classId] }}
+                      onClick={(e) => {
+                        // tapping a hero picks it (or drops the pick); tapping another hero while one is picked moves into this sector
+                        if (!pick || pick === h.id) {
+                          e.stopPropagation();
+                          setPick(pick === h.id ? null : h.id);
+                        }
+                      }}
+                    >
+                      <Icon id={`class_${h.classId}`} />
+                    </span>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      <div className={`pt-form-hint ${picked ? 'on' : ''}`}>{picked ? `Toque num setor para ${picked.name}` : 'Toque num herói e depois num setor'}</div>
+      <div className="pt-heroes sm">
+        {st.heroes.map((h) => (
+          <HeroDisc key={h.id} h={h} size={46} on={pick === h.id} onClick={() => setPick(pick === h.id ? null : h.id)} label={`Mover ${h.name}`} />
+        ))}
       </div>
+      <p className="pt-fine center">Até 2 por setor. A Frente protege a Retaguarda da mesma coluna.</p>
     </div>
   );
 }
@@ -51,40 +83,39 @@ export function Prep() {
   const st = s.state!;
   const [heroId, setHeroId] = useState(st.heroes[0].id);
   const [pick, setPick] = useState<string | null>(null);
+  const [tab, setTab] = useState<'equip' | 'form'>('equip');
   return (
-    <div className="overlay screen-fade">
-      <div className="frame" style={{ gridTemplateRows: 'auto 1fr auto' }}>
-        <div className="screen-head" style={{ paddingRight: 60 }}>
-          <div className="grow">
-            <div className="kicker">Base · antes da Dungeon 1</div>
-            <h2 className="h2">Preparar a expedição</h2>
-            <div className="small muted">Escolha Primária e Secundária entre o equipamento inicial e posicione a party. Itens não equipados ficam no Armazém e não ocupam a Mochila.</div>
-          </div>
+    <div className={`k-screen pt-prep tab-${tab}`}>
+      <div className="k-head pt-head-menu">
+        <div className="k-title">
+          <div className="k-kicker">Antes da Dungeon 1</div>
+          <h1 className="k-h1 pt-h1">Preparar a expedição</h1>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.2fr) minmax(240px, 1fr)', gap: 14, minHeight: 0 }}>
-          <Inventory heroId={heroId} setHeroId={setHeroId} inBase />
-          <div className="panel ornate col" style={{ padding: 16 }}>
-            <div className="kicker">Formação inicial</div>
-            <FormationBoard pick={pick} setPick={setPick} />
-            <div className="xs muted">Cada Setor comporta no máximo 2 figuras. A Frente protege a Retaguarda da mesma coluna contra Corpo a Corpo e Alcance.</div>
-            <div className="divider" />
-            <div className="col" style={{ gap: 6 }}>
-              {st.heroes.map((h) => (
-                <div key={h.id} className="row small">
-                  <Icon id={`class_${h.classId}`} style={{ color: CLASS_COLOR[h.classId] }} />
-                  <span className="grow">{h.name}</span>
-                  <span className="xs muted">{h.equipment.primary ? reg().items[h.equipment.primary.itemId].name : '—'}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="row" style={{ justifyContent: 'flex-end' }}>
-          <VoteBar voteKey="beginDungeon" />
-          <button className="btn primary" onClick={() => void run({ t: 'beginDungeon' }, 'door_stone')}>
-            Partir para o Mosteiro <Icon id="loc_portico" />
+      </div>
+      <div className="pt-tabbar">
+        <div className="k-tabs" role="tablist">
+          <button role="tab" aria-selected={tab === 'equip'} className={tab === 'equip' ? 'on' : ''} onClick={() => setTab('equip')}>
+            Equipamento
+          </button>
+          <button role="tab" aria-selected={tab === 'form'} className={tab === 'form' ? 'on' : ''} onClick={() => setTab('form')}>
+            Formação
           </button>
         </div>
+      </div>
+      <div className="k-body pt-prep-body">
+        <section className="pt-pane pt-pane-equip" aria-label="Equipamento">
+          <Inventory heroId={heroId} setHeroId={setHeroId} inBase />
+        </section>
+        <section className="pt-pane pt-pane-form" aria-label="Formação">
+          <div className="k-section pt-pc-only">Formação inicial</div>
+          <FormationBoard pick={pick} setPick={setPick} />
+        </section>
+      </div>
+      <div className="k-foot">
+        <VoteBar voteKey="beginDungeon" />
+        <button className="k-cta" onClick={() => void run({ t: 'beginDungeon' }, 'door_stone')}>
+          Partir para o Mosteiro <Icon id="loc_portico" />
+        </button>
       </div>
     </div>
   );

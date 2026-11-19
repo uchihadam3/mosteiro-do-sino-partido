@@ -10,7 +10,7 @@ async function playEncounter(page: Page, untilCycle: number) {
     if (st.pending) {
       seen.add(st.pending);
       const prim = page.locator('.prompt .btn.primary').first();
-      const btn = (await prim.count()) ? prim : page.locator('.prompt .opt, .hint-chip .btn').first();
+      const btn = (await prim.count()) ? prim : page.locator('.prompt .opt, .hint-chip .g-pill').first();
       if (!(await btn.count())) {
         await page.waitForTimeout(400);
         continue;
@@ -20,19 +20,19 @@ async function playEncounter(page: Page, untilCycle: number) {
       continue;
     }
     if (st.phase === 'tempo') {
-      if (await page.locator('.tp-row').count()) await chooseTempos(page);
+      if (await page.locator('.g-tempo-btn').count()) await chooseTempos(page);
       await page.waitForTimeout(500);
       continue;
     }
     if (st.phase === 'heroBand') {
-      const card = page.locator('.hero-card.can').first();
+      const card = page.locator('.g-port.can').first();
       if (await card.count()) await card.click();
       await page.waitForTimeout(400);
       continue;
     }
     if (st.phase === 'heroActing') {
       seen.add('heroActing');
-      const atk = page.locator('.act:not(.off).k-attack').first();
+      const atk = page.locator('.g-act.k-attack:not(.off)').first();
       let acted = false;
       if (await atk.count()) {
         await atk.click();
@@ -43,14 +43,14 @@ async function playEncounter(page: Page, untilCycle: number) {
           await page.mouse.click(p.x, p.y + 40);
           await page.waitForTimeout(400);
           const st2 = await probe(page);
-          if (st2?.pending || (await page.locator('.hint-chip').count()) === 0) {
+          if (st2?.pending || (await page.locator('.g-target').count()) === 0) {
             acted = true;
             break;
           }
         }
-        if (!acted) await page.keyboard.press('Escape');
+        if (!acted) await page.locator('.g-target .g-x').click().catch(() => {});
       }
-      if (!acted) await page.getByRole('button', { name: /Encerrar/ }).click();
+      if (!acted) await page.locator('.g-act.end').click();
       await page.waitForTimeout(500);
       continue;
     }
@@ -64,7 +64,7 @@ async function playEncounter(page: Page, untilCycle: number) {
 test('Galeria encounter: a full Cycle is playable through the UI', async ({ page }) => {
   const errors = await prepare(page);
   await page.goto('/?debug=combat&enc=GAL-E01&party=guerreiro,clerigo&seed=e2e-gal');
-  await page.getByRole('button', { name: /Iniciar combate/ }).click({ timeout: 60_000 });
+  await page.getByRole('button', { name: /Começar combate/ }).click({ timeout: 60_000 });
   const { st, seen } = await playEncounter(page, 2);
   expect(seen.has('heroActing')).toBe(true);
   expect(seen.has('attackPost')).toBe(true);
@@ -72,7 +72,7 @@ test('Galeria encounter: a full Cycle is playable through the UI', async ({ page
   expect(st?.result ?? st?.cycle).toBeTruthy();
   if (st && !st.result) {
     expect(st.cycle).toBe(2);
-    await expect(page.locator('.tp-row').first()).toBeVisible();
+    await expect(page.locator('.g-tempo-btn').first()).toBeVisible();
   }
   await expectNoSpoilers(page);
   expect(errors).toEqual([]);

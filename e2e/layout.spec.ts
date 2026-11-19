@@ -2,10 +2,11 @@ import { test, expect } from '@playwright/test';
 import { prepare, expectNoPageScroll, expectNoSpoilers, reachTempoPanel } from './helpers';
 
 const VIEWPORTS = [
+  { name: 'phone-portrait', width: 390, height: 844 },
+  { name: 'small-android', width: 360, height: 780 },
   { name: 'desktop-1080p', width: 1920, height: 1080 },
   { name: 'laptop', width: 1366, height: 768 },
   { name: 'phone-landscape', width: 844, height: 390 },
-  { name: 'tablet', width: 1024, height: 768 },
 ];
 
 for (const vp of VIEWPORTS) {
@@ -24,15 +25,16 @@ for (const vp of VIEWPORTS) {
     test('combat HUD with 5 heroes fits without page scroll', async ({ page }) => {
       const errors = await prepare(page);
       await page.goto('/?debug=combat&enc=GAL-E01&party=guerreiro,paladino,arcanista,clerigo,arqueiro&seed=layout');
-      await expect(page.getByRole('button', { name: /Iniciar combate/ })).toBeVisible({ timeout: 60_000 });
-      await page.getByRole('button', { name: /Iniciar combate/ }).click();
+      await expect(page.getByRole('button', { name: /Começar combate/ })).toBeVisible({ timeout: 60_000 });
+      await page.getByRole('button', { name: /Começar combate/ }).click();
       await expectNoPageScroll(page);
       await reachTempoPanel(page);
       await expectNoPageScroll(page);
-      // Every hero card stays inside the viewport.
-      const cards = page.locator('.hero-card');
+      // Every hero portrait and every Tempo button stays inside the viewport.
+      await expect(page.locator('.rotate-hint')).toHaveCount(0);
+      const cards = page.locator('.g-port, .g-tempo-btn');
       const n = await cards.count();
-      expect(n).toBe(5);
+      expect(n).toBe(8);
       for (let i = 0; i < n; i++) {
         const b = await cards.nth(i).boundingBox();
         expect(b, `hero card ${i}`).not.toBeNull();

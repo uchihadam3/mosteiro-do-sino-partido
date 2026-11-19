@@ -41,17 +41,21 @@ export const probe = (page: Page): Promise<CombatProbe> =>
     return s ? { phase: s.phase, pending: s.pending?.kind ?? null, result: s.result ?? null, cycle: s.cycle } : null;
   });
 
+/** Tempo: the HUD walks through the player's heroes one at a time (three big buttons), then "Lutar!". */
 export async function chooseTempos(page: Page) {
-  const rows = page.locator('.tp-row');
-  const n = await rows.count();
-  for (let i = 0; i < n; i++) await rows.nth(i).locator('.tp-btn').nth(1).click();
-  await page.getByRole('button', { name: /Confirmar Tempos/ }).click();
+  for (let i = 0; i < 6; i++) {
+    const lutar = page.getByRole('button', { name: /Lutar/ });
+    if (await lutar.count()) break;
+    await page.locator('.g-tempo-btn.t-tatico').click();
+    await page.waitForTimeout(300);
+  }
+  await page.getByRole('button', { name: /Lutar/ }).click();
 }
 
-/** Answer start-of-cycle prompts (e.g. Paladino's free Julgar) until the Tempo panel shows. */
+/** Answer start-of-cycle prompts (e.g. Paladino's free Julgar) until the Tempo choice shows. */
 export async function reachTempoPanel(page: Page) {
   for (let i = 0; i < 20; i++) {
-    if (await page.locator('.tp-row').count()) return;
+    if (await page.locator('.g-tempo-btn').count()) return;
     const st = await probe(page);
     if (st?.pending) {
       const prim = page.locator('.prompt .btn.primary').first();
@@ -60,5 +64,5 @@ export async function reachTempoPanel(page: Page) {
     }
     await page.waitForTimeout(500);
   }
-  await expect(page.locator('.tp-row').first()).toBeVisible();
+  await expect(page.locator('.g-tempo-btn').first()).toBeVisible();
 }

@@ -12,7 +12,9 @@ test('new game → preparation → exploration, autosave and continue', async ({
   await expect(page.getByRole('heading', { name: 'Preparar a expedição' })).toBeVisible();
   await expectNoPageScroll(page);
   await page.getByRole('button', { name: /Partir para o Mosteiro/ }).click();
-  await expect(page.locator('svg[aria-label^="Mapa do Mosteiro"]')).toBeVisible({ timeout: 30_000 });
+  // the arrival text opens as a story sheet first
+  await page.getByRole('button', { name: /^Seguir$/ }).click({ timeout: 30_000 });
+  await expect(page.locator('.x-choice').first()).toBeVisible({ timeout: 30_000 });
   await expectNoSpoilers(page);
   await expectNoPageScroll(page);
 
@@ -22,7 +24,7 @@ test('new game → preparation → exploration, autosave and continue', async ({
   await page.waitForTimeout(1500);
   await page.reload();
   await page.getByRole('button', { name: /Continuar/ }).click();
-  await expect(page.locator('svg[aria-label^="Mapa do Mosteiro"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('.x-choice').first()).toBeVisible({ timeout: 30_000 });
   const after = await page.evaluate(() => {
     const s = (window as any).__session.state;
     return { phase: s.phase, heroes: s.heroes.map((h: any) => h.classId) };
