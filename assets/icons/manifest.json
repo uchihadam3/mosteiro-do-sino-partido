@@ -1,0 +1,705 @@
+{
+  "generator": "tools/python/textures/build_icons.py",
+  "license": "Original work generated procedurally by project code.",
+  "viewBox": "0 0 48 48",
+  "color": "currentColor (single path, fill-rule evenodd)",
+  "sprite": "icons.svg",
+  "count": 139,
+  "icons": {
+    "class_guerreiro": {
+      "file": "class_guerreiro.svg",
+      "category": "class",
+      "description": "Guerreiro: heater shield over crossed swords"
+    },
+    "class_paladino": {
+      "file": "class_paladino.svg",
+      "category": "class",
+      "description": "Paladino: radiant upright sword over a shield"
+    },
+    "class_arcanista": {
+      "file": "class_arcanista.svg",
+      "category": "class",
+      "description": "Arcanista: watchful eye within a rune circle"
+    },
+    "class_clerigo": {
+      "file": "class_clerigo.svg",
+      "category": "class",
+      "description": "Clerigo: bell beneath a halo"
+    },
+    "class_arqueiro": {
+      "file": "class_arqueiro.svg",
+      "category": "class",
+      "description": "Arqueiro: drawn bow with nocked arrow"
+    },
+    "class_ladino": {
+      "file": "class_ladino.svg",
+      "category": "class",
+      "description": "Ladino: dagger before a crescent moon"
+    },
+    "attr_poder": {
+      "file": "attr_poder.svg",
+      "category": "attribute",
+      "description": "Poder: clenched gauntlet fist"
+    },
+    "attr_guarda": {
+      "file": "attr_guarda.svg",
+      "category": "attribute",
+      "description": "Guarda: heater shield with cross"
+    },
+    "attr_agilidade": {
+      "file": "attr_agilidade.svg",
+      "category": "attribute",
+      "description": "Agilidade: swift feather"
+    },
+    "attr_precisao": {
+      "file": "attr_precisao.svg",
+      "category": "attribute",
+      "description": "Precisao: arrow struck in a target"
+    },
+    "attr_arcano": {
+      "file": "attr_arcano.svg",
+      "category": "attribute",
+      "description": "Arcano: eight-point rune star"
+    },
+    "attr_determinacao": {
+      "file": "attr_determinacao.svg",
+      "category": "attribute",
+      "description": "Determinacao: unyielding mountain peak"
+    },
+    "attr_espirito": {
+      "file": "attr_espirito.svg",
+      "category": "attribute",
+      "description": "Espirito: flame crowned by a halo"
+    },
+    "attr_sombra": {
+      "file": "attr_sombra.svg",
+      "category": "attribute",
+      "description": "Sombra: veiled domino mask"
+    },
+    "cond_veneno": {
+      "file": "cond_veneno.svg",
+      "category": "condition",
+      "description": "Veneno: poison drop with bubbles"
+    },
+    "cond_sangramento": {
+      "file": "cond_sangramento.svg",
+      "category": "condition",
+      "description": "Sangramento: falling blood drops"
+    },
+    "cond_queimando": {
+      "file": "cond_queimando.svg",
+      "category": "condition",
+      "description": "Queimando: burning flame"
+    },
+    "cond_quebrado": {
+      "file": "cond_quebrado.svg",
+      "category": "condition",
+      "description": "Quebrado: shield split by a crack"
+    },
+    "cond_exposto": {
+      "file": "cond_exposto.svg",
+      "category": "condition",
+      "description": "Exposto: open eye under marking ticks"
+    },
+    "cond_imobilizado": {
+      "file": "cond_imobilizado.svg",
+      "category": "condition",
+      "description": "Imobilizado: shackle and chain"
+    },
+    "cond_atordoado": {
+      "file": "cond_atordoado.svg",
+      "category": "condition",
+      "description": "Atordoado: spiral with orbiting stars"
+    },
+    "cond_guardado": {
+      "file": "cond_guardado.svg",
+      "category": "condition",
+      "description": "Guardado: small shield bearing a check"
+    },
+    "cond_furtivo": {
+      "file": "cond_furtivo.svg",
+      "category": "condition",
+      "description": "Furtivo: empty hood"
+    },
+    "cond_caido": {
+      "file": "cond_caido.svg",
+      "category": "condition",
+      "description": "Caido: fallen, cracked helm on the ground"
+    },
+    "cond_derrotado": {
+      "file": "cond_derrotado.svg",
+      "category": "condition",
+      "description": "Derrotado: skull"
+    },
+    "cond_trauma": {
+      "file": "cond_trauma.svg",
+      "category": "condition",
+      "description": "Trauma: stitched scar"
+    },
+    "cond_julgado": {
+      "file": "cond_julgado.svg",
+      "category": "condition",
+      "description": "Julgado: scales of judgement"
+    },
+    "cond_fumaca": {
+      "file": "cond_fumaca.svg",
+      "category": "condition",
+      "description": "Fumaca: drifting smoke"
+    },
+    "cond_cobertura": {
+      "file": "cond_cobertura.svg",
+      "category": "condition",
+      "description": "Cobertura: crenellated wall"
+    },
+    "cond_brecha": {
+      "file": "cond_brecha.svg",
+      "category": "condition",
+      "description": "Brecha: plate split by a dagger notch"
+    },
+    "tempo_rapido": {
+      "file": "tempo_rapido.svg",
+      "category": "tempo",
+      "description": "Rapido: swift arrow with motion lines"
+    },
+    "tempo_tatico": {
+      "file": "tempo_tatico.svg",
+      "category": "tempo",
+      "description": "Tatico: compass rose"
+    },
+    "tempo_pesado": {
+      "file": "tempo_pesado.svg",
+      "category": "tempo",
+      "description": "Pesado: anvil with hammer"
+    },
+    "hp": {
+      "file": "hp.svg",
+      "category": "stat",
+      "description": "Vida: gothic heart"
+    },
+    "armor": {
+      "file": "armor.svg",
+      "category": "stat",
+      "description": "Armadura: cuirass"
+    },
+    "ap": {
+      "file": "ap.svg",
+      "category": "stat",
+      "description": "Ponto de Acao: faceted diamond pip"
+    },
+    "reaction": {
+      "file": "reaction.svg",
+      "category": "stat",
+      "description": "Reacao: swirling counter-arrow around a pip"
+    },
+    "gold": {
+      "file": "gold.svg",
+      "category": "stat",
+      "description": "Ouro: stamped coins"
+    },
+    "dice_d4": {
+      "file": "dice_d4.svg",
+      "category": "dice",
+      "description": "Dado d4: tetrahedron"
+    },
+    "dice_d6": {
+      "file": "dice_d6.svg",
+      "category": "dice",
+      "description": "Dado d6: cube"
+    },
+    "dice_d8": {
+      "file": "dice_d8.svg",
+      "category": "dice",
+      "description": "Dado d8: octahedron"
+    },
+    "dice_d10": {
+      "file": "dice_d10.svg",
+      "category": "dice",
+      "description": "Dado d10: pentagonal trapezohedron"
+    },
+    "dice_d12": {
+      "file": "dice_d12.svg",
+      "category": "dice",
+      "description": "Dado d12: dodecahedron"
+    },
+    "success": {
+      "file": "success.svg",
+      "category": "stat",
+      "description": "Sucesso: solid diamond"
+    },
+    "impulse": {
+      "file": "impulse.svg",
+      "category": "stat",
+      "description": "Impulso: rising chevrons with a spark"
+    },
+    "critical": {
+      "file": "critical.svg",
+      "category": "stat",
+      "description": "Critico: star-burst"
+    },
+    "cantil": {
+      "file": "cantil.svg",
+      "category": "stat",
+      "description": "Cantil: canteen flask"
+    },
+    "mochila": {
+      "file": "mochila.svg",
+      "category": "stat",
+      "description": "Mochila: backpack"
+    },
+    "mira": {
+      "file": "mira.svg",
+      "category": "stat",
+      "description": "Mira: crosshair reticle"
+    },
+    "conviccao": {
+      "file": "conviccao.svg",
+      "category": "stat",
+      "description": "Conviccao: radiant sun"
+    },
+    "runa": {
+      "file": "runa.svg",
+      "category": "stat",
+      "description": "Runa: rune-carved stone"
+    },
+    "instabilidade": {
+      "file": "instabilidade.svg",
+      "category": "stat",
+      "description": "Instabilidade: fractured rune stone"
+    },
+    "verso": {
+      "file": "verso.svg",
+      "category": "stat",
+      "description": "Verso: unfurled scroll of verse"
+    },
+    "sequencia": {
+      "file": "sequencia.svg",
+      "category": "stat",
+      "description": "Sequencia: three stacked rank chevrons"
+    },
+    "ressonancia": {
+      "file": "ressonancia.svg",
+      "category": "stat",
+      "description": "Ressonancia: bell sending out waves"
+    },
+    "canto": {
+      "file": "canto.svg",
+      "category": "stat",
+      "description": "Canto: beamed choir notes"
+    },
+    "contrapeso": {
+      "file": "contrapeso.svg",
+      "category": "stat",
+      "description": "Contrapeso: hanging counterweight"
+    },
+    "manivela": {
+      "file": "manivela.svg",
+      "category": "stat",
+      "description": "Manivela: winch crank"
+    },
+    "selo_silencio": {
+      "file": "selo_silencio.svg",
+      "category": "seal",
+      "description": "Selo do Silencio: wax seal with a muted bell"
+    },
+    "selo_palavra": {
+      "file": "selo_palavra.svg",
+      "category": "seal",
+      "description": "Selo da Palavra: wax seal with a quill"
+    },
+    "selo_peso": {
+      "file": "selo_peso.svg",
+      "category": "seal",
+      "description": "Selo do Peso: wax seal with a weight"
+    },
+    "sete_linhas": {
+      "file": "sete_linhas.svg",
+      "category": "stat",
+      "description": "Sete Linhas: seven lines converging to a point"
+    },
+    "ultimo_folego": {
+      "file": "ultimo_folego.svg",
+      "category": "stat",
+      "description": "Ultimo Folego: guttering candle flame"
+    },
+    "maestria": {
+      "file": "maestria.svg",
+      "category": "stat",
+      "description": "Maestria: die with rising arrow"
+    },
+    "talento": {
+      "file": "talento.svg",
+      "category": "stat",
+      "description": "Talento: branching talent tree"
+    },
+    "act_attack_melee": {
+      "file": "act_attack_melee.svg",
+      "category": "action",
+      "description": "Ataque corpo a corpo: sword"
+    },
+    "act_attack_alcance": {
+      "file": "act_attack_alcance.svg",
+      "category": "action",
+      "description": "Ataque de alcance: spear thrust"
+    },
+    "act_attack_distancia": {
+      "file": "act_attack_distancia.svg",
+      "category": "action",
+      "description": "Ataque a distancia: arrow"
+    },
+    "act_attack_global": {
+      "file": "act_attack_global.svg",
+      "category": "action",
+      "description": "Ataque global: radiating strike"
+    },
+    "act_area": {
+      "file": "act_area.svg",
+      "category": "action",
+      "description": "Area: two joined squares"
+    },
+    "act_move": {
+      "file": "act_move.svg",
+      "category": "action",
+      "description": "Mover: footprints"
+    },
+    "act_passo": {
+      "file": "act_passo.svg",
+      "category": "action",
+      "description": "Passo: single step chevron"
+    },
+    "act_swap": {
+      "file": "act_swap.svg",
+      "category": "action",
+      "description": "Trocar posicao: exchanging arrows"
+    },
+    "act_defend": {
+      "file": "act_defend.svg",
+      "category": "action",
+      "description": "Defender: round buckler"
+    },
+    "act_heal": {
+      "file": "act_heal.svg",
+      "category": "action",
+      "description": "Curar: cross pattee in a halo"
+    },
+    "act_buff": {
+      "file": "act_buff.svg",
+      "category": "action",
+      "description": "Fortalecer: rising arrow with sparks"
+    },
+    "act_summon": {
+      "file": "act_summon.svg",
+      "category": "action",
+      "description": "Invocar: bell calling hooded figures"
+    },
+    "act_push": {
+      "file": "act_push.svg",
+      "category": "action",
+      "description": "Empurrar: impact bar and outward arrow"
+    },
+    "act_pull": {
+      "file": "act_pull.svg",
+      "category": "action",
+      "description": "Puxar: grappling hook on a rope"
+    },
+    "act_objective": {
+      "file": "act_objective.svg",
+      "category": "action",
+      "description": "Objetivo: keyhole escutcheon"
+    },
+    "act_item": {
+      "file": "act_item.svg",
+      "category": "action",
+      "description": "Usar item: drawstring pouch"
+    },
+    "act_end_turn": {
+      "file": "act_end_turn.svg",
+      "category": "action",
+      "description": "Encerrar turno: hourglass run out"
+    },
+    "act_raise": {
+      "file": "act_raise.svg",
+      "category": "action",
+      "description": "Levantar aliado: helping hand reaching up"
+    },
+    "act_swap_weapon": {
+      "file": "act_swap_weapon.svg",
+      "category": "action",
+      "description": "Trocar arma: sword within cycling arrows"
+    },
+    "item_sword": {
+      "file": "item_sword.svg",
+      "category": "item",
+      "description": "Espada"
+    },
+    "item_axe": {
+      "file": "item_axe.svg",
+      "category": "item",
+      "description": "Machado: bearded axe"
+    },
+    "item_spear": {
+      "file": "item_spear.svg",
+      "category": "item",
+      "description": "Lanca"
+    },
+    "item_hammer": {
+      "file": "item_hammer.svg",
+      "category": "item",
+      "description": "Martelo de guerra"
+    },
+    "item_bow": {
+      "file": "item_bow.svg",
+      "category": "item",
+      "description": "Arco recurvo"
+    },
+    "item_crossbow": {
+      "file": "item_crossbow.svg",
+      "category": "item",
+      "description": "Besta"
+    },
+    "item_staff": {
+      "file": "item_staff.svg",
+      "category": "item",
+      "description": "Cajado com cristal"
+    },
+    "item_wand": {
+      "file": "item_wand.svg",
+      "category": "item",
+      "description": "Varinha"
+    },
+    "item_orb": {
+      "file": "item_orb.svg",
+      "category": "item",
+      "description": "Orbe arcano sobre suporte"
+    },
+    "item_bell": {
+      "file": "item_bell.svg",
+      "category": "item",
+      "description": "Sino sagrado (foco)"
+    },
+    "item_censer": {
+      "file": "item_censer.svg",
+      "category": "item",
+      "description": "Turibulo"
+    },
+    "item_dagger": {
+      "file": "item_dagger.svg",
+      "category": "item",
+      "description": "Adaga"
+    },
+    "item_rapier": {
+      "file": "item_rapier.svg",
+      "category": "item",
+      "description": "Rapieira"
+    },
+    "item_armor_light": {
+      "file": "item_armor_light.svg",
+      "category": "item",
+      "description": "Armadura leve: laced jerkin"
+    },
+    "item_armor_medium": {
+      "file": "item_armor_medium.svg",
+      "category": "item",
+      "description": "Armadura media: scale hauberk"
+    },
+    "item_armor_heavy": {
+      "file": "item_armor_heavy.svg",
+      "category": "item",
+      "description": "Armadura pesada: breastplate with pauldrons and faulds"
+    },
+    "item_robe": {
+      "file": "item_robe.svg",
+      "category": "item",
+      "description": "Manto de clerigo"
+    },
+    "item_accessory_ring": {
+      "file": "item_accessory_ring.svg",
+      "category": "item",
+      "description": "Anel com gema"
+    },
+    "item_accessory_amulet": {
+      "file": "item_accessory_amulet.svg",
+      "category": "item",
+      "description": "Amuleto"
+    },
+    "item_accessory_boots": {
+      "file": "item_accessory_boots.svg",
+      "category": "item",
+      "description": "Botas"
+    },
+    "item_accessory_lens": {
+      "file": "item_accessory_lens.svg",
+      "category": "item",
+      "description": "Lente de exame"
+    },
+    "item_consumable_vial": {
+      "file": "item_consumable_vial.svg",
+      "category": "item",
+      "description": "Frasco / pocao"
+    },
+    "item_bomb": {
+      "file": "item_bomb.svg",
+      "category": "item",
+      "description": "Bomba"
+    },
+    "item_bandage": {
+      "file": "item_bandage.svg",
+      "category": "item",
+      "description": "Bandagem"
+    },
+    "item_scroll": {
+      "file": "item_scroll.svg",
+      "category": "item",
+      "description": "Pergaminho enrolado"
+    },
+    "item_cloak_epic": {
+      "file": "item_cloak_epic.svg",
+      "category": "item",
+      "description": "Capa lendaria"
+    },
+    "loc_portico": {
+      "file": "loc_portico.svg",
+      "category": "location",
+      "description": "Portico: pointed portal with doors"
+    },
+    "loc_galeria": {
+      "file": "loc_galeria.svg",
+      "category": "location",
+      "description": "Galeria: arcade of pointed arches"
+    },
+    "loc_claustro": {
+      "file": "loc_claustro.svg",
+      "category": "location",
+      "description": "Claustro: cloister garth with well"
+    },
+    "loc_scriptorium": {
+      "file": "loc_scriptorium.svg",
+      "category": "location",
+      "description": "Scriptorium: open codex with quill"
+    },
+    "loc_canil": {
+      "file": "loc_canil.svg",
+      "category": "location",
+      "description": "Canil: hound paw print"
+    },
+    "loc_carceres": {
+      "file": "loc_carceres.svg",
+      "category": "location",
+      "description": "Carceres: barred cell window"
+    },
+    "loc_capela": {
+      "file": "loc_capela.svg",
+      "category": "location",
+      "description": "Capela: chapel with rose window"
+    },
+    "loc_salao": {
+      "file": "loc_salao.svg",
+      "category": "location",
+      "description": "Salao: high-backed chapter throne"
+    },
+    "loc_campanario": {
+      "file": "loc_campanario.svg",
+      "category": "location",
+      "description": "Campanario: bell tower"
+    },
+    "loc_relicario": {
+      "file": "loc_relicario.svg",
+      "category": "location",
+      "description": "Relicario: gabled reliquary casket"
+    },
+    "loc_cripta": {
+      "file": "loc_cripta.svg",
+      "category": "location",
+      "description": "Cripta: stone coffin with cross"
+    },
+    "map_path": {
+      "file": "map_path.svg",
+      "category": "map",
+      "description": "Caminho do mapa: dotted route between nodes"
+    },
+    "map_lock": {
+      "file": "map_lock.svg",
+      "category": "map",
+      "description": "Trancado: padlock"
+    },
+    "settings": {
+      "file": "settings.svg",
+      "category": "ui",
+      "description": "Configuracoes: gear"
+    },
+    "pause": {
+      "file": "pause.svg",
+      "category": "ui",
+      "description": "Pausa"
+    },
+    "save": {
+      "file": "save.svg",
+      "category": "ui",
+      "description": "Salvar: tome with descending arrow"
+    },
+    "load": {
+      "file": "load.svg",
+      "category": "ui",
+      "description": "Carregar: open codex with rising arrow"
+    },
+    "sound_on": {
+      "file": "sound_on.svg",
+      "category": "ui",
+      "description": "Som ligado"
+    },
+    "sound_off": {
+      "file": "sound_off.svg",
+      "category": "ui",
+      "description": "Som desligado"
+    },
+    "music": {
+      "file": "music.svg",
+      "category": "ui",
+      "description": "Musica: single note"
+    },
+    "fast_forward": {
+      "file": "fast_forward.svg",
+      "category": "ui",
+      "description": "Avancar rapido"
+    },
+    "skip": {
+      "file": "skip.svg",
+      "category": "ui",
+      "description": "Pular"
+    },
+    "log": {
+      "file": "log.svg",
+      "category": "ui",
+      "description": "Registro: list of entries"
+    },
+    "close": {
+      "file": "close.svg",
+      "category": "ui",
+      "description": "Fechar"
+    },
+    "check": {
+      "file": "check.svg",
+      "category": "ui",
+      "description": "Confirmar"
+    },
+    "info": {
+      "file": "info.svg",
+      "category": "ui",
+      "description": "Informacao"
+    },
+    "warning": {
+      "file": "warning.svg",
+      "category": "ui",
+      "description": "Aviso"
+    },
+    "back": {
+      "file": "back.svg",
+      "category": "ui",
+      "description": "Voltar"
+    },
+    "menu": {
+      "file": "menu.svg",
+      "category": "ui",
+      "description": "Menu"
+    }
+  }
+}
