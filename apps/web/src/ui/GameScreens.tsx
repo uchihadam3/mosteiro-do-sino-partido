@@ -11,6 +11,7 @@ import { Icon } from './Icon';
 import { PauseMenu } from './Pause';
 import { session } from '../state/session';
 import { audio } from '../audio/AudioDirector';
+import './explore.css';
 
 export function GameScreens() {
   const s = useSession();
@@ -36,7 +37,7 @@ export function GameScreens() {
       {st.pendingArchive && d.archive[st.pendingArchive] && <ArchiveModal code={st.pendingArchive} />}
       {st.narrative && !st.pendingArchive && st.phase === 'explore' && <NarrativeModal />}
       {st.phase !== 'combat' && (
-        <button className="btn icon pause-btn" style={{ position: 'fixed', right: 'calc(16px + var(--safe-r))', top: 'calc(14px + var(--safe-t))', zIndex: 40 }} onClick={() => setPause(true)} aria-label="Menu">
+        <button className="k-round pause-btn" style={{ position: 'fixed', right: 'calc(12px + var(--safe-r))', top: 'calc(10px + var(--safe-t))', zIndex: 40 }} onClick={() => setPause(true)} aria-label="Menu">
           <Icon id="menu" />
         </button>
       )}
@@ -49,13 +50,9 @@ export function GameScreens() {
 function NetBadge() {
   const s = useSession();
   return (
-    <div className="panel xs" style={{ position: 'fixed', right: 'calc(70px + var(--safe-r))', top: 'calc(18px + var(--safe-t))', padding: '6px 10px', zIndex: 39, display: 'flex', gap: 8, alignItems: 'center' }}>
-      <span className="kicker" style={{ fontSize: 10 }}>{s.role === 'host' ? 'Anfitrião' : 'Online'}</span>
-      {s.seats.map((x) => (
-        <span key={x.id} className={`chip ${x.connected ? 'green' : 'red'}`} title={x.connected ? 'Conectado' : 'Desconectado'}>
-          {x.name}
-        </span>
-      ))}
+    <div className="k-chip" style={{ position: 'fixed', left: '50%', transform: 'translateX(-50%)', bottom: 'calc(4px + env(safe-area-inset-bottom, 0px))', zIndex: 39, background: 'rgba(14,11,11,0.8)' }} title={s.seats.map((x) => `${x.name}${x.connected ? '' : ' (saiu)'}`).join(', ')}>
+      <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.seats.every((x) => x.connected) ? '#8fbf72' : '#e0a64a' }} />
+      {s.role === 'host' ? 'Anfitrião' : 'Online'} · {s.seats.filter((x) => x.connected).length} jogadores
     </div>
   );
 }
@@ -68,19 +65,17 @@ export function ArchiveModal({ code }: { code: string }) {
     audio.duck(0.3, 4);
   }, [code]);
   return (
-    <div className="modal-back">
-      <div className="archive" role="dialog" aria-label={e.title}>
+    <div className="story-back">
+      <div className="story archive-sheet archive" role="dialog" aria-label={e.title}>
         <div className="seal">
-          <Icon id="sete_linhas" size={34} />
+          <Icon id="sete_linhas" />
         </div>
-        <div className="code">ARQUIVO OCULTO · {e.code}</div>
+        <div className="k-kicker">Arquivo oculto · {e.code}</div>
         <h2>{e.title.replace(/^Arquivo Oculto · /, '')}</h2>
         <p>{e.text}</p>
-        <div className="actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
-          <button className="btn primary" onClick={() => void session.dispatch({ t: 'closeArchive' })}>
-            Continuar
-          </button>
-        </div>
+        <button className="k-cta" onClick={() => void session.dispatch({ t: 'closeArchive' })}>
+          Continuar
+        </button>
       </div>
     </div>
   );
@@ -93,15 +88,14 @@ function NarrativeModal() {
   const loc = d.locations.find((l) => l.id === st.node);
   useEffect(() => audio.play('page_turn', { volume: 0.6 }), [st.narrative]);
   return (
-    <div className="modal-back" style={{ background: 'radial-gradient(ellipse at center, rgba(10,8,8,0.25), rgba(5,4,4,0.7))' }}>
-      <div className="narrative panel ornate">
-        <div className="kicker">{loc ? `${loc.code} · ${loc.name}` : d.name}</div>
+    <div className="story-back">
+      <div className="story narrative" role="dialog" aria-label={loc?.name ?? d.name}>
+        <div className="k-kicker">{loc ? loc.code : ''}</div>
+        <h2>{loc ? loc.name : d.name}</h2>
         <p>{st.narrative}</p>
-        <div className="row" style={{ justifyContent: 'flex-end', marginTop: 18 }}>
-          <button className="btn primary" autoFocus onClick={() => void session.dispatch({ t: 'closeNarrative' })}>
-            Seguir
-          </button>
-        </div>
+        <button className="k-cta" autoFocus onClick={() => void session.dispatch({ t: 'closeNarrative' })}>
+          Seguir
+        </button>
       </div>
     </div>
   );
@@ -115,16 +109,14 @@ function Epilogue() {
     audio.play('sting_victory', { volume: 1 });
   }, []);
   return (
-    <div className="modal-back">
-      <div className="narrative panel ornate" style={{ textAlign: 'center' }}>
-        <div className="kicker">Dungeon 1 concluída</div>
-        <h2 className="h1" style={{ fontSize: 'var(--fs-xl)', margin: '10px 0' }}>{e.title.replace('Epílogo · ', '')}</h2>
-        <p style={{ whiteSpace: 'pre-wrap' }}>{e.text}</p>
-        <div className="row" style={{ justifyContent: 'center', marginTop: 22 }}>
-          <button className="btn primary" onClick={() => void session.dispatch({ t: 'finishDungeon' })}>
-            Retornar à Base
-          </button>
-        </div>
+    <div className="story-back">
+      <div className="story" role="dialog" aria-label={e.title}>
+        <div className="k-kicker">Dungeon 1 concluída</div>
+        <h2>{e.title.replace('Epílogo · ', '')}</h2>
+        <p>{e.text}</p>
+        <button className="k-cta" onClick={() => void session.dispatch({ t: 'finishDungeon' })}>
+          Retornar à Base
+        </button>
       </div>
     </div>
   );
@@ -138,18 +130,19 @@ function GameOver() {
     audio.play('sting_defeat', { volume: 1 });
   }, []);
   return (
-    <div className="modal-back">
-      <div className="narrative panel ornate" style={{ textAlign: 'center' }}>
-        <div className="kicker" style={{ color: 'var(--blood-2)' }}>Game Over da campanha</div>
-        <h2 className="h1" style={{ fontSize: 'var(--fs-xl)', margin: '10px 0' }}>O sino continua a soar</h2>
-        <p>{s.state!.gameOverReason}</p>
-        <p className="small muted">Todos os heróis caíram ao mesmo tempo. Na V2, o wipe total é a punição máxima da campanha.</p>
-        <div className="row" style={{ justifyContent: 'center', marginTop: 22 }}>
-          <button className="btn" onClick={() => { session.close(); go('title'); }}>
-            Menu principal
-          </button>
-          <button className="btn primary" onClick={() => { session.close(); go('newgame'); }}>
+    <div className="story-back">
+      <div className="story" role="dialog" aria-label="Fim da campanha">
+        <div className="k-kicker" style={{ color: 'var(--blood-2)' }}>
+          Fim da campanha
+        </div>
+        <h2>O sino continua a soar</h2>
+        <p style={{ textAlign: 'center' }}>{s.state!.gameOverReason}</p>
+        <div className="k-stack">
+          <button className="k-cta" onClick={() => { session.close(); go('newgame'); }}>
             Nova campanha
+          </button>
+          <button className="k-btn" onClick={() => { session.close(); go('title'); }}>
+            Menu principal
           </button>
         </div>
       </div>

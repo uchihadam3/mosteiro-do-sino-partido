@@ -6,6 +6,7 @@ import { CLASS_COLOR } from './data';
 import { run } from './Inventory';
 import { InventoryModal } from './InventoryModal';
 import { audio } from '../audio/AudioDirector';
+import './explore.css';
 
 export function VoteBar({ voteKey }: { voteKey: string }) {
   const s = useSession();
@@ -38,7 +39,7 @@ function MapPanel({ st }: { st: CampaignState }) {
   const here = st.phase === 'combat' && st.combatEncounterId ? d.encounters.find((e) => e.id === st.combatEncounterId)?.locationId : st.node;
   const done = new Set(st.completed.map((e) => d.encounters.find((x) => x.id === e)?.locationId));
   return (
-    <div className="map panel ornate">
+    <div className="map x-map">
       <div className="row map-head" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
         <span className="kicker">Mapa</span>
         <span className="xs muted">{st.flags['route'] ? `Rota ${st.flags['route'] === 'leste' ? 'Leste' : 'Oeste'}` : 'Rota não escolhida'}</span>
@@ -105,21 +106,19 @@ function StateCards({ st }: { st: CampaignState }) {
 
 export function PartyStrip({ st, onOpen }: { st: CampaignState; onOpen?(): void }) {
   return (
-    <div className="party-strip">
+    <div className="x-party">
       {st.heroes.map((h) => {
         const max = recordMaxHp(h);
+        const pct = Math.max(0, h.hp / max);
         return (
-          <button key={h.id} className="mini-hero" style={{ ['--acc' as string]: CLASS_COLOR[h.classId], cursor: onOpen ? 'pointer' : 'default', opacity: h.status === 'ok' ? 1 : 0.55 }} onClick={onOpen}>
-            <Icon id={`class_${h.classId}`} />
-            <div className="nm">{h.name}</div>
-            <div className="row" style={{ gap: 6 }}>
-              <div className="bar grow" style={{ height: 6 }}>
-                <i style={{ width: `${(h.hp / max) * 100}%` }} />
-              </div>
-              <span className="xs">
-                {h.status === 'caido' ? 'Caído' : h.status === 'derrotado' ? 'Derrotado' : `${h.hp}/${max}`}
+          <button key={h.id} className={`x-port ${h.status !== 'ok' ? 'down' : ''}`} style={{ ['--acc' as string]: CLASS_COLOR[h.classId], ['--hp' as string]: `${pct * 360}deg` }} onClick={onOpen} aria-label={`${h.name}: ${h.hp} de ${max}. Abrir mochila`}>
+            <span className="ring">
+              <span className="face">
+                <Icon id={`class_${h.classId}`} />
               </span>
-            </div>
+            </span>
+            <span className="hpnum">{h.status === 'caido' ? 'Caído' : h.status === 'derrotado' ? '✕' : h.hp}</span>
+            <span className="nm">{h.name}</span>
           </button>
         );
       })}
@@ -134,97 +133,130 @@ export function Explore() {
   const loc = d.locations.find((l) => l.id === st.node) ?? d.locations[0];
   const opts = d.options(st);
   const [inv, setInv] = useState(false);
+  const [map, setMap] = useState(false);
+  const [about, setAbout] = useState(false);
   const [confirmOpt, setConfirmOpt] = useState<{ id: string; label: string; warning: string } | null>(null);
   const fallen = st.heroes.filter((h) => h.status === 'caido');
+  const arrival = loc.id === 'CLA' && st.completed.length > 1 ? 'O Claustro é o ponto de convergência. Daqui partem as passagens que vocês já conhecem — e talvez outras.' : loc.arrival;
   return (
-    <div className="overlay screen-fade">
-      <div className="frame explore">
-        <div className="loc-card panel ornate">
-          <div className="code">{loc.code}</div>
-          <h2 className="h2" style={{ margin: '4px 0 8px' }}>{loc.name}</h2>
-          <div className="prose">{loc.id === 'CLA' && st.completed.length > 1 ? 'O Claustro é o ponto de convergência. Daqui partem as passagens que vocês já conhecem — e talvez outras.' : loc.arrival}</div>
-          <div className="divider" />
-          <div className="row small muted" style={{ gap: 14 }}>
-            <span className="row" style={{ gap: 4 }}>
-              <Icon id="gold" style={{ color: 'var(--gold-2)' }} /> {st.gold} ouro
-            </span>
-            <span className="row" style={{ gap: 4 }}>
-              <Icon id="loc_campanario" /> {st.completed.length} encontros vencidos
-            </span>
-          </div>
+    <div className="x-screen">
+      <div className="x-top">
+        <button className="x-place" onClick={() => setAbout(true)} aria-label={`${loc.name}: sobre este lugar`}>
+          <span className="code">{loc.code}</span>
+          <span className="name">{loc.name}</span>
+          <Icon id="info" className="i" />
+        </button>
+        <div className="x-top-right">
+          <span className="x-gold" title="Ouro da party">
+            <Icon id="gold" /> {st.gold}
+          </span>
+          <button className="k-round" onClick={() => setMap(true)} aria-label="Mapa">
+            <Icon id="map_path" />
+          </button>
         </div>
-        <MapPanel st={st} />
-        <div className="choices" style={{ flexDirection: 'column', alignItems: 'center' }}>
-          {fallen.length > 0 && (
-            <div className="panel row small" style={{ padding: '8px 12px' }}>
-              <span>{fallen.map((h) => h.name).join(', ')} {fallen.length > 1 ? 'estão Caídos' : 'está Caído'}.</span>
-              {fallen.map((h) => (
-                <button key={h.id} className="btn sm" onClick={() => void run({ t: 'raiseOutOfCombat', heroId: h.id }, 'rise_up')}>
-                  Levantar {h.name} (+1 Trauma)
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="row" style={{ flexWrap: 'wrap', justifyContent: 'center', gap: 10, width: '100%' }}>
-            {opts.map((o, i) => {
-              const v = s.votes[`explore:${o.id}`];
-              const secret = o.id === 'go_rel' || o.id === 'go_cri' || o.id === 'go_rare';
-              return (
-                <button
-                  key={o.id}
-                  className={`choice ${secret ? 'secret' : ''}`}
-                  style={{ animationDelay: `${i * 60}ms` }}
-                  onMouseEnter={() => audio.play('ui_hover', { volume: 0.35 })}
-                  onClick={() => {
-                    if (o.warning) return setConfirmOpt({ id: o.id, label: o.label, warning: o.warning });
-                    void run({ t: 'explore', optionId: o.id }, 'door_stone');
-                  }}
-                >
-                  <Icon id={o.icon ?? 'map_path'} />
-                  <div className="grow">
-                    <div className="lbl">{o.label}</div>
-                    {o.detail && <div className="det">{o.detail}</div>}
-                    {o.warning && <div className="det" style={{ color: 'var(--warn)' }}>{o.warning}</div>}
-                  </div>
-                  {v && (
-                    <div className="votes">
-                      {v.seats.map((x) => (
-                        <span key={x} className="vote-dot" title={s.seats.find((y) => y.id === x)?.name} />
-                      ))}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <PartyStrip st={st} onOpen={() => setInv(true)} />
-        </div>
-        {confirmOpt && (
-          <div className="modal-back" onClick={() => setConfirmOpt(null)}>
-            <div className="modal panel ornate" role="alertdialog" aria-label={confirmOpt.label} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
-              <div className="kicker">Sem volta</div>
-              <h2 className="h2">{confirmOpt.label}</h2>
-              <div className="divider" />
-              <p className="small" style={{ color: 'var(--warn)' }}>{confirmOpt.warning}</p>
-              <div className="actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                <button className="btn" autoFocus onClick={() => setConfirmOpt(null)}>
-                  Ainda não
-                </button>
-                <button
-                  className="btn primary"
-                  onClick={() => {
-                    const id = confirmOpt.id;
-                    setConfirmOpt(null);
-                    void run({ t: 'explore', optionId: id }, 'door_stone');
-                  }}
-                >
-                  Seguir em frente
-                </button>
-              </div>
-            </div>
+      </div>
+
+      <div className="x-bottom">
+        {fallen.length > 0 && (
+          <div className="x-fallen">
+            {fallen.map((h) => (
+              <button key={h.id} className="k-btn sm" onClick={() => void run({ t: 'raiseOutOfCombat', heroId: h.id }, 'rise_up')}>
+                <Icon id="act_heal" /> Levantar {h.name} <span className="k-muted">(+1 Trauma)</span>
+              </button>
+            ))}
           </div>
         )}
+        <div className="x-choices">
+          {opts.map((o, i) => {
+            const v = s.votes[`explore:${o.id}`];
+            const secret = o.id === 'go_rel' || o.id === 'go_cri' || o.id === 'go_rare';
+            return (
+              <button
+                key={o.id}
+                className={`x-choice ${secret ? 'secret' : ''} ${o.kind === 'combat' ? 'fight' : ''}`}
+                style={{ animationDelay: `${i * 70}ms` }}
+                onMouseEnter={() => audio.play('ui_hover', { volume: 0.35 })}
+                onClick={() => {
+                  if (o.warning) return setConfirmOpt({ id: o.id, label: o.label, warning: o.warning });
+                  void run({ t: 'explore', optionId: o.id }, 'door_stone');
+                }}
+              >
+                <span className="ic">
+                  <Icon id={o.icon ?? 'map_path'} />
+                </span>
+                <span className="txt">
+                  <span className="lbl">{o.label}</span>
+                  {o.detail && <span className="det">{o.detail}</span>}
+                </span>
+                {o.warning && <span className="warn">!</span>}
+                {v && (
+                  <span className="votes">
+                    {v.seats.map((x) => (
+                      <span key={x} className="vote-dot" title={s.seats.find((y) => y.id === x)?.name} />
+                    ))}
+                  </span>
+                )}
+                <Icon id="map_path" className="go" />
+              </button>
+            );
+          })}
+        </div>
+        <PartyStrip st={st} onOpen={() => setInv(true)} />
       </div>
+
+      {about && (
+        <div className="k-sheet-back" onClick={() => setAbout(false)}>
+          <div className="k-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={loc.name}>
+            <div className="grab" />
+            <div className="k-kicker">{loc.code}</div>
+            <div className="k-h1">{loc.name}</div>
+            <p className="x-prose">{arrival}</p>
+            <div className="k-row k-small k-muted" style={{ gap: 16 }}>
+              <span>
+                <Icon id="gold" /> {st.gold} ouro
+              </span>
+              <span>{st.completed.length} encontros vencidos</span>
+            </div>
+          </div>
+        </div>
+      )}
+      {map && (
+        <div className="k-sheet-back" onClick={() => setMap(false)}>
+          <div className="k-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Mapa">
+            <div className="grab" />
+            <MapPanel st={st} />
+          </div>
+        </div>
+      )}
+      {confirmOpt && (
+        <div className="k-sheet-back" onClick={() => setConfirmOpt(null)}>
+          <div className="k-sheet" role="alertdialog" aria-label={confirmOpt.label} onClick={(e) => e.stopPropagation()}>
+            <div className="grab" />
+            <div className="k-kicker" style={{ color: 'var(--warn)' }}>
+              Sem volta
+            </div>
+            <div className="k-h1">{confirmOpt.label}</div>
+            <p className="x-prose" style={{ color: 'var(--warn)' }}>
+              {confirmOpt.warning}
+            </p>
+            <div className="k-stack">
+              <button
+                className="k-cta"
+                onClick={() => {
+                  const id = confirmOpt.id;
+                  setConfirmOpt(null);
+                  void run({ t: 'explore', optionId: id }, 'door_stone');
+                }}
+              >
+                Seguir em frente
+              </button>
+              <button className="k-btn" autoFocus onClick={() => setConfirmOpt(null)}>
+                Ainda não
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {inv && <InventoryModal onClose={() => setInv(false)} />}
     </div>
   );

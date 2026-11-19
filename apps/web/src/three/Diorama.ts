@@ -201,6 +201,7 @@ export class Diorama {
   /** Portrait combat framing (tunable at runtime for device checks). */
   camTune = { y: 15.5, z: 10.5, lz: 1.4, fov: 52 };
   camTuneL = { y: 13, z: 10.2, lz: 1.9 };
+  camTuneE = { y: 5.6, z: 15.5, ly: 1.1, lz: 5.6 };
 
   resize = () => {
     const w = this.container.clientWidth || window.innerWidth;
@@ -1134,6 +1135,12 @@ export class Diorama {
       const a = t * 0.05;
       this.camTarget.set(Math.sin(a) * 3.5, 3.2, 9 + Math.cos(a) * 1.5);
       this.camLook.set(0, 2.2, -6);
+    } else if (this.mode === 'explore' && aspect < 0.9) {
+      // phone upright: close behind the party, the place rising above them
+      const a = Math.sin(t * 0.07) * 0.25;
+      const E = this.camTuneE;
+      this.camTarget.set(Math.sin(a) * 1.2, E.y, E.z);
+      this.camLook.set(Math.sin(a) * 0.4, E.ly, E.lz);
     } else if (this.mode === 'explore') {
       const a = Math.sin(t * 0.07) * 0.6;
       this.camTarget.set(Math.sin(a) * 6, 5.2, 11.5);
