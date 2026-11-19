@@ -1,0 +1,353 @@
+/* ==========================================================================
+   UI kit — shared building blocks for every non-combat screen.
+   Portrait-phone first (360–430 px wide), grows to tablet/PC. Game-like:
+   one screen = one job, big tap targets (≥ 44 px), one golden call to action,
+   short text, details only on demand.
+   ========================================================================== */
+
+/* A full screen: header (back + title), scrollable body, sticky footer with the main action. */
+.k-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 0 0;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  background: linear-gradient(180deg, rgba(8, 6, 6, 0.55), rgba(8, 6, 6, 0.25) 30%, rgba(8, 6, 6, 0.7));
+  animation: kFade 0.25s ease both;
+}
+.k-screen.solid {
+  background: radial-gradient(ellipse at 50% 0%, #241c18, #0c0909 70%);
+}
+.k-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px 10px;
+}
+.k-head .k-title {
+  flex: 1;
+  min-width: 0;
+}
+.k-kicker {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.k-h1 {
+  font-family: var(--font-display);
+  font-size: clamp(20px, 5.6vw, 30px);
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  margin: 2px 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.k-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 14px 18px;
+  -webkit-overflow-scrolling: touch;
+}
+.k-foot {
+  padding: 10px 14px calc(env(safe-area-inset-bottom, 0px) + 12px);
+  background: linear-gradient(180deg, transparent, rgba(8, 6, 6, 0.85) 30%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.k-foot .k-note {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  text-align: center;
+}
+@media (min-width: 900px) {
+  .k-head,
+  .k-body,
+  .k-foot {
+    width: min(1100px, 100%);
+    justify-self: center;
+  }
+}
+
+/* round icon button (back, menu, close) */
+.k-round {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(14, 11, 11, 0.72);
+  border: 1px solid rgba(230, 207, 143, 0.2);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.k-round .ico {
+  width: 20px;
+  height: 20px;
+}
+.k-round:active {
+  transform: scale(0.94);
+}
+
+/* the one golden call to action */
+.k-cta {
+  width: min(420px, 100%);
+  min-height: 54px;
+  padding: 0 24px;
+  border-radius: 14px;
+  border: 1px solid #f3dfa2;
+  background: linear-gradient(180deg, #e8cc85, #b88a3e);
+  color: #1d140a;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55), 0 0 22px rgba(230, 190, 110, 0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.k-cta:disabled {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+  cursor: default;
+}
+.k-cta:not(:disabled):active {
+  transform: translateY(1px) scale(0.98);
+}
+/* secondary full-width button */
+.k-btn {
+  width: min(420px, 100%);
+  min-height: 50px;
+  padding: 0 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(230, 207, 143, 0.25);
+  background: rgba(20, 16, 15, 0.82);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.k-btn .ico {
+  width: 20px;
+  height: 20px;
+  color: var(--gold);
+}
+.k-btn:active {
+  transform: scale(0.98);
+}
+.k-btn.sm {
+  width: auto;
+  min-height: 40px;
+  font-size: 13px;
+}
+
+/* cards & lists */
+.k-card {
+  position: relative;
+  border-radius: 16px;
+  padding: 14px;
+  background: linear-gradient(160deg, rgba(38, 31, 28, 0.92), rgba(16, 12, 12, 0.95));
+  border: 1px solid rgba(230, 207, 143, 0.16);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+.k-card.sel {
+  border-color: var(--acc, var(--gold-2));
+  box-shadow: 0 0 0 1px var(--acc, var(--gold-2)), 0 0 22px color-mix(in srgb, var(--acc, #e6cf8f) 30%, transparent), 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+.k-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.k-stack {
+  display: grid;
+  gap: 10px;
+}
+.k-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.k-row .grow {
+  flex: 1;
+  min-width: 0;
+}
+.k-section {
+  margin: 16px 0 8px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.k-muted {
+  color: var(--ink-3);
+}
+.k-small {
+  font-size: 13px;
+}
+
+/* round emblem (class / item portrait) */
+.k-emblem {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 40% 30%, #3a302a, #120e0d 75%);
+  border: 2px solid color-mix(in srgb, var(--acc, #c8a75e) 75%, #000);
+  color: var(--acc, var(--gold-2));
+}
+.k-emblem .ico {
+  width: 60%;
+  height: 60%;
+}
+.k-emblem.lg {
+  width: 72px;
+  height: 72px;
+}
+
+/* chips / stats */
+.k-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(230, 207, 143, 0.18);
+  color: var(--ink-2);
+}
+.k-chip .ico {
+  width: 14px;
+  height: 14px;
+}
+.k-chip.red {
+  color: #ffb5a6;
+  border-color: rgba(194, 70, 58, 0.45);
+}
+.k-chip.gold {
+  color: var(--gold-2);
+  border-color: rgba(230, 207, 143, 0.5);
+}
+.k-chip.green {
+  color: #bff0a8;
+  border-color: rgba(143, 191, 114, 0.5);
+}
+
+/* tabs (segmented) */
+.k-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(14, 11, 11, 0.72);
+  border: 1px solid rgba(230, 207, 143, 0.14);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.k-tabs button {
+  flex: 1;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.k-tabs button.on {
+  background: rgba(230, 207, 143, 0.14);
+  color: var(--gold-2);
+}
+
+/* bottom sheet for details/modals */
+.k-sheet-back {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: kFade 0.2s ease both;
+}
+.k-sheet {
+  width: min(560px, 100vw);
+  max-height: 86vh;
+  overflow-y: auto;
+  padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  border-radius: 20px 20px 0 0;
+  background: linear-gradient(180deg, rgba(34, 27, 24, 0.98), rgba(16, 12, 12, 0.99));
+  border: 1px solid rgba(230, 207, 143, 0.18);
+  border-bottom: 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.6);
+  animation: kUp 0.28s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.k-sheet .grab {
+  width: 42px;
+  height: 4px;
+  margin: 0 auto 12px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.18);
+}
+@media (min-width: 900px) and (min-height: 600px) {
+  .k-sheet-back {
+    align-items: center;
+  }
+  .k-sheet {
+    border-radius: 20px;
+    border-bottom: 1px solid rgba(230, 207, 143, 0.18);
+  }
+}
+
+/* text input */
+.k-input {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(230, 207, 143, 0.25);
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px; /* no zoom on iOS */
+  outline: none;
+}
+.k-input:focus {
+  border-color: var(--gold-2);
+}
+
+@keyframes kFade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes kUp {
+  from {
+    transform: translateY(100%);
+  }
+}

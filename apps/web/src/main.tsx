@@ -8,6 +8,7 @@ import { loadIconSprite } from './ui/Icon';
 import { App } from './app/App';
 import './ui/styles.css';
 import './ui/hud.css';
+import './ui/kit.css';
 
 installContent();
 applySettings();

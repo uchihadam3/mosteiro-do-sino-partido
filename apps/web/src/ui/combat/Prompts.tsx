@@ -1,12 +1,28 @@
+/**
+ * Decisions the rules ask for mid-combat, shown as a bottom sheet: one short question, the dice, big buttons.
+ * Rules detail is available behind "O que faz" only.
+ */
 import React, { useEffect, useState } from 'react';
 import { type CombatState, type Pending, type PendingAnswer } from '@mosteiro/core';
 import { useSession } from '../../app/hooks';
 import { Icon } from '../Icon';
 import { ATTR_NAME } from '../data';
-import { act } from './CombatHUD';
+import { act } from './GameHUD';
 
 function answer(p: Pending, a: PendingAnswer) {
   return act({ t: 'combat', cmd: { t: 'answer', pendingId: p.id, answer: a } });
+}
+
+const COND: Record<string, string> = { veneno: 'Veneno', sangramento: 'Sangramento', queimando: 'Queimando', quebrado: 'Quebrado', exposto: 'Exposto', imobilizado: 'Imobilizado', atordoado: 'Atordoado' };
+const condName = (c: string) => COND[c] ?? c;
+
+function Sheet({ children, label }: { children: React.ReactNode; label: string }) {
+  return (
+    <div className="prompt" role="dialog" aria-label={label}>
+      <div className="g-sheet-grab" />
+      {children}
+    </div>
+  );
 }
 
 export function PendingPrompt({ S }: { S: CombatState }) {
@@ -16,12 +32,7 @@ export function PendingPrompt({ S }: { S: CombatState }) {
   const mine = p.controllers.length === 0 || p.controllers.some((id) => s.controls(id)) || (p.kind === 'defense' && s.controls(p.d.targetId));
   if (!mine) {
     const who = p.controllers.map((id) => s.state!.seats.find((x) => x.id === s.state!.heroes.find((h) => h.id === id)?.seat)?.name).filter(Boolean);
-    return (
-      <div className="prompt panel">
-        <div className="q">Aguardando decisão</div>
-        <div className="small muted">{who.length ? `${[...new Set(who)].join(', ')} está decidindo…` : 'Outro jogador está decidindo…'}</div>
-      </div>
-    );
+    return <div className="hint-chip">{who.length ? `${[...new Set(who)].join(', ')} está decidindo…` : 'Outro jogador está decidindo…'}</div>;
   }
   switch (p.kind) {
     case 'attackPost':
@@ -30,73 +41,74 @@ export function PendingPrompt({ S }: { S: CombatState }) {
       return <Defense p={p} S={S} />;
     case 'egide':
       return (
-        <div className="prompt panel ornate">
-          <div className="q">Égide — {name(p.d.targetId)} sofreria {p.damage} Dano</div>
-          <div className="small muted">Gaste a Reação do Paladino e role Espírito: cada Sucesso reduz 1 Dano adicional. Se impedir todo o Dano, gera 1 Convicção (1/Ciclo).</div>
-          <div className="opts">
+        <Sheet label="Égide">
+          <div className="q">Proteger {name(p.d.targetId)}?</div>
+          <div className="sub">Vai sofrer {p.damage} de Dano. A Égide do Paladino rola Espírito para reduzir mais.</div>
+          <div className="acts">
+            <button className="btn" onClick={() => void answer(p, { kind: 'egide', paladinId: null })}>
+              Não
+            </button>
             {p.paladins.map((id) => (
-              <button key={id} className="btn primary sm" onClick={() => void answer(p, { kind: 'egide', paladinId: id })}>
-                Égide ({name(id)})
+              <button key={id} className="btn primary" onClick={() => void answer(p, { kind: 'egide', paladinId: id })}>
+                Égide · {name(id)}
               </button>
             ))}
-            <button className="btn sm" onClick={() => void answer(p, { kind: 'egide', paladinId: null })}>
-              Não usar
-            </button>
           </div>
-        </div>
+        </Sheet>
       );
     case 'conditionResponse':
       return (
-        <div className="prompt panel ornate">
+        <Sheet label="Evitar condição">
           <div className="q">
-            {name(p.targetId)} receberia {p.effect.kind === 'cond' ? condName(p.effect.cond) : 'uma Condição'}
+            {name(p.targetId)} ficaria {p.effect.kind === 'cond' ? condName(p.effect.cond) : 'afetado'}
           </div>
-          <div className="small muted">O Dano permanece; apenas a Condição pode ser cancelada.</div>
-          <div className="opts">
+          <div className="sub">O Dano continua; dá para cancelar só a condição.</div>
+          <div className="acts">
+            <button className="btn" onClick={() => void answer(p, { kind: 'conditionResponse', choice: null })}>
+              Aceitar
+            </button>
             {p.options.map((o) => (
-              <button key={o.heroId + o.kind} className="btn primary sm" onClick={() => void answer(p, { kind: 'conditionResponse', choice: { heroId: o.heroId, kind: o.kind } })}>
+              <button key={o.heroId + o.kind} className="btn primary" onClick={() => void answer(p, { kind: 'conditionResponse', choice: { heroId: o.heroId, kind: o.kind } })}>
                 {o.label}
               </button>
             ))}
-            <button className="btn sm" onClick={() => void answer(p, { kind: 'conditionResponse', choice: null })}>
-              Aceitar
-            </button>
           </div>
-        </div>
+        </Sheet>
       );
     case 'step':
       return (
-        <div className="hint-chip panel">
-          <span className="kicker" style={{ color: 'var(--gold-2)' }}>{p.reason}</span>
+        <div className="hint-chip">
           <span>
-            {name(p.figureId)}: Passo {p.steps} — escolha um Setor destacado
+            <b style={{ color: 'var(--gold-2)' }}>{name(p.figureId)}</b> pode andar {p.steps} — toque num lugar brilhando
           </span>
-          <button className="btn sm" onClick={() => void answer(p, { kind: 'step', sector: null })}>
-            Não mover
+          <button className="g-pill" onClick={() => void answer(p, { kind: 'step', sector: null })}>
+            Ficar
           </button>
         </div>
       );
     case 'tieBreak':
       return (
-        <div className="prompt panel ornate">
-          <div className="q">A party decide</div>
-          <div className="small muted">{p.reason} Escolha quem será o alvo.</div>
+        <Sheet label="Escolher alvo">
+          <div className="q">Quem o inimigo ataca?</div>
+          <div className="sub">{p.reason}</div>
           <div className="opts">
             {p.candidates.map((id) => {
               const f = S.figures.find((x) => x.id === id)!;
               return (
                 <button key={id} className="opt" onClick={() => void answer(p, { kind: 'tieBreak', heroId: id })}>
                   {f.name}
-                  <small>HP {f.hp}/{f.maxHp}</small>
+                  <small>
+                    {f.hp}/{f.maxHp} de vida
+                  </small>
                 </button>
               );
             })}
           </div>
-        </div>
+        </Sheet>
       );
     case 'choice':
       return (
-        <div className="prompt panel ornate">
+        <Sheet label="Escolha">
           <div className="q">{p.prompt}</div>
           <div className="opts">
             {p.options.map((o) => (
@@ -106,47 +118,43 @@ export function PendingPrompt({ S }: { S: CombatState }) {
               </button>
             ))}
           </div>
-        </div>
+        </Sheet>
       );
     case 'allocate':
       return <Allocate p={p} S={S} />;
     case 'silencio':
       return (
-        <div className="prompt panel ornate">
-          <div className="q">Silêncio do Coro</div>
-          <div className="small muted">A Ressonância de Severin está prestes a subir para {S.boss.ressonancia + 1}. Usar o Silêncio do Coro agora (uma vez por combate)?</div>
-          <div className="opts">
-            <button className="btn primary sm" onClick={() => void answer(p, { kind: 'silencio', use: true })}>
+        <Sheet label="Silêncio do Coro">
+          <div className="q">Usar o Silêncio do Coro?</div>
+          <div className="sub">Impede que a Ressonância suba para {S.boss.ressonancia + 1}. Só uma vez no combate.</div>
+          <div className="acts">
+            <button className="btn" onClick={() => void answer(p, { kind: 'silencio', use: false })}>
+              Guardar
+            </button>
+            <button className="btn primary" onClick={() => void answer(p, { kind: 'silencio', use: true })}>
               Silenciar
             </button>
-            <button className="btn sm" onClick={() => void answer(p, { kind: 'silencio', use: false })}>
-              Guardar para depois
-            </button>
           </div>
-        </div>
+        </Sheet>
       );
   }
 }
 
-const COND: Record<string, string> = { veneno: 'Veneno', sangramento: 'Sangramento', queimando: 'Queimando', quebrado: 'Quebrado', exposto: 'Exposto', imobilizado: 'Imobilizado', atordoado: 'Atordoado' };
-function condName(c: string) {
-  return COND[c] ?? c;
-}
-
-function DiceFaces({ roll, onReroll }: { roll: { dice: { grade: number; value: number; source: string }[] }; onReroll?(i: number): void }) {
+function Dice({ roll, onReroll }: { roll: { dice: { grade: number; value: number; source: string }[] }; onReroll?(i: number): void }) {
   return (
-    <div className="dice-row" style={{ margin: '8px 0 4px' }}>
+    <div className="dice-row">
       {roll.dice.map((d, i) => {
-        const s = d.value <= 2 ? 's0' : d.value === 12 ? 'crit' : d.value >= 6 ? 'imp' : 's1';
+        const k = d.value <= 2 ? 's0' : d.value === 12 ? 'crit' : d.value >= 6 ? 'imp' : 's1';
         return (
-          <div key={i} className="col" style={{ alignItems: 'center', gap: 2 }}>
-            <div className={`die3d ${s}`} style={{ animation: 'none', width: 46, height: 46 }}>
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <div className={`g-die ${k}`} style={{ animation: 'none', width: 56, height: 56 }}>
               <Icon id={`dice_d${d.grade}`} />
-              <span className="v" style={{ fontSize: 17 }}>{d.value}</span>
+              <span className="v" style={{ fontSize: 19 }}>
+                {d.value}
+              </span>
             </div>
-            <span className="xs muted">{d.source}</span>
             {onReroll && (
-              <button className="btn sm" style={{ minHeight: 26, padding: '2px 8px' }} onClick={() => onReroll(i)}>
+              <button className="g-pill" onClick={() => onReroll(i)}>
                 Rerrolar
               </button>
             )}
@@ -175,41 +183,43 @@ function AttackPost({ p, S }: { p: Extract<Pending, { kind: 'attackPost' }>; S: 
     return true;
   };
   const succ = p.roll.successes + (chosen.includes('brecha:pontoFraco') ? 1 : 0);
-  const cost = (o: (typeof p.options)[number]) => [o.cost.impulso && `${o.cost.impulso} Impulso`, o.cost.mira && `${o.cost.mira} Mira`, o.cost.conviccao && `${o.cost.conviccao} Convicção`, o.cost.brecha && `${o.cost.brecha} Brecha`].filter(Boolean).join(' · ') || 'grátis';
+  const cost = (o: (typeof p.options)[number]) => [o.cost.impulso && `${o.cost.impulso} impulso`, o.cost.mira && `${o.cost.mira} mira`, o.cost.conviccao && `${o.cost.conviccao} convicção`, o.cost.brecha && `${o.cost.brecha} brecha`].filter(Boolean).join(' · ') || 'grátis';
+  const hit = p.attack.control ? (succ ? 'Funcionou!' : 'Não funcionou') : succ ? 'Acertou!' : 'Errou';
   return (
-    <div className="prompt panel ornate">
+    <Sheet label="Resultado do ataque">
       <div className="q">
         {p.attack.name} → {tgt?.name}
       </div>
-      <div className="row small" style={{ gap: 8 }}>
-        <span className={`chip ${succ ? 'green' : 'red'}`}>{p.attack.control ? (succ ? 'Controle bem-sucedido' : 'Controle falhou') : succ ? `Acerta · ${succ} Sucesso${succ > 1 ? 's' : ''}` : 'Erra (0 Sucessos)'}</span>
-        <span className="chip gold">
-          Impulsos {p.roll.impulsos - sum('impulso')}/{p.roll.impulsos}
-        </span>
-        {p.roll.critico && <span className="chip gold">Crítico: +1 Dano, ignora 1 Armadura</span>}
-        {!p.attack.control && !p.attack.data['support'] && succ > 0 && <span className="chip">Dano base {p.attack.dano} + {Math.max(0, succ - 1)}</span>}
+      <div className="chips">
+        <span className={succ ? 'good' : 'bad'}>{hit}</span>
+        {!p.attack.control && !p.attack.data['support'] && succ > 0 && <span>Dano {p.attack.dano + Math.max(0, succ - 1)}</span>}
+        {p.roll.impulsos > 0 && (
+          <span className="gold">
+            {p.roll.impulsos - sum('impulso')} impulso{p.roll.impulsos - sum('impulso') === 1 ? '' : 's'} para gastar
+          </span>
+        )}
+        {p.roll.critico && <span className="gold">Crítico +1 Dano</span>}
       </div>
-      <DiceFaces roll={p.roll} onReroll={p.canReroll ? (i) => void act({ t: 'combat', cmd: { t: 'reroll', dieIndex: i } }) : undefined} />
-      {p.canReroll && <div className="xs muted">Arqueiro: gaste 1 Mira para rerrolar um dado ({src.res?.mira ?? 0} Mira).</div>}
+      <Dice roll={p.roll} onReroll={p.canReroll ? (i) => void act({ t: 'combat', cmd: { t: 'reroll', dieIndex: i } }) : undefined} />
       {p.options.length > 0 && (
-        <>
-          <div className="kicker" style={{ marginTop: 8 }}>Gastar</div>
-          <div className="opts">
-            {p.options.map((o) => (
-              <button key={o.id} className={`opt ${chosen.includes(o.id) ? 'on' : ''}`} disabled={!can(o.id)} onClick={() => setChosen(chosen.includes(o.id) ? chosen.filter((x) => x !== o.id) : [...chosen, o.id])}>
-                {o.label}
-                <small>{cost(o)}{o.requiresHit && !succ ? ' · requer acerto' : ''}</small>
-              </button>
-            ))}
-          </div>
-        </>
+        <div className="opts">
+          {p.options.map((o) => (
+            <button key={o.id} className={`opt ${chosen.includes(o.id) ? 'on' : ''}`} disabled={!can(o.id)} onClick={() => setChosen(chosen.includes(o.id) ? chosen.filter((x) => x !== o.id) : [...chosen, o.id])}>
+              {o.label}
+              <small>
+                {cost(o)}
+                {o.requiresHit && !succ ? ' · precisa acertar' : ''}
+              </small>
+            </button>
+          ))}
+        </div>
       )}
-      <div className="row" style={{ justifyContent: 'flex-end', marginTop: 12 }}>
+      <div className="acts">
         <button className="btn primary" autoFocus onClick={() => void act({ t: 'combat', cmd: { t: 'answer', pendingId: p.id, answer: { kind: 'attackPost', choices: chosen } } })}>
-          Resolver
+          Continuar
         </button>
       </div>
-    </div>
+    </Sheet>
   );
 }
 
@@ -226,43 +236,43 @@ function Defense({ p, S }: { p: Extract<Pending, { kind: 'defense' }>; S: Combat
     else setChosen([...chosen.filter((c) => c.heroId !== o.heroId), { heroId: o.heroId, kind: o.kind }]);
   };
   const pv = p.preview;
+  const extra = [...p.d.attack.onZero.map((e) => (e.kind === 'cond' ? condName(e.cond) : e.kind)), ...p.d.attack.onDamage.map((e) => (e.kind === 'cond' ? condName(e.cond) : e.kind === 'push' ? 'Empurrar' : e.kind === 'pull' ? 'Puxar' : ''))].filter(Boolean);
   return (
-    <div className="prompt panel ornate">
+    <Sheet label="Defesa">
       <div className="q">
-        {src?.name} — {p.d.attack.name}
+        {src?.name} ataca {t.name}!
       </div>
-      <div className="small">
-        <b>{t.name}</b> defende <b style={{ color: '#f0a090' }}>Dano {pv.dano}</b> com <b>{ATTR_NAME[p.d.attack.def]}</b> (D{p.d.dice[0].grade}). Cada Sucesso bloqueia 1.
+      <div className="chips">
+        <span className="bad">{pv.dano} de Dano</span>
+        <span>Defesa: {ATTR_NAME[p.d.attack.def]}</span>
+        {pv.armor > 0 && <span className="good">Armadura −{pv.armor}</span>}
+        {pv.guard && <span className="good">Guardado −1</span>}
+        {pv.cover && <span className="good">Cobertura −1</span>}
+        {extra.length > 0 && <span className="bad">Risco: {[...new Set(extra)].join(', ')}</span>}
       </div>
-      <div className="row xs" style={{ gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-        <span className="chip">Armadura {pv.armor}</span>
-        {pv.guard && <span className="chip green">Guardado −1</span>}
-        {pv.cover && <span className="chip green">Cobertura −1</span>}
-        {p.d.attack.onZero.length > 0 && <span className="chip red">0 Sucessos → {p.d.attack.onZero.map((e) => (e.kind === 'cond' ? condName(e.cond) : e.kind)).join(', ')}</span>}
-        {p.d.attack.onDamage.length > 0 && <span className="chip red">Com Dano → {p.d.attack.onDamage.map((e) => (e.kind === 'cond' ? condName(e.cond) : e.kind === 'push' ? 'Empurrar' : e.kind === 'pull' ? 'Puxar' : '')).join(', ')}</span>}
-      </div>
-      <div className="kicker" style={{ marginTop: 10 }}>Reações ({dice}/3 dados)</div>
-      <div className="opts">
-        {p.options.map((o) => {
-          const on = chosen.some((c) => c.heroId === o.heroId && c.kind === o.kind);
-          const mine = s.controls(o.heroId);
-          return (
-            <button key={o.heroId + o.kind} className={`opt ${on ? 'on' : ''}`} disabled={!mine || (!on && dice >= 3 && !!o.addDie)} onClick={() => toggle(o)}>
-              {o.label}
-              {!mine && <small>de outro jogador</small>}
-            </button>
-          );
-        })}
-      </div>
-      <div className="row" style={{ justifyContent: 'flex-end', marginTop: 12, gap: 8 }}>
-        <button className="btn" onClick={() => void act({ t: 'combat', cmd: { t: 'answer', pendingId: p.id, answer: { kind: 'defense', reactions: [] } } })}>
-          Sem Reação
-        </button>
+      {p.options.length > 0 && (
+        <>
+          <div className="sub">Ajudar com uma Reação ({dice}/3 dados)</div>
+          <div className="opts">
+            {p.options.map((o) => {
+              const on = chosen.some((c) => c.heroId === o.heroId && c.kind === o.kind);
+              const mine = s.controls(o.heroId);
+              return (
+                <button key={o.heroId + o.kind} className={`opt ${on ? 'on' : ''}`} disabled={!mine || (!on && dice >= 3 && !!o.addDie)} onClick={() => toggle(o)}>
+                  {o.label}
+                  {!mine && <small>de outro jogador</small>}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+      <div className="acts">
         <button className="btn primary" autoFocus onClick={() => void act({ t: 'combat', cmd: { t: 'answer', pendingId: p.id, answer: { kind: 'defense', reactions: chosen } } })}>
-          Rolar Defesa
+          Defender
         </button>
       </div>
-    </div>
+    </Sheet>
   );
 }
 
@@ -270,35 +280,38 @@ function Allocate({ p, S }: { p: Extract<Pending, { kind: 'allocate' }>; S: Comb
   const [alloc, setAlloc] = useState<Record<string, number>>(() => Object.fromEntries(p.targets.map((t) => [t, 0])));
   const total = Object.values(alloc).reduce((a, b) => a + b, 0);
   return (
-    <div className="prompt panel ornate">
+    <Sheet label="Distribuir">
       <div className="q">{p.prompt}</div>
-      <div className="col" style={{ gap: 6, marginTop: 8 }}>
+      <div className="sub">
+        {total}/{p.total} distribuídos
+      </div>
+      <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
         {p.targets.map((id) => {
           const f = S.figures.find((x) => x.id === id)!;
           return (
-            <div key={id} className="row small">
-              <span className="grow">
-                {f.name} <span className="muted">HP {f.hp}/{f.maxHp}</span>
+            <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ flex: 1 }}>
+                {f.name}{' '}
+                <span className="muted">
+                  {f.hp}/{f.maxHp}
+                </span>
               </span>
-              <button className="btn icon sm" disabled={!alloc[id]} onClick={() => setAlloc({ ...alloc, [id]: alloc[id] - 1 })}>
+              <button className="g-x" disabled={!alloc[id]} onClick={() => setAlloc({ ...alloc, [id]: alloc[id] - 1 })}>
                 −
               </button>
               <b style={{ minWidth: 20, textAlign: 'center' }}>{alloc[id]}</b>
-              <button className="btn icon sm" disabled={alloc[id] >= p.maxPer || total >= p.total} onClick={() => setAlloc({ ...alloc, [id]: alloc[id] + 1 })}>
+              <button className="g-x" disabled={alloc[id] >= p.maxPer || total >= p.total} onClick={() => setAlloc({ ...alloc, [id]: alloc[id] + 1 })}>
                 +
               </button>
             </div>
           );
         })}
       </div>
-      <div className="row" style={{ justifyContent: 'space-between', marginTop: 12 }}>
-        <span className="xs muted">
-          {total}/{p.total} distribuídos
-        </span>
+      <div className="acts">
         <button className="btn primary" onClick={() => void act({ t: 'combat', cmd: { t: 'answer', pendingId: p.id, answer: { kind: 'allocate', alloc } } })}>
           Confirmar
         </button>
       </div>
-    </div>
+    </Sheet>
   );
 }

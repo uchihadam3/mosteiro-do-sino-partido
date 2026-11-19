@@ -4,7 +4,7 @@ import { useSession } from '../app/hooks';
 import { useApp } from '../app/App';
 import { Prep } from './Prep';
 import { Explore } from './Explore';
-import { CombatHUD } from './combat/CombatHUD';
+import { GameHUD } from './combat/GameHUD';
 import { Reward } from './Reward';
 import { Base } from './Base';
 import { Icon } from './Icon';
@@ -28,7 +28,7 @@ export function GameScreens() {
     <>
       {st.phase === 'prep' && <Prep />}
       {st.phase === 'explore' && <Explore />}
-      {st.phase === 'combat' && st.combat && <CombatHUD />}
+      {st.phase === 'combat' && st.combat && <GameHUD />}
       {st.phase === 'reward' && <Reward />}
       {(st.phase === 'base' || st.phase === 'complete') && <Base />}
       {st.phase === 'epilogue' && st.epilogue && <Epilogue />}

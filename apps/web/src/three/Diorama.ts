@@ -9,7 +9,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
-import type { CombatState, DomainEvent, Figure, SectorKey } from '@mosteiro/core';
+import { intentFor, type CombatState, type DomainEvent, type Figure, type SectorKey } from '@mosteiro/core';
 import { buildEnemy, buildHero, CLASS_ACCENT, type Rig } from './characters';
 import { buildEnemySkinned, buildHeroSkinned, hasSkinnedEnemy } from './skinned';
 import { buildScene, type BuiltScene } from './scenes';
@@ -198,6 +198,10 @@ export class Diorama {
     return /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) < 560;
   }
 
+  /** Portrait combat framing (tunable at runtime for device checks). */
+  camTune = { y: 15.5, z: 10.5, lz: 1.4, fov: 52 };
+  camTuneL = { y: 13, z: 10.2, lz: 1.9 };
+
   resize = () => {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
@@ -207,7 +211,7 @@ export class Diorama {
     this.composer.setSize(w, h);
     this.camera.aspect = w / h;
     // keep the whole 5×2 board in frame on narrow (portrait-ish) screens
-    this.camera.fov = w / h < 1.2 ? 52 : w / h < 1.6 ? 42 : 36;
+    this.camera.fov = w / h < 0.9 ? this.camTune.fov : w / h < 1.2 ? 52 : w / h < 1.6 ? 42 : 36;
     this.camera.updateProjectionMatrix();
     this.vfx.setPixelScale(h * this.dpr);
   };
@@ -359,7 +363,7 @@ export class Diorama {
         v.sector = f.sector;
       }
       if (!v.tween && !this.queue.length) v.fallen = f.status === 'active' ? 0 : 1;
-      this.updatePlate(v, f);
+      this.updatePlate(v, f, S);
     }
     for (const id of [...this.figs.keys()]) if (!present.has(id) && !this.figs.get(id)!.dead && !this.queue.length) this.removeFig(id);
     this.updateMarkers(S);
@@ -383,13 +387,19 @@ export class Diorama {
     this.markers.clear();
   }
 
-  private updatePlate(v: FigView, f: Figure) {
+  private updatePlate(v: FigView, f: Figure, S?: CombatState) {
     if (!v.plate) return;
+    const pct = Math.max(0, f.hp / f.maxHp) * 100;
     if (f.side === 'H') {
-      v.plate.style.display = 'none';
+      // heroes: a slim life bar only (details live in the portrait dock)
+      if (f.status !== 'active') {
+        v.plate.style.display = 'none';
+        return;
+      }
+      v.plate.style.display = '';
+      v.plate.innerHTML = `<div class="np-bar"><i style="width:${pct}%"></i></div>`;
       return;
     }
-    const pct = Math.max(0, f.hp / f.maxHp) * 100;
     const conds: string[] = [];
     const C = f.conditions;
     if (C.guardado) conds.push('guardado');
@@ -401,7 +411,12 @@ export class Diorama {
     if (C.veneno) conds.push('veneno');
     if (C.julgadoPor) conds.push('julgado');
     const br = C.brechas ? `<span class="np-brecha">${'◆'.repeat(C.brechas)}</span>` : '';
-    v.plate.innerHTML = `<div class="np-bar"><i style="width:${pct}%"></i></div><div class="np-row"><span class="np-hp">${f.hp}</span>${f.armor ? `<span class="np-arm">${f.armor}</span>` : ''}${conds.map((c) => `<svg class="np-c c-${c}"><use href="#cond_${c}"/></svg>`).join('')}${br}</div>`;
+    // the Intention this enemy will carry out, right above its head
+    const it = S && f.status === 'active' ? intentFor(S, f.typeId) : null;
+    const bandTempo: Record<string, string> = { ER: 'rapido', ET: 'tatico', EP: 'pesado' };
+    const now = it && S && S.phase === 'enemyBand' && bandTempo[S.band] === it.tempo;
+    const intent = it ? `<div class="np-intent ${now ? 'now' : ''}" title="${it.name}"><svg><use href="#tempo_${it.tempo}"/></svg>${it.dano !== undefined ? it.dano : ''}</div>` : '';
+    v.plate.innerHTML = `${intent}<div class="np-bar"><i style="width:${pct}%"></i></div><div class="np-row"><span class="np-hp">${f.hp}</span>${f.armor ? `<span class="np-arm">${f.armor}</span>` : ''}${conds.map((c) => `<svg class="np-c c-${c}"><use href="#cond_${c}"/></svg>`).join('')}${br}</div>`;
   }
 
   private updateMarkers(S: CombatState) {
@@ -1123,12 +1138,19 @@ export class Diorama {
       const a = Math.sin(t * 0.07) * 0.6;
       this.camTarget.set(Math.sin(a) * 6, 5.2, 11.5);
       this.camLook.set(Math.sin(a) * 1.5, 1.4, -3.5);
+    } else if (aspect < 0.9) {
+      // phones held upright: high, steep camera so all 5 columns fit the width; board sits between top bar and hero dock
+      const T = this.camTune;
+      this.camTarget.set(Math.sin(t * 0.15) * 0.1, T.y, T.z);
+      this.camLook.set(0, 0, T.lz);
     } else {
       const narrow = aspect < 1.45;
       // phones in landscape: the HUD eats the bottom of a short screen, so frame the board higher and a bit tighter
       const wide = aspect > 1.9;
-      this.camTarget.set(Math.sin(t * 0.15) * 0.2, narrow ? 13.2 : wide ? 13.4 : 11.0, narrow ? 11.2 : wide ? 10.6 : 9.4);
-      this.camLook.set(0, 0.2, wide ? 0.55 : -0.3);
+      // the board sits in the upper part of the screen so the action row and hero portraits never cover it
+      const L = this.camTuneL;
+      this.camTarget.set(Math.sin(t * 0.15) * 0.2, narrow ? 13.2 : wide ? 13.4 : L.y, narrow ? 11.2 : wide ? 10.6 : L.z);
+      this.camLook.set(0, 0.2, narrow ? 0.6 : wide ? 0.55 : L.lz);
     }
     this.camPos.lerp(this.camTarget, Math.min(1, dt * 1.8));
     this.camera.position.copy(this.camPos);
