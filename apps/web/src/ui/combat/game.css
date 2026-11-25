@@ -133,6 +133,9 @@
   top: calc(var(--safe-t) + 58px);
   left: 50%;
   transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -151,6 +154,7 @@
   margin-right: 2px;
 }
 .g-gauge i {
+  flex: none;
   width: 16px;
   height: 7px;
   border-radius: 4px;
@@ -169,6 +173,7 @@
   top: calc(var(--safe-t) + 60px);
   left: 50%;
   transform: translateX(-50%);
+  width: max-content;
   padding: 7px 16px;
   border-radius: 999px;
   background: var(--glass);
@@ -1451,6 +1456,7 @@
   top: calc(var(--safe-t) + 58px);
   left: 50%;
   transform: translateX(-50%);
+  width: max-content;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1904,6 +1910,7 @@
   top: calc(var(--safe-t) + 58px);
   left: 50%;
   transform: translateX(-50%);
+  width: max-content;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
