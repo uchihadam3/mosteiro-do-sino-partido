@@ -20,14 +20,14 @@ Lembrete horário ativo (trigger `trig_01BYrF6qvn9TEHjvW8Z8HQJG`, minuto :17): c
 | # | Fase | Dono | Estado |
 |---|---|---|---|
 | F0 | Pontos de extensão no Diorama (`addFrameHook`, `cameraController`, `pointerOverride`, `setEnvironmentVisible`, `impulse`, modos `world`/`cinema`) | líder | ✅ |
-| F1 | ✅ **Batalha fácil**: tocar no inimigo = prévia (chance de acerto, dano) + confirmar; herói da vez auto-selecionado; fim de turno automático sem AP; Tempo pré-escolhido ("Lutar!" direto); faixa de iniciativa com retratos; banners "Sua vez"/"Vez dos inimigos"; prévias de ameaça | líder | ⏳ |
-| F2 | 🔶 **Tutorial interativo** (motor de passos + foco/realce + mão apontando + mentor com 1 frase) cobrindo: andar, porta, 1ª batalha (selecionar, atacar, dados, defesa), Tempo, Reações/Impulsos, mapa/segredos, saque/equipar; dicas "na primeira vez" | líder | ⏳ |
-| F3 | **Exploração em tempo real** (`apps/web/src/world`): sala = cenário do local; joystick/WASD/tocar-para-andar; party seguindo; portas = caminhos; inimigos no mapa → transição para batalha; objetos de lore/segredo; minimapa; funciona em pé/deitado/PC | agente World | ⏳ |
-| F4 | **História e cinema** (`apps/web/src/cinema`): splash da produtora, logo do jogo (SVG), abertura cinematográfica (câmera + legendas + música), cutscenes de chefes (Cantor, Vigia, Severin), final; roteiro em `docs/STORY.md`; elenco (mentor, Abade Severin) | agente Cinema | ⏳ |
-| F5 | ✅ **Pesquisa** de jogos parecidos → `docs/RESEARCH.md` com padrões concretos aplicados | agente Pesquisa | ⏳ |
-| F6 | **Beleza/juice**: hit-stop, câmera lenta no crítico, números de dano, partículas, transições, luzes; som em todas as interações | líder + agentes | ⏳ |
-| F8 | **Arte e animação**: cenários refeitos com o kit KayKit Dungeon Remastered (CC0, mesmo estilo dos personagens), luz/pós-processamento, coreografia de combate (avanço, hit-stop, câmera, crítico em câmera lenta, mortes), vida no idle; cenas por dungeon | agente Arte | ⏳ |
-| F7 | **QA e publicação**: E2E novos (tutorial, mundo, cinema), celular em pé/deitado (384×832, 832×384), PC; publicar; prints | líder | ⏳ |
+| F1 | **Batalha fácil**: tocar no inimigo = prévia (chance de acerto, dano) + confirmar; herói da vez auto-selecionado; fim de turno automático sem AP; Tempo pré-escolhido ("Lutar!" direto); faixa de iniciativa com retratos; banners "Sua vez"/"Vez dos inimigos"; prévias de ameaça | líder | ✅ |
+| F2 | **Tutorial interativo** (motor de passos + foco/realce + mão apontando + mentor com 1 frase) cobrindo: andar, porta, 1ª batalha (selecionar, atacar, dados, defesa), Tempo, Reações/Impulsos, mapa/segredos, saque/equipar; dicas "na primeira vez" | líder | ✅ |
+| F3 | **Exploração em tempo real** (`apps/web/src/world`): sala = cenário do local; joystick/WASD/tocar-para-andar; party seguindo; portas = caminhos; inimigos no mapa → transição para batalha; objetos de lore/segredo; minimapa; funciona em pé/deitado/PC | agente World | ✅ |
+| F4 | **História e cinema** (`apps/web/src/cinema`): splash da produtora, logo do jogo (SVG), abertura cinematográfica (câmera + legendas + música), cutscenes de chefes (Cantor, Vigia, Severin), final; roteiro em `docs/STORY.md`; elenco (mentor, Abade Severin) | agente Cinema | ✅ |
+| F5 | **Pesquisa** de jogos parecidos → `docs/RESEARCH.md` com padrões concretos aplicados | agente Pesquisa | ✅ |
+| F6 | **Beleza/juice**: hit-stop, câmera lenta no crítico, números de dano, partículas, transições, luzes; som em todas as interações | líder + agentes | 🔶 |
+| F8 | **Arte e animação**: cenários refeitos com o kit KayKit Dungeon Remastered (CC0, mesmo estilo dos personagens), luz/pós-processamento, coreografia de combate (avanço, hit-stop, câmera, crítico em câmera lenta, mortes), vida no idle; cenas por dungeon | agente Arte | ✅ |
+| F7 | **QA e publicação**: E2E novos (tutorial, mundo, cinema), celular em pé/deitado (384×832, 832×384), PC; publicar; prints | líder | 🔶 |
 
 ## Escopo do jogo
 - O jogo completo tem **6 dungeons**. O remake foca na Dungeon 1, mas tudo (cenários, mundo, cutscenes, tutorial, conteúdo,
@@ -48,3 +48,11 @@ Lembrete horário ativo (trigger `trig_01BYrF6qvn9TEHjvW8Z8HQJG`, minuto :17): c
   Tempo pré-escolhido + linha do tempo, chamadas de turno, chance de bloqueio, impulsos auto-gastos), **dados 3D de verdade**
   e dano flutuante grande. F2: capítulo da 1ª batalha + dicas de primeira vez + ligar/desligar/rever. Pesquisa pronta em
   docs/RESEARCH.md. Falta no F2: capítulos de exploração (após World), saque/equipar, mentor Irmão Anselmo (após Cinema).
+- 2026-11-25 (tarde) — Batalha: desfazer movimento; previsão exata (simula o golpe ~100× nas regras reais: acerto %,
+  dano mín–máx, chance de derrubar, dados, Impulso); caveira sobre inimigos que dá para derrubar; dados que se explicam
+  (✗ ✓ ✦ ✹, "azar: só 1 em N", legenda nas primeiras rolagens); dica e botão Encerrar quando não há ataque.
+- 2026-11-25 (tarde) — Integrados: Arte (salas KayKit para os 11 locais, luz/pós por qualidade, tabuleiro novo,
+  coreografia de golpe/crítico/morte), World (exploração em tempo real, portas = caminhos, batalha nasce na sala),
+  Cinema (splash Uchihadam Production, logo, abertura de 51 s, chefes, final, docs/STORY.md). Tutorial: Irmão Anselmo
+  como mentor + capítulo "primeiros passos" no mundo. Próximo: F6 polimento (juice, sons), F7 E2E de mundo/cinema,
+  verificação em pé/deitado/PC; Cárceres em pé renderizou preto numa captura (investigar).
