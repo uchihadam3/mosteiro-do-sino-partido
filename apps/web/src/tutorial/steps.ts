@@ -141,6 +141,58 @@ export const FIRST_BATTLE: Chapter = {
   ],
 };
 
+/** First loot: hand an item to a hero, then move on. */
+export const FIRST_LOOT: Chapter = {
+  id: 'first-loot',
+  start: (t) => t.st?.phase === 'reward' && t.has('.m-lootcard'),
+  steps: [
+    {
+      id: 'give',
+      say: 'Vitória! Toque num herói para ele guardar o item.',
+      target: { dom: '.m-lootcard:not(.got) .m-taker' },
+      block: true,
+      when: (t) => t.st?.phase === 'reward' && t.has('.m-lootcard:not(.got) .m-taker'),
+      done: (t) => t.has('.m-lootcard.got'),
+      skipIf: (t) => t.st?.phase !== 'reward',
+    },
+    {
+      id: 'onward',
+      say: 'O que ficar sem dono fica para trás. Toque em Seguir adiante.',
+      target: { dom: '.k-foot .k-cta' },
+      block: true,
+      when: (t) => t.st?.phase === 'reward' && t.has('.k-foot .k-cta'),
+      done: (t) => t.st?.phase !== 'reward',
+      skipIf: (t) => t.st?.phase !== 'reward',
+    },
+  ],
+};
+
+/** Before the first expedition: equipment is ready; go. */
+export const FIRST_PREP: Chapter = {
+  id: 'first-prep',
+  start: (t) => t.st?.phase === 'prep' && (t.st?.visited?.length ?? 0) === 0,
+  steps: [
+    {
+      id: 'gear',
+      say: 'Aqui você troca armas e armaduras. Por agora, está tudo pronto.',
+      target: null,
+      when: (t) => t.st?.phase === 'prep',
+      done: () => false,
+      skipIf: (t) => t.st?.phase !== 'prep',
+      autoMs: 3500,
+    },
+    {
+      id: 'go',
+      say: 'Toque em Partir para o Mosteiro.',
+      target: { dom: '.k-foot .k-cta' },
+      block: true,
+      when: (t) => t.st?.phase === 'prep' && t.has('.k-foot .k-cta'),
+      done: (t) => t.st?.phase !== 'prep',
+      skipIf: (t) => t.st?.phase !== 'prep',
+    },
+  ],
+};
+
 /** One-shot tips: the first time a mechanic shows up. */
 export interface Tip {
   id: string;
@@ -190,6 +242,12 @@ export const TIPS: Tip[] = [
     say: 'Escolha se gasta a Reação de um herói. Cada herói tem 1 Reação por ciclo.',
     target: { dom: '.prompt' },
     when: (t) => pending(t) === 'egide' || pending(t) === 'conditionResponse',
+  },
+  {
+    id: 'objective',
+    say: 'Esta luta tem um objetivo extra. Toque aqui para ver como.',
+    target: { dom: '.g-obj' },
+    when: (t) => inCombat(t) && t.has('.g-obj'),
   },
   {
     id: 'tie',

@@ -8,7 +8,7 @@ import { actionAvailability, actionTargets, ctxOf, type Figure } from '@mosteiro
 import { useSession } from '../app/hooks';
 import { useApp } from '../app/App';
 import { audio } from '../audio/AudioDirector';
-import { FIRST_BATTLE, TIPS, type Chapter, type Step, type Target, type Tip, type TutCtx } from './steps';
+import { FIRST_BATTLE, FIRST_LOOT, FIRST_PREP, TIPS, type Chapter, type Step, type Target, type Tip, type TutCtx } from './steps';
 import { Mentor } from './mentor';
 import './tutorial.css';
 
@@ -47,7 +47,7 @@ export function resetTutorial() {
   window.dispatchEvent(new Event('mosteiro-tutorial'));
 }
 
-const CHAPTERS: Chapter[] = [FIRST_BATTLE];
+const CHAPTERS: Chapter[] = [FIRST_PREP, FIRST_BATTLE, FIRST_LOOT];
 
 function debugBlocked() {
   const q = new URLSearchParams(location.search);
