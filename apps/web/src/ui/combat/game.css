@@ -2063,3 +2063,42 @@
     animation: none;
   }
 }
+
+/* tempo: the suggested rhythm and why */
+.g-tempo-why {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  text-align: center;
+  margin: -4px 0 6px;
+}
+.g-tempo-why b {
+  color: #ffe08a;
+  font-weight: 600;
+}
+.g-tempo-btn {
+  position: relative;
+}
+.g-tempo-btn.sug {
+  box-shadow: 0 0 0 1.5px rgba(255, 224, 138, 0.75), 0 0 16px rgba(255, 210, 110, 0.25);
+}
+.g-tempo-btn .sug-tag {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #e8c56a;
+  color: #2a1d0c;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .g-tempo-why {
+    font-size: 11px;
+    margin: 0 0 4px;
+  }
+}

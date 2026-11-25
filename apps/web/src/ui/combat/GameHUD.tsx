@@ -897,7 +897,20 @@ function Dock({ S, heroes, tempoHero, incoming, onTap }: { S: CombatState; heroe
 }
 
 // ------------------------------------------------------------------ Tempo: one hero at a time, three big choices
-const TEMPO_SUB: Record<Tempo, string> = { rapido: '2 AP · age primeiro', tatico: '3 AP', pesado: '3 AP · golpe mais forte' };
+const TEMPO_SUB: Record<Tempo, string> = { rapido: '2 AP + passo · antes deles', tatico: '3 AP', pesado: '3 AP · dado maior · age depois' };
+/** A suggested rhythm with its reason, from who is going to hit this hero and when. */
+function suggestTempo(S: CombatState, h: Figure): { t: Tempo; why: string } {
+  const threats = predictThreats(S).filter((th) => th.to.includes(h.id));
+  const incoming = threats.reduce((n, th) => n + (th.dano[h.id] ?? 0), 0);
+  const later = threats.filter((th) => th.tempo !== 'rapido');
+  if (incoming >= 2 && later.length) {
+    const who = S.figures.find((f) => f.id === later[0].from);
+    const nm = who ? (reg().enemies[who.typeId]?.name ?? who.name) : 'deles';
+    return { t: 'rapido', why: `age antes do golpe de ${nm} (−${incoming})` };
+  }
+  if (!threats.length) return { t: 'pesado', why: 'ninguém vai te atacar: golpe mais forte' };
+  return { t: 'tatico', why: 'mais AP para atacar e se defender' };
+}
 function TempoPicker({ S, heroId, setHero }: { S: CombatState; heroId: string | null; setHero(id: string | null): void }) {
   const s = useSession();
   const heroes = S.figures.filter((f) => f.side === 'H' && f.status === 'active');
@@ -954,15 +967,26 @@ function TempoPicker({ S, heroId, setHero }: { S: CombatState; heroId: string | 
           <div className="g-ctx-title" style={{ color: CLASS_COLOR[h.typeId] }}>
             {h.name} <span>· escolha o ritmo</span>
           </div>
-          <div className="g-tempo-row">
-            {(['rapido', 'tatico', 'pesado'] as Tempo[]).map((t) => (
-              <button key={t} className={`g-tempo-btn t-${t} ${h.tempo === t ? 'on' : ''}`} onClick={() => void pick(t)}>
-                <Icon id={`tempo_${t}`} />
-                <b>{TEMPO_NAME[t]}</b>
-                <small>{TEMPO_SUB[t]}</small>
-              </button>
-            ))}
-          </div>
+          {(() => {
+            const sug = suggestTempo(S, h);
+            return (
+              <>
+                <div className="g-tempo-why">
+                  Sugestão: <b>{TEMPO_NAME[sug.t]}</b> · {sug.why}
+                </div>
+                <div className="g-tempo-row">
+                  {(['rapido', 'tatico', 'pesado'] as Tempo[]).map((t) => (
+                    <button key={t} className={`g-tempo-btn t-${t} ${h.tempo === t ? 'on' : ''} ${sug.t === t ? 'sug' : ''}`} onClick={() => void pick(t)}>
+                      {sug.t === t && <span className="sug-tag">sugerido</span>}
+                      <Icon id={`tempo_${t}`} />
+                      <b>{TEMPO_NAME[t]}</b>
+                      <small>{TEMPO_SUB[t]}</small>
+                    </button>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
         </>
       ) : null}
       {all && !heroId && mine.length > 0 && (
