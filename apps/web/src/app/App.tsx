@@ -13,8 +13,11 @@ import { Toasts } from '../ui/Toasts';
 import { Captions } from '../ui/Captions';
 import { PerfPanel } from '../ui/PerfPanel';
 import { UpdateBanner } from '../ui/UpdateBanner';
+import { WORLD_ENABLED, enterWorld, leaveWorld } from '../world';
+import { CinemaLayer, SPLASH_ENABLED, Splash } from '../cinema';
+import { TutorialLayer } from '../tutorial';
 
-export type Route = 'title' | 'newgame' | 'online' | 'game';
+export type Route = 'splash' | 'title' | 'newgame' | 'online' | 'game';
 interface AppCtx {
   route: Route;
   go(r: Route): void;
@@ -27,7 +30,7 @@ export function App() {
   const stageRef = useRef<HTMLDivElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
   const [diorama, setDiorama] = useState<Diorama | null>(null);
-  const [route, setRoute] = useState<Route>('title');
+  const [route, setRoute] = useState<Route>(() => (SPLASH_ENABLED && !new URLSearchParams(location.search).get('debug') ? 'splash' : 'title'));
   const s = useSession();
   const settings = useSettings();
 
@@ -64,6 +67,8 @@ export function App() {
   const st = s.state;
   useEffect(() => {
     if (!diorama) return;
+    const exploring = route === 'game' && st?.phase === 'explore' && WORLD_ENABLED;
+    if (!exploring) leaveWorld(diorama);
     if (route !== 'game' || !st) {
       void diorama.loadScene('campanario');
       diorama.setMode('title');
@@ -89,6 +94,9 @@ export function App() {
     if (st.phase === 'combat' && st.combat && enc) {
       diorama.setMode('combat');
       audio.setMusic(enc.music);
+    } else if (exploring) {
+      audio.setMusic('music_explore');
+      enterWorld(diorama, st);
     } else {
       diorama.setMode('explore');
       audio.setMusic(st.phase === 'gameover' ? null : 'music_explore');
@@ -118,10 +126,13 @@ export function App() {
       <div className="stage" ref={stageRef} />
       <div className="labels" ref={labelsRef} />
       <div className="vignette" />
+      {route === 'splash' && <Splash onDone={() => setRoute('title')} />}
       {route === 'title' && <Title />}
       {route === 'newgame' && <NewGame />}
       {route === 'online' && <OnlineLobby />}
       {route === 'game' && s.state && <GameScreens />}
+      <CinemaLayer />
+      <TutorialLayer />
       <Toasts />
       <Captions />
       <UpdateBanner />

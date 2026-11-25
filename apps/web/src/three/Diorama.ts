@@ -96,6 +96,14 @@ export interface DioramaCallbacks {
   onQueueIdle?(): void;
 }
 
+/** world = real-time exploration (apps/web/src/world), cinema = cutscenes (apps/web/src/cinema). */
+export type DioramaMode = 'title' | 'explore' | 'combat' | 'world' | 'cinema';
+
+/** A camera driver plugged in by the world or cinema modules; return true when it set the camera this frame. */
+export interface CameraController {
+  update(camera: THREE.PerspectiveCamera, dt: number, t: number): boolean;
+}
+
 export class Diorama {
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
@@ -120,7 +128,7 @@ export class Diorama {
   private highlight: Highlight = { figures: new Map(), sectors: new Map() };
   private engageLines = new THREE.Group();
   speed = 1;
-  mode: 'title' | 'explore' | 'combat' = 'title';
+  mode: DioramaMode = 'title';
   private camTarget = new THREE.Vector3();
   private camPos = new THREE.Vector3();
   private camLook = new THREE.Vector3();
@@ -170,6 +178,7 @@ export class Diorama {
     this.renderer.domElement.addEventListener('pointermove', this.onPointerMove);
     this.renderer.domElement.addEventListener('pointerdown', this.onPointerDown);
     this.renderer.domElement.addEventListener('pointerleave', () => this.setHover(null, null, 0, 0));
+    this.renderer.domElement.addEventListener('pointerup', (e) => void this.pointerOverride?.(e, 'up'));
     this.loop();
   }
 
@@ -272,6 +281,7 @@ export class Diorama {
     if (this.sceneId !== sceneId) return;
     if (this.envScene) this.scene.remove(this.envScene.group);
     this.envScene = built;
+    built.group.visible = !this.envHidden;
     this.scene.add(built.group);
     const look = (await import('./scenes')).LOOKS[sceneId];
     this.scene.fog = new THREE.FogExp2(look?.fog ?? 0x141216, (look?.fogDensity ?? 0.04) * 0.6);
@@ -282,12 +292,58 @@ export class Diorama {
     this.grade.uniforms.uFlashColor.value.set(0x0b0909);
   }
 
-  setMode(mode: 'title' | 'explore' | 'combat') {
+  setMode(mode: DioramaMode) {
     this.mode = mode;
     this.boardGroup.visible = mode === 'combat';
     if (mode !== 'combat') {
       for (const [id, f] of this.figs) if (f.side === 'E') this.removeFig(id);
+      for (const f of this.figs.values()) if (f.plate) f.plate.style.display = 'none';
     }
+    // the world and cinema modules stage their own figures
+    const own = mode === 'world' || mode === 'cinema';
+    for (const f of this.figs.values()) f.rig.root.visible = !own || this.figuresForced;
+    this.markers.visible = mode === 'combat';
+    this.engageLines.visible = mode === 'combat';
+  }
+
+  // ------------------------------------------------------------------ extension points (world / cinema)
+  private frameHooks = new Set<(dt: number, t: number) => void>();
+  private figuresForced = false;
+  /** Runs fn every frame (after the camera update, before rendering). Returns an unsubscribe function. */
+  addFrameHook(fn: (dt: number, t: number) => void): () => void {
+    this.frameHooks.add(fn);
+    return () => this.frameHooks.delete(fn);
+  }
+  /** When set, drives the camera instead of the built-in per-mode framing (shake still applies). */
+  cameraController: CameraController | null = null;
+  /** Takes pointer input before board picking (tap-to-move in the world). Return true to consume the event. */
+  pointerOverride: ((e: PointerEvent, kind: 'down' | 'move' | 'up') => boolean) | null = null;
+  /** Show/hide the location backdrop built by loadScene. */
+  setEnvironmentVisible(v: boolean) {
+    this.envHidden = !v;
+    if (this.envScene) this.envScene.group.visible = v;
+  }
+  private envHidden = false;
+  /** Keep the board figures visible even in world/cinema modes (e.g. a cutscene staged on the board). */
+  setFiguresVisible(v: boolean) {
+    this.figuresForced = v;
+    for (const f of this.figs.values()) f.rig.root.visible = v || (this.mode !== 'world' && this.mode !== 'cinema');
+  }
+  /** Feedback burst used by gameplay outside combat (hits in the world, cutscene beats). */
+  impulse(o: { shake?: number; flash?: number; flashColor?: THREE.ColorRepresentation }) {
+    if (o.shake) this.shake = Math.max(this.shake, o.shake);
+    if (o.flash) {
+      this.flash = Math.max(this.flash, o.flash);
+      this.grade.uniforms.uFlashColor.value.set(o.flashColor ?? 0xffffff);
+    }
+  }
+  /** The currently loaded location backdrop (lights, props, bell, ember sources). */
+  get environment() {
+    return this.envScene;
+  }
+  /** The tactical board group (plates, dividers). */
+  get board() {
+    return this.boardGroup;
   }
 
   // ------------------------------------------------------------------ figures
@@ -498,10 +554,12 @@ export class Diorama {
 
   // ------------------------------------------------------------------ input
   private onPointerMove = (e: PointerEvent) => {
+    if (this.pointerOverride?.(e, 'move')) return;
     const hit = this.pick(e);
     this.setHover(hit.figureId ?? null, hit.sector ?? null, e.clientX, e.clientY);
   };
   private onPointerDown = (e: PointerEvent) => {
+    if (this.pointerOverride?.(e, 'down')) return;
     const hit = this.pick(e);
     if (e.pointerType !== 'mouse') this.setHover(hit.figureId ?? null, hit.sector ?? null, e.clientX, e.clientY);
     if (hit.figureId) this.cb.onFigureClick?.(hit.figureId);
@@ -909,6 +967,7 @@ export class Diorama {
     this.processQueue(dt * this.speed);
     this.updateFigures(dt, t);
     this.updateCamera(dt, t);
+    for (const h of this.frameHooks) h(dt, t);
     this.vfx.update(dt);
     // highlights
     const time = t;
@@ -1149,6 +1208,16 @@ export class Diorama {
 
   private updateCamera(dt: number, t: number) {
     const aspect = this.camera.aspect;
+    if (this.cameraController && this.cameraController.update(this.camera, dt, t)) {
+      // a plugged-in driver (world follow-cam, cutscene) owns the camera; keep shake and remember where it is
+      if (this.shake > 0) {
+        this.shake = Math.max(0, this.shake - dt * 1.5);
+        this.camera.position.x += (Math.random() - 0.5) * this.shake * 0.25;
+        this.camera.position.y += (Math.random() - 0.5) * this.shake * 0.25;
+      }
+      this.camPos.copy(this.camera.position);
+      return;
+    }
     if (this.mode === 'title') {
       const a = t * 0.05;
       this.camTarget.set(Math.sin(a) * 3.5, 3.2, 9 + Math.cos(a) * 1.5);
