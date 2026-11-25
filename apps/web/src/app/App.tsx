@@ -85,9 +85,10 @@ export function App() {
       void diorama.syncParty(partyView(st));
       return;
     }
-    const encId = st.combatEncounterId;
+    // the battle's room stays behind the combat and its rewards (the party is still standing where it fought)
+    const encId = st.combatEncounterId ?? (st.phase === 'reward' ? st.reward?.encounterId : null) ?? null;
     const enc = encId ? d.encounters.find((e) => e.id === encId) : undefined;
-    const locId = st.phase === 'combat' && enc ? enc.locationId : st.node;
+    const locId = (st.phase === 'combat' || st.phase === 'reward') && enc ? enc.locationId : st.node;
     const loc = d.locations.find((l) => l.id === locId) ?? d.locations[0];
     void diorama.loadScene(loc.scene);
     audio.setAmbience(loc.ambience);
@@ -102,7 +103,7 @@ export function App() {
       audio.setMusic(st.phase === 'gameover' ? null : 'music_explore');
       void diorama.syncParty(partyView(st));
     }
-  }, [diorama, route, st?.phase, st?.node, st?.combatEncounterId, st?.heroes.map((h) => h.status + h.equipment.primary?.itemId).join()]);
+  }, [diorama, route, st?.phase, st?.node, st?.combatEncounterId, st?.reward?.encounterId, st?.heroes.map((h) => h.status + h.equipment.primary?.itemId).join()]);
 
   // keep combat figures synced
   useEffect(() => {
