@@ -34,6 +34,19 @@ export function App() {
   const s = useSession();
   const settings = useSettings();
 
+  // every button answers the finger with a soft click (buttons with their own sound add it on top);
+  // disabled ones give a dull "no"
+  useEffect(() => {
+    const on = (e: PointerEvent) => {
+      const el = (e.target as HTMLElement | null)?.closest?.('button, [role="button"], [role="tab"]') as HTMLButtonElement | null;
+      if (!el || el.dataset.silent !== undefined) return;
+      if (el.disabled || el.getAttribute('aria-disabled') === 'true') audio.play('ui_error', { volume: 0.18 });
+      else audio.play('ui_click', { volume: 0.22 });
+    };
+    document.addEventListener('pointerdown', on, { capture: true, passive: true });
+    return () => document.removeEventListener('pointerdown', on, { capture: true });
+  }, []);
+
   useEffect(() => {
     const d = new Diorama(stageRef.current!, labelsRef.current!, {
       onSound: (id, o) => audio.play(id, o),
