@@ -11,7 +11,7 @@ import { useApp } from '../../app/App';
 import { Icon } from '../Icon';
 import { CLASS_COLOR, COND_NAME, COND_TEXT, TEMPO_NAME } from '../data';
 import { session } from '../../state/session';
-import { getSettings } from '../../state/settings';
+import { getSettings, setSettings, subscribeSettings } from '../../state/settings';
 import { toast } from '../Toasts';
 import { audio } from '../../audio/AudioDirector';
 import { PendingPrompt } from './Prompts';
@@ -784,6 +784,27 @@ function ThreatLines({ threats, diorama }: { threats: Threat[]; diorama: NonNull
 }
 
 // ------------------------------------------------------------------ top bar: cycle + turn order, two buttons
+/** Battle speed ×1 / ×2 / ×3 (saved), and a tap also hurries the animation playing now. */
+function SpeedButton({ onSkip }: { onSkip(): void }) {
+  const speed = React.useSyncExternalStore(subscribeSettings, () => getSettings().animSpeed);
+  const next = (v: number) => (v < 2 ? 2 : v < 3 ? 3 : 1) as 1 | 2 | 3;
+  return (
+    <button
+      className={`g-round sm g-speed ${speed > 1 ? 'on' : ''}`}
+      aria-label={`Velocidade ${speed}×. Tocar para mudar`}
+      onClick={() => {
+        const v = next(speed);
+        setSettings({ animSpeed: v });
+        if (v > 1) onSkip();
+        audio.play('ui_confirm', { volume: 0.35 });
+      }}
+    >
+      <Icon id="fast_forward" />
+      <b>{speed}×</b>
+    </button>
+  );
+}
+
 function TopBar({ S, heroes, onLog, onMenu, onSkip }: { S: CombatState; heroes: Figure[]; onLog(): void; onMenu(): void; onSkip(): void }) {
   const typesShown = S.typeOrder.filter((t) => S.figures.some((f) => f.typeId === t && f.side === 'E' && f.status === 'active'));
   const idx = BAND_INFO.findIndex((x) => x.b === S.band);
@@ -805,9 +826,7 @@ function TopBar({ S, heroes, onLog, onMenu, onSkip }: { S: CombatState; heroes: 
         </div>
       </div>
       <div className="g-top-btns">
-        <button className="g-round sm" aria-label="Pular animação" onClick={onSkip}>
-          <Icon id="fast_forward" />
-        </button>
+        <SpeedButton onSkip={onSkip} />
         <button className="g-round sm" aria-label="Histórico" onClick={onLog}>
           <Icon id="log" />
         </button>

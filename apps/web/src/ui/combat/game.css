@@ -2102,3 +2102,26 @@
     margin: 0 0 4px;
   }
 }
+
+/* battle speed */
+.g-speed {
+  position: relative;
+}
+.g-speed b {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  min-width: 20px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #1a1411;
+  border: 1px solid rgba(255, 224, 138, 0.5);
+  color: var(--ink-2);
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+.g-speed.on b {
+  background: #e8c56a;
+  color: #2a1d0c;
+}
