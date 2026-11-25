@@ -11,6 +11,7 @@ import { useApp } from '../../app/App';
 import { Icon } from '../Icon';
 import { CLASS_COLOR, COND_NAME, COND_TEXT, TEMPO_NAME } from '../data';
 import { session } from '../../state/session';
+import { getSettings } from '../../state/settings';
 import { toast } from '../Toasts';
 import { audio } from '../../audio/AudioDirector';
 import { PendingPrompt } from './Prompts';
@@ -204,6 +205,30 @@ export function GameHUD() {
     const f = S.figures.find((x) => x.sector === k && targets.figures.includes(x.id));
     if (f) fire({ targetIds: [f.id] });
   };
+
+  // phone haptics (Android; iOS Safari has no vibration API): heroes hurt, your hits, criticals, defeats
+  useEffect(() => {
+    const vib = (p: number | number[]) => {
+      if (getSettings().reducedMotion || typeof navigator === 'undefined' || !('vibrate' in navigator)) return;
+      try {
+        navigator.vibrate(p);
+      } catch {
+        /* ignore */
+      }
+    };
+    return session.onEvents((evs) => {
+      const cur = session.state?.combat;
+      if (!cur) return;
+      for (const e of evs) {
+        if (e.type === 'damage') {
+          const t = cur.figures.find((f) => f.id === e.targetId);
+          if (t?.side === 'H') vib(e.amount >= 3 ? [40, 30, 60] : 35);
+          else vib(18);
+        } else if (e.type === 'roll' && e.roll.critico) vib([15, 25, 15, 25, 50]);
+        else if (e.type === 'death') vib([30, 40, 80]);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     if (!diorama) return;
