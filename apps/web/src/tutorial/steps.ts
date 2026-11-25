@@ -33,6 +33,8 @@ export interface Step {
   skipIf?: (t: TutCtx) => boolean;
   /** Info-only steps auto-advance after this many ms (or on tap). */
   autoMs?: number;
+  /** Lessons that must be learned first (keeps the story in order). */
+  after?: string[];
 }
 
 /**
@@ -115,6 +117,7 @@ export const FIRST_BATTLE: Chapter = {
     },
     {
       id: 'forecast',
+      after: ['tap-enemy'],
       say: 'Chance de acertar e dano provável. Toque em Atacar!',
       target: { dom: '.g-fc-go' },
       block: true,
@@ -123,6 +126,7 @@ export const FIRST_BATTLE: Chapter = {
     },
     {
       id: 'dice',
+      after: ['forecast'],
       say: 'Os dados decidem: números altos são acertos. Toque em Continuar.',
       target: { dom: '.prompt .btn.primary' },
       block: true,
@@ -131,6 +135,7 @@ export const FIRST_BATTLE: Chapter = {
     },
     {
       id: 'ap',
+      after: ['dice'],
       say: 'As bolinhas douradas são seus pontos de ação. Ataque de novo ou toque em Encerrar.',
       target: { dom: '.g-act.end' },
       when: (t) => phase(t) === 'heroActing' && !pending(t) && t.has('.g-act.end'),

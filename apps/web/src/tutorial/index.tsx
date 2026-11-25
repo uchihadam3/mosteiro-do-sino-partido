@@ -158,7 +158,7 @@ export function TutorialLayer() {
         if (cur.when && !cur.when(ctx) && !cur.autoMs) return setChapter({ ...chapter, cur: null });
         return;
       }
-      const ready = ch.steps.find((x) => !chapter.done.includes(x.id) && (!x.when || x.when(ctx)) && !x.done(ctx));
+      const ready = ch.steps.find((x) => !chapter.done.includes(x.id) && (x.after ?? []).every((a) => chapter.done.includes(a)) && (!x.when || x.when(ctx)) && !x.done(ctx));
       if (ready) return setChapter({ ...chapter, cur: ready.id });
       return;
     }
