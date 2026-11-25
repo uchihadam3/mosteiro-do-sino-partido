@@ -165,9 +165,27 @@ function Dice({ roll, onReroll }: { roll: { dice: { grade: number; value: number
   );
 }
 
+function autoSpend(p: Extract<Pending, { kind: 'attackPost' }>): string[] {
+  const prio = (label: string) => (/dano|sucesso/i.test(label) ? 3 : /armadura|perfura/i.test(label) ? 2 : /guardado|exposto|quebrado|imobiliz/i.test(label) ? 1.5 : 1);
+  const onlyImpulse = p.options.filter((o) => (o.cost.impulso ?? 0) > 0 && !o.cost.mira && !o.cost.conviccao && !o.cost.brecha);
+  const hit = p.roll.successes > 0;
+  const picked: string[] = [];
+  let budget = p.roll.impulsos;
+  for (const o of [...onlyImpulse].sort((a, b) => prio(b.label) - prio(a.label))) {
+    if (o.requiresHit && !hit) continue;
+    if ((o.cost.impulso ?? 0) > budget) continue;
+    if (o.group && picked.some((id) => p.options.find((x) => x.id === id)?.group === o.group)) continue;
+    picked.push(o.id);
+    budget -= o.cost.impulso ?? 0;
+  }
+  return picked;
+}
+
 function AttackPost({ p, S }: { p: Extract<Pending, { kind: 'attackPost' }>; S: CombatState }) {
   const [chosen, setChosen] = useState<string[]>([]);
-  useEffect(() => setChosen([]), [p.id, p.roll]);
+  // Impulsos are lost if unspent: pre-spend them on the strongest effects (damage first). Persistent resources
+  // (Mira, Convicção, Brechas) stay the player's call.
+  useEffect(() => setChosen(autoSpend(p)), [p.id, p.roll]);
   const src = S.figures.find((f) => f.id === p.attack.sourceId)!;
   const tgt = S.figures.find((f) => f.id === p.attack.targetId);
   const sum = (k: 'impulso' | 'mira' | 'conviccao' | 'brecha') => chosen.reduce((n, id) => n + (p.options.find((o) => o.id === id)?.cost[k] ?? 0), 0);
