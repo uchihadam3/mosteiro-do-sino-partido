@@ -1840,6 +1840,60 @@ export class Diorama {
     }
   }
 
+  // ---------------------------------------------------------------- equipment showcase
+  private showcaseId: string | null = null;
+  private showcaseRect: { x: number; y: number; w: number; h: number } | null = null;
+  private showcaseFov = 0;
+  /**
+   * Equipment screen: one hero, facing the camera, framed inside `rect` (CSS px of the canvas) while the camera
+   * sways slowly around them; the rest of the party steps out of the frame. `showcase(null)` gives the camera back.
+   */
+  showcase(id: string | null, rect?: { x: number; y: number; w: number; h: number }) {
+    const prev = this.showcaseId ? this.figs.get(this.showcaseId) : null;
+    if (prev) prev.faceYaw = null;
+    this.showcaseId = id;
+    this.showcaseRect = rect ?? null;
+    if (!id) {
+      for (const v of this.figs.values()) v.rig.root.visible = true;
+      if (this.cameraController === this.showcaseCam) {
+        this.cameraController = null;
+        this.camera.clearViewOffset();
+        if (this.showcaseFov) this.camera.fov = this.showcaseFov;
+        this.camera.updateProjectionMatrix();
+        this.snapCamera = true;
+      }
+      return;
+    }
+    if (this.cameraController !== this.showcaseCam) {
+      this.showcaseFov = this.camera.fov;
+      this.cameraController = this.showcaseCam;
+    }
+  }
+  private showcaseCam: CameraController = {
+    update: (cam, _dt, t) => {
+      const v = this.showcaseId ? this.figs.get(this.showcaseId) : null;
+      if (!v) return false;
+      for (const [fid, o] of this.figs) o.rig.root.visible = fid === this.showcaseId;
+      v.faceYaw = 0;
+      const W = this.renderer.domElement.clientWidth || 1;
+      const H = this.renderer.domElement.clientHeight || 1;
+      const r = this.showcaseRect ?? { x: 0, y: 0, w: W, h: H };
+      const h = Math.max(0.8, v.rig.height);
+      cam.fov = 30;
+      // distance so the hero fills ~88% of the stage height
+      const frac = Math.min(0.95, (r.h * 0.92) / H);
+      const d = (h * 1.0) / (2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * frac);
+      const a = Math.sin(t * 0.22) * 0.38;
+      const c = v.rig.root.position;
+      cam.position.set(c.x + Math.sin(a) * d, h * 0.62 + d * 0.12, c.z + Math.cos(a) * d);
+      cam.lookAt(c.x, h * 0.5, c.z);
+      // move the picture so the hero sits in the middle of the stage, not of the screen
+      cam.setViewOffset(W, H, W / 2 - (r.x + r.w / 2), H / 2 - (r.y + r.h / 2), W, H);
+      cam.updateProjectionMatrix();
+      return true;
+    },
+  };
+
   /** Screen-space box of a figure from its feet to the top of its head (for rings and spotlights). */
   screenBoxOf(id: string): { x: number; top: number; bottom: number } | null {
     const v = this.figs.get(id);

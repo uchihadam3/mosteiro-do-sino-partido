@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useApp } from '../app/App';
 import { type SectorKey } from '@mosteiro/core';
 import { useSession } from '../app/hooks';
 import { Icon } from './Icon';
@@ -84,6 +85,25 @@ export function Prep() {
   const [heroId, setHeroId] = useState(st.heroes[0].id);
   const [pick, setPick] = useState<string | null>(null);
   const [tab, setTab] = useState<'equip' | 'form'>('equip');
+  // the chosen hero stands on a stage in 3D while you dress them
+  const { diorama } = useApp();
+  const stage = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!diorama || tab !== 'equip') return;
+    const place = () => {
+      const r = stage.current?.getBoundingClientRect();
+      const c = diorama.renderer.domElement.getBoundingClientRect();
+      diorama.showcase(heroId, r && r.height > 40 ? { x: r.left - c.left, y: r.top - c.top, w: r.width, h: r.height } : undefined);
+    };
+    place();
+    const t = setTimeout(place, 400);
+    window.addEventListener('resize', place);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('resize', place);
+      diorama.showcase(null);
+    };
+  }, [diorama, heroId, tab]);
   return (
     <div className={`k-screen pt-prep tab-${tab}`}>
       <div className="k-head pt-head-menu">
@@ -104,7 +124,17 @@ export function Prep() {
       </div>
       <div className="k-body pt-prep-body">
         <section className="pt-pane pt-pane-equip" aria-label="Equipamento">
-          <Inventory heroId={heroId} setHeroId={setHeroId} inBase />
+          {st.heroes.length > 1 && (
+            <div className="pt-heroes" role="tablist" aria-label="Heróis">
+              {st.heroes.map((x) => (
+                <HeroDisc key={x.id} h={x} size={st.heroes.length >= 5 ? 46 : 52} on={x.id === heroId} onClick={() => setHeroId(x.id)} />
+              ))}
+            </div>
+          )}
+          <div className="pt-stage" ref={stage} aria-hidden>
+            <span className="pt-stage-floor" />
+          </div>
+          <Inventory heroId={heroId} setHeroId={setHeroId} inBase showHeroes={false} />
         </section>
         <section className="pt-pane pt-pane-form" aria-label="Formação">
           <div className="k-section pt-pc-only">Formação inicial</div>
