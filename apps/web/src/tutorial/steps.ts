@@ -258,7 +258,27 @@ export interface Tip {
   target: Target;
   when: (t: TutCtx) => boolean;
 }
+/** First active figure carrying a condition (heroes first), for "first time you see it" tips. */
+const withCond = (t: TutCtx, k: string) => {
+  const figs = (t.S?.figures ?? []).filter((f) => f.status === 'active' && (f.conditions as unknown as Record<string, unknown>)[k]);
+  return (figs.find((f) => f.side === 'H') ?? figs[0])?.id ?? null;
+};
+const condTip = (k: string, say: string): Tip => ({
+  id: `cond-${k}`,
+  say,
+  target: { figure: (t) => withCond(t, k) },
+  when: (t) => inCombat(t) && !pending(t) && (phase(t) === 'heroActing' || phase(t) === 'tempo' || phase(t) === 'heroBand') && !!withCond(t, k),
+});
+
 export const TIPS: Tip[] = [
+  condTip('sangramento', 'Sangrando: perde vida ao se mover ou atacar.'),
+  condTip('veneno', 'Veneno: dano no fim da vez de quem está envenenado.'),
+  condTip('queimando', 'Queimando: 1 de dano por ciclo. Gaste 1 AP para apagar.'),
+  condTip('imobilizado', 'Imobilizado: não consegue andar nesta vez.'),
+  condTip('atordoado', 'Atordoado: tem 1 AP a menos.'),
+  condTip('exposto', 'Exposto: o próximo ataque contra ele usa um dado maior.'),
+  condTip('quebrado', 'Quebrado: a armadura vale 1 a menos no próximo golpe.'),
+  condTip('guardado', 'Guardado: o próximo dano recebido é 1 menor.'),
   {
     id: 'paths',
     say: 'Mais de um caminho! Aqui você vê todos e o mapa.',
