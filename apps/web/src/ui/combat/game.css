@@ -1711,3 +1711,115 @@
     transform: translate(-50%, -200%) scale(0.95);
   }
 }
+
+/* ------------------------------------------------------------------ Tempo timeline: who acts when */
+.g-timeline {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  width: 100%;
+}
+.g-timeline .col {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px 6px 7px;
+  border-radius: 12px;
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(6px);
+  min-width: 0;
+}
+.g-timeline .col.t-rapido {
+  border-color: rgba(143, 208, 255, 0.35);
+}
+.g-timeline .col.t-pesado {
+  border-color: rgba(255, 159, 134, 0.35);
+}
+.g-timeline .hd {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.g-timeline .hd .ico {
+  width: 14px;
+  height: 14px;
+}
+.g-timeline .t-rapido .hd {
+  color: #9fd6ff;
+}
+.g-timeline .t-tatico .hd {
+  color: var(--gold-2);
+}
+.g-timeline .t-pesado .hd {
+  color: #ff9f86;
+}
+.g-timeline .who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  min-height: 26px;
+}
+.g-timeline .av {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+  animation: gPop 0.25s ease both;
+}
+.g-timeline .av .ico {
+  width: 16px;
+  height: 16px;
+}
+.g-timeline .av.h {
+  background: radial-gradient(circle at 40% 30%, #3a302a, #120e0d 75%);
+  border: 1.5px solid color-mix(in srgb, var(--acc) 75%, #000);
+  color: var(--acc);
+  padding: 0;
+}
+.g-timeline .av.h.sel {
+  box-shadow: 0 0 0 2px var(--gold-2), 0 0 12px rgba(230, 207, 143, 0.6);
+}
+.g-timeline .av.e {
+  background: #2a0d0a;
+  border: 1.5px solid #c2463a;
+  color: #ffb5a6;
+}
+.g-timeline .av.e b {
+  position: absolute;
+  right: -6px;
+  bottom: -5px;
+  font-size: 10px;
+  line-height: 13px;
+  padding: 0 3px;
+  border-radius: 6px;
+  background: #c2463a;
+  color: #fff;
+}
+.g-timeline .then {
+  color: var(--ink-4);
+  font-size: 14px;
+  margin: 0 1px;
+}
+.g-timeline .none {
+  color: var(--ink-4);
+  font-size: 12px;
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .g-timeline .hd {
+    font-size: 10px;
+  }
+  .g-timeline .av {
+    width: 22px;
+    height: 22px;
+  }
+}
