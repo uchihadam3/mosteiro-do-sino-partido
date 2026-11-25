@@ -21,24 +21,11 @@ export function VoteBar({ voteKey }: { voteKey: string }) {
   );
 }
 
-const SECRET_IDS = new Set(['go_rel', 'go_cri', 'go_rare']);
 
 function MapPanel({ st }: { st: CampaignState }) {
   const d = dungeon(st.dungeonId);
   const known = d.locations.filter((l) => st.revealed.includes(l.id));
-  const edges: [string, string][] = [
-    ['POR', 'GAL'],
-    ['GAL', 'CLA'],
-    ['CLA', 'SCR'],
-    ['CLA', 'CAN'],
-    ['CAN', 'CAR'],
-    ['CLA', 'CAP'],
-    ['SCR', 'SAL'],
-    ['CAR', 'SAL'],
-    ['SAL', 'CAM'],
-    ['SCR', 'REL'],
-    ['CLA', 'CRI'],
-  ];
+  const edges = d.links ?? [];
   const pos = (id: string) => d.locations.find((l) => l.id === id)!.map;
   const here = st.phase === 'combat' && st.combatEncounterId ? d.encounters.find((e) => e.id === st.combatEncounterId)?.locationId : st.node;
   const done = new Set(st.completed.map((e) => d.encounters.find((x) => x.id === e)?.locationId));
@@ -144,7 +131,7 @@ function EscClose({ onClose }: { onClose(): void }) {
 function ChoiceCard({ o, i, onChoose }: { o: ExploreOption; i: number; onChoose(o: ExploreOption): void }) {
   const s = useSession();
   const v = s.votes[`explore:${o.id}`];
-  const secret = SECRET_IDS.has(o.id);
+  const secret = !!o.secret;
   return (
     <button className={`x-choice ${secret ? 'secret' : ''} ${o.kind === 'combat' ? 'fight' : ''}`} style={{ animationDelay: `${i * 60}ms` }} onMouseEnter={() => audio.play('ui_hover', { volume: 0.35 })} onClick={() => onChoose(o)}>
       <span className="ic">
@@ -182,7 +169,7 @@ export function Explore() {
   const [localConfirm, setLocalConfirm] = useState<{ optionId: string; label: string; warning: string } | null>(null);
   const confirm = ui.active ? ui.confirm : localConfirm;
   const fallen = st.heroes.filter((h) => h.status === 'caido');
-  const arrival = loc.id === 'CLA' && st.completed.length > 1 ? 'O Claustro é o ponto de convergência. Daqui partem as passagens que vocês já conhecem — e talvez outras.' : loc.arrival;
+  const arrival = loc.revisit && st.completed.length > 1 ? loc.revisit : loc.arrival;
   const sheetOpen = inv !== null || map || about || paths || !!confirm;
   useEffect(() => {
     worldActions.setUiOpen(sheetOpen);
@@ -231,7 +218,7 @@ export function Explore() {
       {tracker.length > 0 && (
         <div className="x-track" aria-label="Caminho">
           {tracker.map((o, i) => (
-            <button key={o.id} className={`x-choice x-obj ${o.kind === 'combat' ? 'fight' : ''} ${SECRET_IDS.has(o.id) ? 'secret' : ''}`} style={{ animationDelay: `${i * 80}ms` }} onClick={() => choose(o)}>
+            <button key={o.id} className={`x-choice x-obj ${o.kind === 'combat' ? 'fight' : ''} ${o.secret ? 'secret' : ''}`} style={{ animationDelay: `${i * 80}ms` }} onClick={() => choose(o)}>
               <span className="dia" aria-hidden />
               <span className="lbl">{o.label}</span>
               {o.warning && <span className="warn">!</span>}

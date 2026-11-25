@@ -23,6 +23,8 @@ export interface LocationDef {
   scene: string;
   ambience: string;
   arrival: string;
+  /** Arrival text when the party comes back after other fights (hub locations). */
+  revisit?: string;
   source: string;
 }
 
@@ -66,6 +68,8 @@ export interface ExploreOption {
   /** Closes optional opportunities (Salão). */
   warning?: string;
   icon?: string;
+  /** A secret or rare path (shown in its own colour, revealed with a sting). */
+  secret?: boolean;
 }
 
 export interface ArchiveEntry {
@@ -88,6 +92,8 @@ export interface DungeonDef {
   encounters: EncounterDef[];
   archive: Record<string, ArchiveEntry>;
   startNode: string;
+  /** Map connections between locations (drawn on the dungeon map once both ends are known). */
+  links?: [string, string][];
   stateCards: Record<string, { name: string; text: string; icon: string; secretLine?: string }>;
   /** Options available at the current node. */
   options(s: CampaignState): ExploreOption[];

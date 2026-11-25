@@ -25,7 +25,6 @@ import { Breadcrumbs, RUN_SPEED, WALK_SPEED, animOf, applyGhost, buildEnemyRig, 
 import { installWorldActions, worldUi, type WorldPrompt } from './store';
 import './world.css';
 
-const SECRET_IDS = new Set(['go_rel', 'go_cri', 'go_rare']);
 const MAIN_KINDS = new Set<EncounterDef['kind']>(['obrigatorio', 'rota', 'miniboss', 'boss']);
 const COLORS = { travel: 0xffc66e, fight: 0xff6a3c, secret: 0xb48cff, finish: 0xffe2a0, lore: 0x9fd8ff };
 const HINT_KEY = 'mosteiro.world.v1';
@@ -136,7 +135,7 @@ function describeOption(o: ExploreOption, d: DungeonDef, st: CampaignState): Met
   const destId = o.locationId ?? enc?.locationId;
   const dest = destId ? d.locations.find((l) => l.id === destId) : undefined;
   const here = o.kind === 'combat' && (!destId || destId === st.node);
-  const secret = SECRET_IDS.has(o.id) || enc?.kind === 'secreto' || (!!dest && !dest.public);
+  const secret = !!o.secret || enc?.kind === 'secreto' || (!!dest && !dest.public);
   const fight = o.kind === 'combat';
   const parts = o.label.split(/\s+[—–]\s+/);
   const short = parts[parts.length - 1];

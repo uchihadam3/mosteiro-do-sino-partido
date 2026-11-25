@@ -29,7 +29,7 @@ export const D1_LOCATIONS: LocationDef[] = [
     arrival: 'O vento empurra cinza contra a pedra do pórtico. Não há inimigos. A estátua de um monge sem olhos segura uma chave esculpida, e uma bacia rasa contém cinzas antigas. A porta interna está fechada, mas não trancada.' },
   { id: 'GAL', code: 'GAL', name: 'Galeria dos Peregrinos', public: true, map: { x: 50, y: 78 }, scene: 'galeria', ambience: 'amb_torches_fire', source: 'D1 L02',
     arrival: 'Cinco figuras ajoelhadas bloqueiam a galeria. Quando a porta fecha atrás da party, elas erguem a cabeça ao mesmo tempo.' },
-  { id: 'CLA', code: 'CLA', name: 'Claustro Partido', public: true, map: { x: 50, y: 61 }, scene: 'claustro', ambience: 'amb_cloister_wind', source: 'D1 L03',
+  { id: 'CLA', code: 'CLA', name: 'Claustro Partido', public: true, map: { x: 50, y: 61 }, scene: 'claustro', ambience: 'amb_cloister_wind', source: 'D1 L03', revisit: 'O Claustro é o ponto de convergência. Daqui partem as passagens que vocês já conhecem — e talvez outras.',
     arrival: 'O jardim central morreu há muito tempo. Quatro caminhos permanecem abertos, e pela primeira vez a party pode escolher como atravessar o Mosteiro. Não há inimigos visíveis.' },
   { id: 'SCR', code: 'SCR', name: 'Scriptorium das Sete Linhas', public: true, map: { x: 79, y: 47 }, scene: 'scriptorium', ambience: 'amb_scriptorium', source: 'D1 L04',
     arrival: 'A porta se abre para o cheiro de couro úmido e tinta velha. Entre as estantes há movimento imediato: os guardiões do arquivo já estavam esperando.' },
@@ -194,6 +194,19 @@ export const D1: DungeonDef = {
   encounters: ENC,
   archive: ARCHIVE,
   startNode: 'POR',
+  links: [
+    ['POR', 'GAL'],
+    ['GAL', 'CLA'],
+    ['CLA', 'SCR'],
+    ['CLA', 'CAN'],
+    ['CAN', 'CAR'],
+    ['CLA', 'CAP'],
+    ['SCR', 'SAL'],
+    ['CAR', 'SAL'],
+    ['SAL', 'CAM'],
+    ['SCR', 'REL'],
+    ['CLA', 'CRI'],
+  ],
   stateCards: STATE_CARDS,
 
   options(s) {
@@ -211,10 +224,10 @@ export const D1: DungeonDef = {
       if (salaoOpen && !f(s, 'capelaDone')) o.push({ id: 'go_cap', label: 'Escadaria Norte — Capela do Último Ofício', detail: 'Opcional · antes do Salão', kind: 'combat', locationId: 'CAP', encounterId: 'CAP-E01', icon: 'loc_capela' });
       if (salaoOpen && f(s, 'routeDone') && f(s, 'rareOffered') && !f(s, 'rareDone')) {
         const east = s.flags['route'] === 'leste';
-        o.push({ id: 'go_rare', label: east ? 'Arquivo do Incenso Morto' : 'Cela do Contrapeso', detail: 'Encontro Raro · opcional e mais perigoso', kind: 'combat', locationId: east ? 'SCR' : 'CAR', encounterId: east ? 'RARO-L' : 'RARO-O', icon: 'act_objective' });
+        o.push({ id: 'go_rare', secret: true, label: east ? 'Arquivo do Incenso Morto' : 'Cela do Contrapeso', detail: 'Encontro Raro · opcional e mais perigoso', kind: 'combat', locationId: east ? 'SCR' : 'CAR', encounterId: east ? 'RARO-L' : 'RARO-O', icon: 'act_objective' });
       }
-      if (salaoOpen && f(s, 'relRevealed') && !f(s, 'relDone')) o.push({ id: 'go_rel', label: 'Passagem do Primeiro Caminho', detail: 'Encontro secreto · opcional', kind: 'combat', locationId: 'REL', encounterId: 'REL-E01', icon: 'loc_relicario' });
-      if (salaoOpen && f(s, 'criptaRevealed') && !f(s, 'criptaDone')) o.push({ id: 'go_cri', label: 'Cripta das Três Vigílias', detail: 'Encontro secreto · opcional', kind: 'combat', locationId: 'CRI', encounterId: 'CRI-E01', icon: 'loc_cripta' });
+      if (salaoOpen && f(s, 'relRevealed') && !f(s, 'relDone')) o.push({ id: 'go_rel', secret: true, label: 'Passagem do Primeiro Caminho', detail: 'Encontro secreto · opcional', kind: 'combat', locationId: 'REL', encounterId: 'REL-E01', icon: 'loc_relicario' });
+      if (salaoOpen && f(s, 'criptaRevealed') && !f(s, 'criptaDone')) o.push({ id: 'go_cri', secret: true, label: 'Cripta das Três Vigílias', detail: 'Encontro secreto · opcional', kind: 'combat', locationId: 'CRI', encounterId: 'CRI-E01', icon: 'loc_cripta' });
       if (f(s, 'routeDone')) {
         const remaining = o.filter((x) => x.id !== 'go_sal').length;
         o.push({
