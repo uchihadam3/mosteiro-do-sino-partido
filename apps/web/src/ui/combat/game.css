@@ -1414,6 +1414,20 @@
   color: #ffb0a0;
   text-shadow: 0 4px 22px #000, 0 0 34px rgba(230, 80, 60, 0.6);
 }
+.g-callout.cycle {
+  color: #f3e6c4;
+  text-shadow: 0 4px 22px #000, 0 0 30px rgba(200, 180, 140, 0.5);
+}
+.g-callout small {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #ff9d8c;
+}
 .g-callout::before,
 .g-callout::after {
   content: '';

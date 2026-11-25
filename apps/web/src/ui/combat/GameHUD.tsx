@@ -65,7 +65,7 @@ export function GameHUD() {
   const [tempoHero, setTempoHero] = useState<string | null>(null);
   const [areaFirst, setAreaFirst] = useState<SectorKey | null>(null);
   const [forecast, setForecast] = useState<{ targetId: string; defId: string } | null>(null);
-  const [callout, setCallout] = useState<{ text: string; kind: 'hero' | 'enemy'; key: number } | null>(null);
+  const [callout, setCallout] = useState<{ text: string; kind: 'hero' | 'enemy' | 'cycle'; sub?: string; key: number } | null>(null);
   const lastTempo = useRef<Record<string, Tempo>>({});
   const noAttackTap = useRef<{ id: string; t: number } | null>(null);
   const presetCycle = useRef(-1);
@@ -348,6 +348,13 @@ export function GameHUD() {
     if (b.side === 'h' && heroes.some((h) => h.tempo === b.tempo && h.status === 'active' && s.controls(h.id))) setCallout({ text: 'Sua vez!', kind: 'hero', key: Date.now() });
     else if (b.side === 'e' && S.typeOrder.some((t) => intentFor(S, t)?.tempo === b.tempo && S.figures.some((f) => f.typeId === t && f.side === 'E' && f.status === 'active'))) setCallout({ text: 'Vez dos inimigos', kind: 'enemy', key: Date.now() });
   }, [S.band, S.cycle]);
+  // a new Cycle opens with its number while the enemies' Intentions are revealed
+  const cycleShown = useRef(0);
+  useEffect(() => {
+    if (S.phase !== 'tempo' || S.pending || S.result || cycleShown.current === S.cycle) return;
+    cycleShown.current = S.cycle;
+    setCallout({ text: `Ciclo ${S.cycle}`, kind: 'cycle', sub: 'Intenções reveladas', key: Date.now() });
+  }, [S.phase, S.cycle, S.pending?.id]);
   useEffect(() => {
     if (!callout) return;
     const t = setTimeout(() => setCallout(null), 1300);
@@ -442,6 +449,7 @@ export function GameHUD() {
       {callout && (
         <div key={callout.key} className={`g-callout ${callout.kind}`}>
           {callout.text}
+          {callout.sub && <small>{callout.sub}</small>}
         </div>
       )}
       {S.phase === 'enemyBand' && active && active.side === 'E' && !S.pending && <EnemyActing S={S} f={active} />}
