@@ -1164,3 +1164,44 @@
   font-size: 13.5px;
   letter-spacing: 0.02em;
 }
+
+/* ------------------------------------------------------------------ phone held sideways: board left, controls right */
+@media (max-height: 500px) and (min-aspect-ratio: 19/10) {
+  .g-bottom {
+    left: auto;
+    right: 8px;
+    top: calc(var(--safe-t) + 56px);
+    width: 44%;
+    padding: 0;
+    justify-content: flex-end;
+  }
+  .g-hint,
+  .g-target,
+  .g-gauge {
+    left: 28%;
+  }
+  .g-target {
+    width: min(420px, 52vw);
+  }
+  .g-dice,
+  .g-banner {
+    left: 28%;
+  }
+  .g-banner {
+    right: auto;
+    transform: translateX(-50%);
+    font-size: 34px;
+  }
+  .g-tempo,
+  .g-actions {
+    width: 100%;
+  }
+  .g-hud .prompt {
+    left: auto;
+    right: 0;
+    transform: none;
+    width: 48vw;
+    max-height: 92vh;
+    animation: gSlideUp 0.28s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  }
+}

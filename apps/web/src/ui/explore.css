@@ -423,3 +423,26 @@
     transform: translateY(14px);
   }
 }
+
+/* phone held sideways: the place and the party left, the paths in a right-hand column */
+@media (max-height: 500px) and (min-aspect-ratio: 19/10) {
+  .x-bottom {
+    left: auto;
+    right: 10px;
+    top: calc(var(--safe-t) + 58px);
+    width: 46%;
+    padding: 0;
+    justify-content: flex-end;
+  }
+  .x-choices {
+    width: 100%;
+    max-height: none;
+    flex: 0 1 auto;
+  }
+  .x-top {
+    right: 10px;
+  }
+  .x-top-right {
+    margin-right: 54px;
+  }
+}

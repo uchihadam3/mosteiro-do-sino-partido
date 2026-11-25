@@ -490,18 +490,4 @@ button {
   border-color: rgba(220, 110, 90, 0.55);
   color: #f3c1b6;
 }
-.rotate-hint {
-  display: none;
-}
-@media (orientation: portrait) and (max-width: 760px) {
-  .rotate-hint.when-combat {
-    display: grid;
-    position: fixed;
-    inset: 0;
-    z-index: 120;
-    place-items: center;
-    background: rgba(8, 6, 6, 0.96);
-    text-align: center;
-    padding: 30px;
-  }
-}
+

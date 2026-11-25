@@ -161,7 +161,12 @@ export class Diorama {
     this.setupComposer();
     this.buildBoard();
     this.resize();
-    window.addEventListener('resize', this.resize);
+    // the phone can be played upright or sideways: follow every rotation (some Android browsers report the
+    // old size right after turning, so re-measure again a moment later)
+    window.addEventListener('resize', this.onViewportChange);
+    window.addEventListener('orientationchange', this.onViewportChange);
+    screen.orientation?.addEventListener?.('change', this.onViewportChange);
+    window.visualViewport?.addEventListener('resize', this.onViewportChange);
     this.renderer.domElement.addEventListener('pointermove', this.onPointerMove);
     this.renderer.domElement.addEventListener('pointerdown', this.onPointerDown);
     this.renderer.domElement.addEventListener('pointerleave', () => this.setHover(null, null, 0, 0));
@@ -201,7 +206,17 @@ export class Diorama {
   /** Portrait combat framing (tunable at runtime for device checks). */
   camTune = { y: 15.5, z: 10.5, lz: 1.4, fov: 52 };
   camTuneL = { y: 13, z: 10.2, lz: 1.9 };
+  camTuneW = { x: 4.6, y: 13.4, z: 10.4, lz: -0.2 };
+  camTuneWE = { x: 3.4, y: 4.8, z: 12.5, ly: 1.6, lz: -2.5 };
   camTuneE = { y: 5.6, z: 15.5, ly: 1.1, lz: 5.6 };
+
+  private lastAspectWide: boolean | null = null;
+  private snapCamera = false;
+  private onViewportChange = () => {
+    this.resize();
+    setTimeout(this.resize, 120);
+    setTimeout(this.resize, 400);
+  };
 
   resize = () => {
     const w = this.container.clientWidth || window.innerWidth;
@@ -211,6 +226,9 @@ export class Diorama {
     this.composer.setPixelRatio(this.dpr);
     this.composer.setSize(w, h);
     this.camera.aspect = w / h;
+    const wide = w >= h;
+    if (this.lastAspectWide !== null && this.lastAspectWide !== wide) this.snapCamera = true;
+    this.lastAspectWide = wide;
     // keep the whole 5×2 board in frame on narrow (portrait-ish) screens
     this.camera.fov = w / h < 0.9 ? this.camTune.fov : w / h < 1.2 ? 52 : w / h < 1.6 ? 42 : 36;
     this.camera.updateProjectionMatrix();
@@ -1141,6 +1159,12 @@ export class Diorama {
       const E = this.camTuneE;
       this.camTarget.set(Math.sin(a) * 1.2, E.y, E.z);
       this.camLook.set(Math.sin(a) * 0.4, E.ly, E.lz);
+    } else if (this.mode === 'explore' && aspect > 1.9) {
+      // phone held sideways: the place and the party on the left, the path cards in the right-hand column
+      const a = Math.sin(t * 0.07) * 0.4;
+      const W = this.camTuneWE;
+      this.camTarget.set(W.x + Math.sin(a) * 1.5, W.y, W.z);
+      this.camLook.set(W.x + Math.sin(a) * 0.5, W.ly, W.lz);
     } else if (this.mode === 'explore') {
       const a = Math.sin(t * 0.07) * 0.6;
       this.camTarget.set(Math.sin(a) * 6, 5.2, 11.5);
@@ -1156,10 +1180,16 @@ export class Diorama {
       const wide = aspect > 1.9;
       // the board sits in the upper part of the screen so the action row and hero portraits never cover it
       const L = this.camTuneL;
-      this.camTarget.set(Math.sin(t * 0.15) * 0.2, narrow ? 13.2 : wide ? 13.4 : L.y, narrow ? 11.2 : wide ? 10.6 : L.z);
-      this.camLook.set(0, 0.2, narrow ? 0.6 : wide ? 0.55 : L.lz);
+      // phones held sideways (wide): board on the left, controls in a right-hand column under the thumb
+      const W = this.camTuneW;
+      const x = wide ? W.x : 0;
+      this.camTarget.set(x + Math.sin(t * 0.15) * 0.2, narrow ? 13.2 : wide ? W.y : L.y, narrow ? 11.2 : wide ? W.z : L.z);
+      this.camLook.set(x, 0.2, narrow ? 0.6 : wide ? W.lz : L.lz);
     }
-    this.camPos.lerp(this.camTarget, Math.min(1, dt * 1.8));
+    if (this.snapCamera) {
+      this.camPos.copy(this.camTarget);
+      this.snapCamera = false;
+    } else this.camPos.lerp(this.camTarget, Math.min(1, dt * 1.8));
     this.camera.position.copy(this.camPos);
     if (this.shake > 0) {
       this.shake = Math.max(0, this.shake - dt * 1.5);
@@ -1190,7 +1220,10 @@ export class Diorama {
   dispose() {
     this.running = false;
     cancelAnimationFrame(this.raf);
-    window.removeEventListener('resize', this.resize);
+    window.removeEventListener('resize', this.onViewportChange);
+    window.removeEventListener('orientationchange', this.onViewportChange);
+    screen.orientation?.removeEventListener?.('change', this.onViewportChange);
+    window.visualViewport?.removeEventListener('resize', this.onViewportChange);
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
