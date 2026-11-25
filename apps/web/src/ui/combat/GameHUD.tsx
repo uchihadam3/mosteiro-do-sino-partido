@@ -64,6 +64,7 @@ export function GameHUD() {
   const [forecast, setForecast] = useState<{ targetId: string; defId: string } | null>(null);
   const [callout, setCallout] = useState<{ text: string; kind: 'hero' | 'enemy'; key: number } | null>(null);
   const lastTempo = useRef<Record<string, Tempo>>({});
+  const noAttackTap = useRef<{ id: string; t: number } | null>(null);
   const presetCycle = useRef(-1);
   const rollKey = useRef(0);
 
@@ -154,8 +155,14 @@ export function GameHUD() {
         setForecast(forecast?.targetId === id ? null : { targetId: id, defId: options[0].id });
         return;
       }
-      const why = actionAvailability(c, heroActive).find((a) => (a.def.kind === 'attack' || a.def.kind === 'spell') && a.reason)?.reason;
-      toast(why ? `Não dá para atacar: ${why}` : 'Fora de alcance — aproxime-se primeiro.', 'error');
+      // first tap: say why; a second tap on the same enemy shortly after opens its details
+      const now = Date.now();
+      if (!(noAttackTap.current && noAttackTap.current.id === id && now - noAttackTap.current.t < 2500)) {
+        noAttackTap.current = { id, t: now };
+        const why = actionAvailability(c, heroActive).find((a) => (a.def.kind === 'attack' || a.def.kind === 'spell') && a.reason)?.reason;
+        toast(why ? `Não dá para atacar: ${why}` : 'Fora de alcance — aproxime-se ou use outra ação.', 'error');
+        return;
+      }
     }
     // anything else: look at it
     setInspect(id);
