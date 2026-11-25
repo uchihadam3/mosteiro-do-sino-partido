@@ -250,6 +250,12 @@ function SlotSheet({ h, slot, inBase, sell, mine, onClose, onItem }: { h: HeroRe
             const d = reg().items[r.itemId];
             const ok = canWield(h, d.id);
             const stat = keyStat(d);
+            // better or worse than what is equipped now (damage for weapons, armour for armour)
+            const curDef = cur ? reg().items[cur.itemId] : null;
+            const num = (x: ItemDef | null) => (x ? (x.slot === 'weapon' ? x.dano : x.slot === 'armor' ? x.armor : undefined) : undefined);
+            const a = num(d);
+            const b = curDef ? num(curDef) : d.slot === 'armor' ? 0 : undefined;
+            const diff = a !== undefined && b !== undefined ? a - b : 0;
             return (
               <div key={r.uid} className={`pt-pick-row r-${d.rarity} ${ok ? '' : 'no'}`}>
                 <button className="pt-pick-main" onClick={() => onItem(r.uid)} aria-label={`Detalhes: ${d.name}`}>
@@ -257,7 +263,10 @@ function SlotSheet({ h, slot, inBase, sell, mine, onClose, onItem }: { h: HeroRe
                     <Icon id={d.icon} />
                   </span>
                   <span className="grow">
-                    <span className="pn">{d.name}</span>
+                    <span className="pn">
+                      {d.name}
+                      {diff !== 0 && <b className={`pt-diff ${diff > 0 ? 'up' : 'down'}`}>{diff > 0 ? `▲ +${diff}` : `▼ ${diff}`}</b>}
+                    </span>
                     <span className="pm">
                       {stat ? `${stat} · ` : ''}
                       {ok ? from : 'Sem proficiência'}

@@ -1723,3 +1723,21 @@ html[data-motion='reduced'] .pt-cell.open {
     background: linear-gradient(90deg, rgba(8, 6, 6, 0.2), rgba(8, 6, 6, 0.12) 32%, rgba(8, 6, 6, 0.88) 40%, rgba(8, 6, 6, 0.92));
   }
 }
+
+/* swap list: better / worse than what is equipped */
+.pt-diff {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: 1px;
+}
+.pt-diff.up {
+  color: #bff0a8;
+  background: rgba(110, 190, 90, 0.18);
+}
+.pt-diff.down {
+  color: #ffb0a2;
+  background: rgba(200, 80, 60, 0.18);
+}

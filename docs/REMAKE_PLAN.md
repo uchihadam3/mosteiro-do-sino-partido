@@ -56,3 +56,9 @@ Lembrete horário ativo (trigger `trig_01BYrF6qvn9TEHjvW8Z8HQJG`, minuto :17): c
   Cinema (splash Uchihadam Production, logo, abertura de 51 s, chefes, final, docs/STORY.md). Tutorial: Irmão Anselmo
   como mentor + capítulo "primeiros passos" no mundo. Próximo: F6 polimento (juice, sons), F7 E2E de mundo/cinema,
   verificação em pé/deitado/PC; Cárceres em pé renderizou preto numa captura (investigar).
+- 2026-11-25 (noite) — Publicado: previsão exata, caveira, dados que se explicam, desfazer movimento, velocidade
+  ×1/×2/×3, sugestão de ritmo com motivo; tutorial do mundo (Irmão Anselmo) com pular em 2 toques; celular deitado
+  (anel do tamanho real, balão no lado livre, toque no setor mira o inimigo); tela de equipamento com o herói em 3D
+  (Diorama.showcase) e comparação ▲/▼ ao trocar; estrutura de 6 dungeons (packs, saque por dungeon,
+  docs/NEW_DUNGEON.md); E2E do jogador novo (14 testes).
+
