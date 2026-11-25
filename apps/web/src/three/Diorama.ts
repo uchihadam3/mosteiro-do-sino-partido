@@ -307,7 +307,7 @@ export class Diorama {
 
   /** Portrait combat framing (tunable at runtime for device checks). */
   camTune = { y: 19, z: 16, lz: 0.6, fov: 40 };
-  camTuneL = { y: 14.5, z: 13.4, lz: 0.75 };
+  camTuneL = { y: 13.3, z: 12.1, lz: 2.25 };
   camTuneW = { x: 4.6, y: 13.4, z: 10.4, lz: -0.2 };
   camTuneWE = { x: 3.4, y: 4.8, z: 12.5, ly: 1.6, lz: -2.5 };
   camTuneE = { y: 5.6, z: 15.5, ly: 1.1, lz: 5.6 };
