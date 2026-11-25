@@ -199,6 +199,13 @@ export function GameHUD() {
       void act({ t: 'combat', cmd: { t: 'answer', pendingId: S.pending.id, answer: { kind: 'choice', optionId: k } } });
       return;
     }
+    // a tap on the floor of a Sector that holds a figure counts as a tap on that figure (small figures, fat fingers)
+    const T0 = sel?.def.targeting.type;
+    if (!sel || T0 === 'enemy' || T0 === 'ally') {
+      const here = S.figures.filter((f) => f.sector === k && f.status === 'active');
+      const pick = (sel && targets ? here.find((f) => targets.figures.includes(f.id)) : null) ?? (heroActive && canAct && !S.pending ? here.find((f) => f.side === 'E' && attacksOn(c, heroActive, f.id).length) : null);
+      if (pick) return handlers.current.fig(pick.id);
+    }
     if (!sel || !targets) return;
     const T = sel.def.targeting.type;
     if (T === 'sector' || T === 'move') {

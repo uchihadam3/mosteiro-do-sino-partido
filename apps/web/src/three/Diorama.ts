@@ -1840,6 +1840,17 @@ export class Diorama {
     }
   }
 
+  /** Screen-space box of a figure from its feet to the top of its head (for rings and spotlights). */
+  screenBoxOf(id: string): { x: number; top: number; bottom: number } | null {
+    const v = this.figs.get(id);
+    if (!v) return null;
+    const w = this.renderer.domElement.clientWidth;
+    const h = this.renderer.domElement.clientHeight;
+    const head = v.rig.root.position.clone().setY(v.rig.height).project(this.camera);
+    const feet = v.rig.root.position.clone().setY(0).project(this.camera);
+    return { x: ((head.x + 1) / 2) * w, top: ((1 - head.y) / 2) * h, bottom: ((1 - feet.y) / 2) * h };
+  }
+
   /** Screen position of a figure (for HUD anchoring). */
   screenOf(id: string): { x: number; y: number } | null {
     const v = this.figs.get(id);

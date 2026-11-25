@@ -202,3 +202,21 @@
     font-size: 14px;
   }
 }
+
+/* phone held sideways: the coach takes the side of the screen the target is not on */
+.tut-bubble.side-r,
+.tut-bubble.side-l {
+  transform: none;
+  width: min(380px, 44vw);
+  top: auto;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+}
+.tut-bubble.side-r {
+  left: auto;
+  right: 10px;
+  top: calc(env(safe-area-inset-top, 0px) + 60px);
+  bottom: auto;
+}
+.tut-bubble.side-l {
+  left: 10px;
+}

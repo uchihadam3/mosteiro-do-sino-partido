@@ -215,11 +215,14 @@ export function TutorialLayer() {
         setRect((x) => (x && Math.abs(x.x - (p.x - w / 2)) < 2 && Math.abs(x.y - (p.y - h / 2)) < 2 ? x : { x: p.x - w / 2, y: p.y - h / 2, w, h, round: true }));
       } else {
         const id = t.figure(ctx);
-        const p = id ? diorama?.screenOf(id) : null;
-        if (!p) return setRect((x) => (x ? null : x));
-        const w = 92;
-        const h = 118;
-        setRect((x) => (x && Math.abs(x.x - (p.x - w / 2)) < 1 && Math.abs(x.y - (p.y - 24)) < 1 ? x : { x: p.x - w / 2, y: p.y - 24, w, h, round: true }));
+        const b = id ? diorama?.screenBoxOf(id) : null;
+        if (!b) return setRect((x) => (x ? null : x));
+        // the ring hugs the figure at whatever size the camera shows it (phone upright, sideways, PC)
+        const fh = Math.max(40, b.bottom - b.top);
+        const w = Math.max(56, fh * 0.85);
+        const h = fh + 22;
+        const y = b.top - 12;
+        setRect((x) => (x && Math.abs(x.x - (b.x - w / 2)) < 1 && Math.abs(x.y - y) < 1 && Math.abs(x.h - h) < 1 ? x : { x: b.x - w / 2, y, w, h, round: true }));
       }
     };
     measure();
@@ -255,6 +258,9 @@ export function TutorialLayer() {
   const vh = typeof window !== 'undefined' ? window.innerHeight : 0;
   // put the mentor's line on the side of the screen away from the target
   const bubbleTop = hole ? hole.y + hole.h / 2 > vh * 0.5 : false;
+  // phone held sideways: board on the left, controls on the right → the coach sits on the side away from the target
+  const wide = vh <= 500 && vw / Math.max(1, vh) >= 1.9;
+  const side = wide ? (hole && hole.x + hole.w / 2 > vw * 0.55 ? 'side-l' : 'side-r') : '';
 
   return (
     <div className={`tut ${showing.block ? 'blocking' : ''} ${showing.tip ? 'is-tip' : ''} ${st?.phase === 'explore' ? 'in-world' : ''}`}>
@@ -290,7 +296,7 @@ export function TutorialLayer() {
           </div>
         </>
       )}
-      <div className={`tut-bubble ${bubbleTop ? 'top' : 'bottom'}`} role="status" aria-live="polite">
+      <div className={`tut-bubble ${bubbleTop ? 'top' : 'bottom'} ${side}`} role="status" aria-live="polite">
         <Mentor />
         <div className="txt">
           <p>{showing.say}</p>
