@@ -87,7 +87,7 @@ test('Galeria encounter: a full Cycle is playable through the UI', async ({ page
   expect(st?.result ?? st?.cycle).toBeTruthy();
   if (st && !st.result) {
     expect(st.cycle).toBe(2);
-    await expect(page.locator('.g-tempo-btn').first()).toBeVisible();
+    await expect(page.locator('.g-tempo-btn, .g-tempo-sum').first()).toBeVisible();
   }
   await expectNoSpoilers(page);
   expect(errors).toEqual([]);

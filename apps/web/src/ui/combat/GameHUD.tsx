@@ -15,6 +15,7 @@ import { toast } from '../Toasts';
 import { audio } from '../../audio/AudioDirector';
 import { PendingPrompt } from './Prompts';
 import { PauseMenu } from '../Pause';
+import { Dice3D } from './Dice3D';
 import type { Highlight } from '../../three/Diorama';
 import './game.css';
 
@@ -862,31 +863,32 @@ function TargetBar({ sel, f, S, areaFirst, onOption, onCancel, onFire }: { sel: 
 
 // ------------------------------------------------------------------ dice: a quick burst in the middle of the screen
 function DiceBurst({ ev }: { ev: Extract<DomainEvent, { type: 'roll' }> }) {
+  const [settled, setSettled] = useState(false);
   const [gone, setGone] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setGone(true), 1500);
+    if (!settled) return;
+    const t = setTimeout(() => setGone(true), 1250);
+    return () => clearTimeout(t);
+  }, [settled]);
+  useEffect(() => {
+    // safety: never keep the dice up for long
+    const t = setTimeout(() => setGone(true), 4000);
     return () => clearTimeout(t);
   }, []);
   if (gone) return null;
   const r = ev.roll;
   return (
-    <div className="g-dice" aria-live="polite">
-      <div className="faces">
-        {r.dice.map((d, i) => {
-          const k = d.value <= 2 ? 's0' : d.value === 12 ? 'crit' : d.value >= 6 ? 'imp' : 's1';
-          return (
-            <div key={i} className={`g-die ${k}`} style={{ animationDelay: `${i * 70}ms` }}>
-              <Icon id={`dice_d${d.grade}`} />
-              <span className="v">{d.value}</span>
-            </div>
-          );
-        })}
-      </div>
-      <div className={`verdict ${r.successes ? 'ok' : 'no'}`}>
-        {r.critico ? 'CRÍTICO!' : r.successes ? `${r.successes} sucesso${r.successes > 1 ? 's' : ''}` : 'Falhou'}
-        {r.impulsos > 0 && <span className="imp">+{r.impulsos} impulso{r.impulsos > 1 ? 's' : ''}</span>}
-      </div>
-    </div>
+    <>
+      <Dice3D ev={ev} onSettled={() => setSettled(true)} />
+      {settled && (
+        <div className="g-dice" aria-live="polite">
+          <div className={`verdict ${r.critico ? 'crit' : r.successes ? 'ok' : 'no'}`}>
+            {r.critico ? 'CRÍTICO!' : r.successes ? `${r.successes} sucesso${r.successes > 1 ? 's' : ''}` : 'Falhou'}
+            {r.impulsos > 0 && <span className="imp">+{r.impulsos} impulso{r.impulsos > 1 ? 's' : ''}</span>}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
