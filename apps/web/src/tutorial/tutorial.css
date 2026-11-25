@@ -77,6 +77,14 @@
 .tut-bubble.bottom {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
 }
+/* exploring: keep the place name and the "Caminho" tracker visible and tappable */
+.tut.in-world .tut-bubble.top {
+  top: calc(env(safe-area-inset-top, 0px) + 150px);
+}
+.tut-skip.armed {
+  color: #ffcf8a;
+  text-decoration: none;
+}
 .tut.is-tip .tut-bubble.bottom {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 170px);
 }

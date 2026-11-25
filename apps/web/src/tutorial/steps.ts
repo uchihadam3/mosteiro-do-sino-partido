@@ -218,7 +218,8 @@ export const FIRST_PREP: Chapter = {
 };
 
 /** First steps in the real-time world: walk, follow the trail, use the door. */
-const inWorld = (t: TutCtx) => t.st?.phase === 'explore' && t.world.active;
+/** walking around with nothing else on screen (no story sheet, no confirmation) */
+const inWorld = (t: TutCtx) => t.st?.phase === 'explore' && t.world.active && !t.has('.k-sheet');
 export const FIRST_WALK: Chapter = {
   id: 'first-walk',
   start: (t) => inWorld(t) && (t.st?.completed?.length ?? 0) === 0,
@@ -244,7 +245,8 @@ export const FIRST_WALK: Chapter = {
       say: 'Perto de algo? Toque no botão para usar.',
       target: { dom: '.x-act' },
       when: (t) => inWorld(t) && !t.world.busy && t.has('.x-act'),
-      done: (t) => t.world.busy || t.st?.phase !== 'explore',
+      // used: the place changes (door → battle) or a "no way back" confirmation opens
+      done: (t) => t.st?.phase !== 'explore' || t.has('.k-sheet'),
     },
   ],
 };

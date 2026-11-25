@@ -80,7 +80,7 @@ export function Reward() {
     <div className="k-screen m-reward">
       <div className="k-head m-head-pad" style={{ paddingLeft: 66 }}>
         <div className="m-laurel">
-          <span className="kicker">Vitória · {enc?.code}</span>
+          <span className="kicker">Vitória</span>
         </div>
         <h1 className="m-reward-title">{r.title}</h1>
         {enc?.outro && (

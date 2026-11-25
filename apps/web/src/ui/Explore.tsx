@@ -217,7 +217,6 @@ export function Explore() {
     <div className={`x-screen ${ui.busy ? 'busy' : ''} ${ui.active ? 'world' : 'flat'}`}>
       <div className="x-top">
         <button className="x-place" onClick={() => setAbout(true)} aria-label={`${loc.name}: sobre este lugar`}>
-          <span className="code">{loc.code}</span>
           <span className="name">{loc.name}</span>
         </button>
         <div className="x-top-right">
@@ -298,7 +297,7 @@ export function Explore() {
           <div className="k-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={loc.name}>
             <div className="grab" />
             <EscClose onClose={() => setAbout(false)} />
-            <div className="k-kicker">{loc.code}</div>
+            <div className="k-kicker">Sobre este lugar</div>
             <div className="k-h1">{loc.name}</div>
             <p className="x-prose">{arrival}</p>
             <div className="k-row k-small k-muted" style={{ gap: 16 }}>

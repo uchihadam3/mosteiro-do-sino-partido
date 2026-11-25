@@ -90,7 +90,7 @@ function NarrativeModal() {
   return (
     <div className="story-back">
       <div className="story narrative" role="dialog" aria-label={loc?.name ?? d.name}>
-        <div className="k-kicker">{loc ? loc.code : ''}</div>
+        <div className="k-kicker">{loc ? 'Vocês chegam a' : ''}</div>
         <h2>{loc ? loc.name : d.name}</h2>
         <p>{st.narrative}</p>
         <button className="k-cta" autoFocus onClick={() => void session.dispatch({ t: 'closeNarrative' })}>

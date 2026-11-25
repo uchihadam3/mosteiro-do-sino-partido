@@ -2286,7 +2286,7 @@ export class WorldController {
     if (dest) audio.setAmbience(dest.ambience);
     this.stageArena(it, res, scene);
     // 3) fade in on the room, the party walks in from the near side
-    this.showTitle(dest?.code ?? '', dest?.name ?? '');
+    this.showTitle(dest ? 'Entrando em' : '', dest?.name ?? '');
     await this.fade(0, 0.3);
     if (!alive()) return;
     const ok = await this.formUpAndFight(it, res.sim, alive, RUN_SPEED * 0.92);

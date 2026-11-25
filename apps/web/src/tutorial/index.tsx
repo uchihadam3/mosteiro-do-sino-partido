@@ -73,6 +73,7 @@ export function TutorialLayer() {
   const [tip, setTip] = useState<Tip | null>(null);
   const [rect, setRect] = useState<Rect | null>(null);
   const [tick, setTick] = useState(0);
+  const [armSkip, setArmSkip] = useState(false);
   const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -234,6 +235,13 @@ export function TutorialLayer() {
     setTip(null);
   };
   const skipAll = () => {
+    // a stray tap must not switch the whole tutorial off: the first tap asks, the second skips
+    if (!armSkip) {
+      setArmSkip(true);
+      setTimeout(() => setArmSkip(false), 3000);
+      return;
+    }
+    setArmSkip(false);
     const p = { ...prog, off: true };
     save(p);
     setProg(p);
@@ -249,7 +257,7 @@ export function TutorialLayer() {
   const bubbleTop = hole ? hole.y + hole.h / 2 > vh * 0.5 : false;
 
   return (
-    <div className={`tut ${showing.block ? 'blocking' : ''} ${showing.tip ? 'is-tip' : ''}`}>
+    <div className={`tut ${showing.block ? 'blocking' : ''} ${showing.tip ? 'is-tip' : ''} ${st?.phase === 'explore' ? 'in-world' : ''}`}>
       {(showing.block || showing.info) && (
         <svg className="tut-scrim" width={vw} height={vh} aria-hidden>
           <defs>
@@ -298,8 +306,8 @@ export function TutorialLayer() {
               </button>
             )}
             {!showing.tip && (
-              <button className="tut-skip" onClick={skipAll}>
-                Pular tutorial
+              <button className={`tut-skip ${armSkip ? 'armed' : ''}`} onClick={skipAll}>
+                {armSkip ? 'Toque de novo para pular' : 'Pular tutorial'}
               </button>
             )}
           </div>
