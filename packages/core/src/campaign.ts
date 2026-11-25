@@ -280,7 +280,7 @@ export interface NewCampaignInput {
 export function newCampaign(inp: NewCampaignInput): CampaignState {
   if (inp.heroes.length < 1 || inp.heroes.length > 5) throw new Error('A party tem de 1 a 5 heróis.');
   const rng = createRng(`campaign:${inp.seed}`);
-  const pools = lootPools();
+  const pools = lootPools(inp.dungeonId);
   const s: CampaignState = {
     schemaVersion: SCHEMA_VERSION,
     id: `c-${inp.seed}`,
@@ -325,13 +325,16 @@ export function newCampaign(inp: NewCampaignInput): CampaignState {
   return s;
 }
 
-let LOOT: { comum: string[]; raro: string[]; consumivel: string[] } | null = null;
-export function setLootPools(p: { comum: string[]; raro: string[]; consumivel: string[] }) {
-  LOOT = p;
+type LootPools = { comum: string[]; raro: string[]; consumivel: string[] };
+/** Loot pools per dungeon ('*' = default for dungeons that do not set their own). */
+const LOOT: Record<string, LootPools> = {};
+export function setLootPools(p: LootPools, dungeonId = '*') {
+  LOOT[dungeonId] = p;
 }
-function lootPools() {
-  if (!LOOT) throw new Error('loot pools not set');
-  return LOOT;
+function lootPools(dungeonId?: string): LootPools {
+  const p = (dungeonId && LOOT[dungeonId]) || LOOT['*'];
+  if (!p) throw new Error('loot pools not set');
+  return p;
 }
 
 export function autoFormation(s: CampaignState) {
@@ -500,7 +503,7 @@ function draw(s: CampaignState, kind: 'comum' | 'raro' | 'consumivel', n: number
     let id = s.decks[kind].shift();
     if (!id && kind === 'consumivel') {
       // consumables return to the general supply — rebuild from pool minus carried copies
-      s.decks.consumivel = shuffle(s.rng, lootPools().consumivel);
+      s.decks.consumivel = shuffle(s.rng, lootPools(s.dungeonId).consumivel);
       id = s.decks.consumivel.shift();
     }
     if (!id) break;
@@ -869,7 +872,7 @@ export function enterBase(s: CampaignState) {
     const kind = reg().items[reserva]?.rarity === 'raro' ? 'raro' : 'comum';
     if (!vitrine[kind].includes(reserva)) vitrine[kind].push(reserva);
   }
-  s.base = { visit, vitrine, consumables: [...new Set(lootPools().consumivel)], servicesUsed: {}, reserva, reservaVisit: s.base?.reservaVisit, restored: true };
+  s.base = { visit, vitrine, consumables: [...new Set(lootPools(s.dungeonId).consumivel)], servicesUsed: {}, reserva, reservaVisit: s.base?.reservaVisit, restored: true };
   clog(s, 'Retorno à Base: HP restaurado, Cantis recarregados, +1 Maestria e +1 Talento por herói.');
 }
 function drawShop(s: CampaignState, kind: 'comum' | 'raro', n: number): string[] {
