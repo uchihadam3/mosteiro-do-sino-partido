@@ -15,9 +15,19 @@ export interface TutCtx {
   count(sel: string): number;
   /** first enemy the active hero could attack (glowing), if any */
   attackableEnemy(): string | null;
+  /** the real-time exploration world (doors, objects, the party leader) */
+  world: {
+    active: boolean;
+    busy: boolean;
+    hint: null | 'touch' | 'mouse';
+    prompt: boolean;
+    leader: { x: number; y: number } | null;
+    /** screen position of the main-path door/object, when on screen */
+    main: { x: number; y: number } | null;
+  };
 }
 
-export type Target = { dom: string } | { figure: (t: TutCtx) => string | null } | null;
+export type Target = { dom: string } | { figure: (t: TutCtx) => string | null } | { point: (t: TutCtx) => { x: number; y: number } | null } | null;
 
 export interface Step {
   id: string;
@@ -207,6 +217,38 @@ export const FIRST_PREP: Chapter = {
   ],
 };
 
+/** First steps in the real-time world: walk, follow the trail, use the door. */
+const inWorld = (t: TutCtx) => t.st?.phase === 'explore' && t.world.active;
+export const FIRST_WALK: Chapter = {
+  id: 'first-walk',
+  start: (t) => inWorld(t) && (t.st?.completed?.length ?? 0) === 0,
+  end: (t) => t.st?.phase !== 'explore',
+  steps: [
+    {
+      id: 'walk',
+      say: 'Arraste o dedo para andar (no PC: WASD ou clique).',
+      target: { point: (t) => t.world.leader },
+      when: (t) => inWorld(t) && !t.world.busy && !!t.world.hint,
+      done: (t) => !t.world.hint,
+    },
+    {
+      id: 'follow',
+      say: 'Siga as brasas até a porta que brilha.',
+      target: { point: (t) => t.world.main },
+      when: (t) => inWorld(t) && !t.world.busy && !t.world.hint && !t.world.prompt && !!t.world.main,
+      done: (t) => t.world.prompt,
+      autoMs: 6000,
+    },
+    {
+      id: 'use',
+      say: 'Perto de algo? Toque no botão para usar.',
+      target: { dom: '.x-act' },
+      when: (t) => inWorld(t) && !t.world.busy && t.has('.x-act'),
+      done: (t) => t.world.busy || t.st?.phase !== 'explore',
+    },
+  ],
+};
+
 /** One-shot tips: the first time a mechanic shows up. */
 export interface Tip {
   id: string;
@@ -215,6 +257,12 @@ export interface Tip {
   when: (t: TutCtx) => boolean;
 }
 export const TIPS: Tip[] = [
+  {
+    id: 'paths',
+    say: 'Mais de um caminho! Aqui você vê todos e o mapa.',
+    target: { dom: '.x-paths-btn' },
+    when: (t) => t.st?.phase === 'explore' && t.world.active && !t.world.busy && (t.st?.completed?.length ?? 0) > 0 && t.count('.x-track .x-choice') >= 2,
+  },
   {
     id: 'tempo-change',
     say: 'Rápido age antes dos inimigos. Pesado age por último, mas bate mais forte. Toque num retrato para mudar.',

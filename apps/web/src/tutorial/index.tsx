@@ -8,8 +8,11 @@ import { actionAvailability, actionTargets, ctxOf, type Figure } from '@mosteiro
 import { useSession } from '../app/hooks';
 import { useApp } from '../app/App';
 import { audio } from '../audio/AudioDirector';
-import { FIRST_BATTLE, FIRST_LOOT, FIRST_PREP, TIPS, type Chapter, type Step, type Target, type Tip, type TutCtx } from './steps';
+import { FIRST_BATTLE, FIRST_LOOT, FIRST_PREP, FIRST_WALK, TIPS, type Chapter, type Step, type Target, type Tip, type TutCtx } from './steps';
 import { Mentor } from './mentor';
+import { worldUi } from '../world/store';
+import { worldScreenInfo } from '../world';
+import { useCinemaPlaying } from '../cinema';
 import './tutorial.css';
 
 const KEY = 'mosteiro.tutorial.v1';
@@ -47,7 +50,7 @@ export function resetTutorial() {
   window.dispatchEvent(new Event('mosteiro-tutorial'));
 }
 
-const CHAPTERS: Chapter[] = [FIRST_PREP, FIRST_BATTLE, FIRST_LOOT];
+const CHAPTERS: Chapter[] = [FIRST_PREP, FIRST_WALK, FIRST_BATTLE, FIRST_LOOT];
 
 function debugBlocked() {
   const q = new URLSearchParams(location.search);
@@ -107,11 +110,18 @@ export function TutorialLayer() {
         }
         return null;
       },
+      world: (() => {
+        const ui = worldUi.get();
+        const info = ui.active ? worldScreenInfo() : { leader: null, things: [] };
+        const main = info.things.find((x) => x.main) ?? info.things[0] ?? null;
+        return { active: ui.active, busy: ui.busy, hint: ui.hint, prompt: !!ui.prompt, leader: info.leader, main: main ? { x: main.x, y: main.y } : null };
+      })(),
     }),
     [st, S, tick],
   );
 
-  const active = !prog.off && !debugBlocked() && !!st;
+  const cinema = useCinemaPlaying();
+  const active = !prog.off && !debugBlocked() && !!st && !cinema;
   const ch = chapter ? CHAPTERS.find((c) => c.id === chapter.id) : null;
   const step: Step | null = ch && chapter?.cur ? (ch.steps.find((x) => x.id === chapter.cur) ?? null) : null;
 
@@ -196,6 +206,12 @@ export function TutorialLayer() {
         const r = el?.getBoundingClientRect();
         if (!r || !r.width) return setRect((x) => (x ? null : x));
         setRect((x) => (x && Math.abs(x.x - r.left) < 1 && Math.abs(x.y - r.top) < 1 && Math.abs(x.w - r.width) < 1 && Math.abs(x.h - r.height) < 1 ? x : { x: r.left, y: r.top, w: r.width, h: r.height, round: false }));
+      } else if ('point' in t) {
+        const p = t.point(ctx);
+        if (!p) return setRect((x) => (x ? null : x));
+        const w = 96;
+        const h = 96;
+        setRect((x) => (x && Math.abs(x.x - (p.x - w / 2)) < 2 && Math.abs(x.y - (p.y - h / 2)) < 2 ? x : { x: p.x - w / 2, y: p.y - h / 2, w, h, round: true }));
       } else {
         const id = t.figure(ctx);
         const p = id ? diorama?.screenOf(id) : null;
