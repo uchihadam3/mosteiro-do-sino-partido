@@ -17,6 +17,7 @@ import { audio } from '../../audio/AudioDirector';
 import { PendingPrompt } from './Prompts';
 import { PauseMenu } from '../Pause';
 import { Dice3D } from './Dice3D';
+import { forecastLater, type ActionCommand, type AttackForecast } from './forecast';
 import type { Highlight } from '../../three/Diorama';
 import './game.css';
 
@@ -311,6 +312,7 @@ export function GameHUD() {
   }, [S.phase, S.band, S.pending?.id, heroes.map((h) => `${h.id}${h.acted}`).join()]);
   // nothing left to do (no AP / no valid action) → end the activation
   const avail = heroActive && canAct ? actionAvailability(c, heroActive) : [];
+  const canAttack = !!heroActive && canAct && S.figures.some((e) => e.side === 'E' && e.status === 'active' && attacksOn(c, heroActive, e.id).length > 0);
   const stuck = !!heroActive && canAct && !S.pending && !sel && avail.length > 0 && avail.every((a) => a.reason);
   useEffect(() => {
     if (!stuck || !heroActive) return;
@@ -382,7 +384,12 @@ export function GameHUD() {
     if (S.phase === 'heroBand') return heroes.some((h) => h.tempo === band?.tempo && !h.acted && s.controls(h.id)) ? 'Toque no herói que vai agir' : 'Outro jogador escolhe…';
     if (S.phase === 'enemyBand') return null;
     if (heroActive && !canAct) return `${heroActive.name} está agindo…`;
-    if (heroActive && canAct && !sel && !forecast) return stuck ? `${heroActive.name} terminou` : 'Toque num inimigo brilhando para atacar';
+    if (heroActive && canAct && !sel && !forecast) {
+      if (stuck) return `${heroActive.name} terminou`;
+      if (canAttack) return 'Toque num inimigo brilhando para atacar';
+      const atk = avail.filter((a) => a.def.kind === 'attack' || a.def.kind === 'spell');
+      return atk.length && atk.every((a) => a.cost > (heroActive.ap ?? 0)) ? 'Sem PA para atacar · mova-se ou encerre' : 'Nenhum inimigo ao alcance · mova-se ou encerre';
+    }
     return null;
   })();
 
@@ -400,6 +407,7 @@ export function GameHUD() {
       )}
 
       {showThreats && diorama && <ThreatLines threats={threats} diorama={diorama} />}
+      {heroActive && canAct && !S.pending && !sel && !forecast && diorama && <LethalMarks S={S} hero={heroActive} pre={pre} diorama={diorama} />}
       <div className="g-bottom">
         {S.phase === 'deploy' && !S.pending && (
           <button className="g-cta" onClick={() => void act({ t: 'combat', cmd: { t: 'start' } }).then((e) => !e && audio.play('cycle_start', { volume: 0.6 }))}>
@@ -486,23 +494,44 @@ function odds(c: Ctx, hero: Figure, def: ActionDef, target: Figure, pre: string[
   return { hit, dmg, armor, kills: dmg >= target.hp };
 }
 
+/** The command a tap on "Atacar" sends (null when the attack first needs a choice from its picker). */
+function attackCommand(c: Ctx, hero: Figure, def: ActionDef, targetId: string, pre: string[]): ActionCommand | null {
+  const opts = def.options?.(c, hero) ?? [];
+  if (opts.length && !(def.id.startsWith('a_') && opts.every((o) => o.id.startsWith('sobrecarga')))) return null;
+  return { t: 'action', actionId: def.id, figureId: hero.id, pre: [...pre], targetIds: [targetId] };
+}
+
 function Forecast({ S, hero, targetId, defId, pre, onPick, onConfirm, onCancel }: { S: CombatState; hero: Figure; targetId: string; defId: string; pre: string[]; onPick(id: string): void; onConfirm(): void; onCancel(): void }) {
   const c = ctxOf(S);
   const target = S.figures.find((f) => f.id === targetId);
   const options = target ? attacksOn(c, hero, targetId) : [];
   const def = options.find((d) => d.id === defId) ?? options[0];
+  const cmd = useMemo(() => (def && target ? attackCommand(c, hero, def, target.id, pre) : null), [S, def?.id, target?.id, hero.id, pre.join(',')]);
+  // quick odds right away, the exact numbers (the real rules played on copies of the battle) a moment later
+  const [exact, setExact] = useState<AttackForecast | null>(null);
+  useEffect(() => {
+    setExact(null);
+    if (!cmd || !target) return;
+    return forecastLater(S, cmd, target.id, setExact);
+  }, [cmd]);
   if (!target || !def) return null;
   const o = odds(c, hero, def, target, pre);
   const cost = actionAvailability(c, hero).find((a) => a.def.id === def.id)?.cost ?? 0;
   const name = reg().enemies[target.typeId]?.name ?? target.name;
-  const pct = o ? Math.round(o.hit * 100) : null;
+  const hit = exact ? exact.hit : o?.hit ?? null;
+  const pct = hit !== null ? Math.round(hit * 100) : null;
+  const kill = exact ? exact.kill : o?.kills ? o.hit : 0;
+  const killPct = Math.round(kill * 100);
+  const dmgText = exact ? (exact.dmgMin === exact.dmgMax ? `${exact.dmgMax}` : `${exact.dmgMin}–${exact.dmgMax}`) : o ? `${o.dmg}` : '—';
+  const loss = kill >= 0.5 ? target.hp : Math.min(target.hp, exact ? exact.dmgTypical : o?.dmg ?? 0);
+  const interceptor = exact?.redirect ? S.figures.find((f) => f.id === exact.redirect) : null;
   return (
     <div className="g-forecast" role="dialog" aria-label={`Atacar ${name}`}>
       <div className="g-fc-head">
         <span className="who">{name}</span>
         <span className="hp">
           <i style={{ width: `${Math.max(0, (target.hp / target.maxHp) * 100)}%` }} />
-          {o && o.dmg > 0 && <i className="loss" style={{ left: `${Math.max(0, ((target.hp - o.dmg) / target.maxHp) * 100)}%`, width: `${(Math.min(o.dmg, target.hp) / target.maxHp) * 100}%` }} />}
+          {loss > 0 && <i className={`loss ${kill >= 0.5 ? 'lethal' : ''}`} style={{ left: `${Math.max(0, ((target.hp - loss) / target.maxHp) * 100)}%`, width: `${(loss / target.maxHp) * 100}%` }} />}
         </span>
         <span className="hpn">
           {target.hp}/{target.maxHp}
@@ -517,14 +546,41 @@ function Forecast({ S, hero, targetId, defId, pre, onPick, onConfirm, onCancel }
           <small>acerto</small>
         </div>
         <div className="st">
-          <b>{o ? (o.kills ? `${o.dmg} ☠` : o.dmg) : '—'}</b>
-          <small>{o?.kills ? 'derruba' : 'dano provável'}</small>
+          <b>{dmgText}</b>
+          <small>dano</small>
         </div>
+        {killPct > 0 && (
+          <div className={`st kill ${killPct >= 50 ? 'hot' : ''}`}>
+            <b>
+              <Icon id="cond_derrotado" /> {killPct}%
+            </b>
+            <small>derrubar</small>
+          </div>
+        )}
         <div className="st">
           <b>{cost}</b>
           <small>AP</small>
         </div>
       </div>
+      {exact && exact.dice.length > 0 && (
+        <div className="g-fc-dice" aria-label="Dados do ataque">
+          {exact.dice.map((g, i) => (
+            <span key={i} className="die">
+              <Icon id={`dice_d${g}`} />D{g}
+            </span>
+          ))}
+          {exact.impulso > 0 && (
+            <span className="imp">
+              <Icon id="impulse" /> Impulso {Math.round(exact.impulso * 100)}%
+            </span>
+          )}
+        </div>
+      )}
+      {interceptor && (
+        <div className="g-fc-note">
+          <Icon id="armor" /> {reg().enemies[interceptor.typeId]?.name ?? interceptor.name} vai se colocar na frente
+        </div>
+      )}
       {options.length > 1 && (
         <div className="g-fc-alts">
           {options.slice(0, 5).map((d) => (
@@ -537,6 +593,73 @@ function Forecast({ S, hero, targetId, defId, pre, onPick, onConfirm, onCancel }
       <button className="g-cta g-fc-go" autoFocus onClick={onConfirm}>
         Atacar
       </button>
+    </div>
+  );
+}
+
+/**
+ * A red skull over every enemy the active hero will probably finish with one attack: the player sees the kill at a
+ * glance. Computed in the background (a few simulations per task) and only while nothing else is on screen.
+ */
+function LethalMarks({ S, hero, pre, diorama }: { S: CombatState; hero: Figure; pre: string[]; diorama: NonNullable<ReturnType<typeof useApp>['diorama']> }) {
+  const [marks, setMarks] = useState<{ id: string; kill: number }[]>([]);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    setMarks([]);
+    const c = ctxOf(S);
+    const jobs = S.figures
+      .filter((f) => f.side === 'E' && f.status === 'active')
+      .map((f) => {
+        const def = attacksOn(c, hero, f.id)[0];
+        const cmd = def ? attackCommand(c, hero, def, f.id, pre) : null;
+        return cmd ? { id: f.id, cmd } : null;
+      })
+      .filter((j): j is { id: string; cmd: ActionCommand } => !!j);
+    let cancel = () => {};
+    const found: { id: string; kill: number }[] = [];
+    const next = (i: number) => {
+      if (i >= jobs.length) return;
+      cancel = forecastLater(S, jobs[i].cmd, jobs[i].id, (fc) => {
+        if (fc && fc.kill >= 0.5) {
+          found.push({ id: jobs[i].id, kill: fc.kill });
+          setMarks([...found]);
+        }
+        next(i + 1);
+      }, 48, 8);
+    };
+    next(0);
+    return () => cancel();
+  }, [S, hero.id, pre.join(',')]);
+  useEffect(() => {
+    if (!marks.length) return;
+    let raf = 0;
+    const draw = () => {
+      raf = requestAnimationFrame(draw);
+      const box = ref.current;
+      if (!box) return;
+      marks.forEach((m, i) => {
+        const el = box.children[i] as HTMLElement | undefined;
+        const p = diorama.screenOf(m.id);
+        if (!el) return;
+        if (!p) {
+          el.style.display = 'none';
+          return;
+        }
+        el.style.display = '';
+        el.style.transform = `translate(${p.x}px, ${p.y + 26}px) translate(-50%, -50%)`;
+      });
+    };
+    draw();
+    return () => cancelAnimationFrame(raf);
+  }, [marks, diorama]);
+  if (!marks.length) return null;
+  return (
+    <div ref={ref} className="g-lethal" aria-hidden>
+      {marks.map((m) => (
+        <span key={m.id} className={`lm ${m.kill >= 0.9 ? 'sure' : ''}`} title={`Pode derrubar: ${Math.round(m.kill * 100)}%`}>
+          <Icon id="cond_derrotado" />
+        </span>
+      ))}
     </div>
   );
 }
@@ -874,6 +997,14 @@ function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre }: { f: Figure; S: 
   const tonic = f.backpack?.find((i) => i.itemId === 'tonico_foco');
   const toggle = (k: string) => setPre(pre.includes(k) ? pre.filter((x) => x !== k) : [...pre, k]);
   const boosts = [f.tempo === 'pesado' && { k: 'pesado', label: '+1 Grau' }, oil && { k: `oleo:${oil.uid}`, label: 'Óleo +1 Dano' }, tonic && { k: `tonico:${tonic.uid}`, label: 'Tônico +1 Grau' }].filter(Boolean) as { k: string; label: string }[];
+  const endBtn = (
+    <button className="g-act end" onClick={onEnd} title="Encerrar a Ativação">
+      <span className="disc">
+        <Icon id="act_end_turn" />
+      </span>
+      <span className="an">Encerrar</span>
+    </button>
+  );
   return (
     <div className="g-actions">
       <div className="g-ctx-title" style={{ color: CLASS_COLOR[f.typeId] }}>
@@ -890,21 +1021,20 @@ function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre }: { f: Figure; S: 
         ))}
       </div>
       <div className="g-act-row">
-        {sorted.map(({ def, cost, reason }) => (
-          <button key={def.id} className={`g-act k-${def.kind} ${reason ? 'off' : ''} ${sel?.def.id === def.id ? 'sel' : ''}`} title={`${def.name} — ${cost} AP\n${def.text}${reason ? `\n\n${reason}` : ''}`} onClick={() => (reason ? toast(reason, 'error') : onPick(def))}>
-            <span className="disc">
-              <Icon id={def.icon ?? 'act_item'} />
-              <span className="cost">{cost}</span>
-            </span>
-            <span className="an">{def.name}</span>
-          </button>
+        {sorted.map(({ def, cost, reason }, i) => (
+          <React.Fragment key={def.id}>
+            {/* "Encerrar" sits right after what can still be done, never hidden behind the greyed-out actions */}
+            {reason && !sorted[i - 1]?.reason && endBtn}
+            <button className={`g-act k-${def.kind} ${reason ? 'off' : ''} ${sel?.def.id === def.id ? 'sel' : ''}`} title={`${def.name} — ${cost} AP\n${def.text}${reason ? `\n\n${reason}` : ''}`} onClick={() => (reason ? toast(reason, 'error') : onPick(def))}>
+              <span className="disc">
+                <Icon id={def.icon ?? 'act_item'} />
+                <span className="cost">{cost}</span>
+              </span>
+              <span className="an">{def.name}</span>
+            </button>
+          </React.Fragment>
         ))}
-        <button className="g-act end" onClick={onEnd} title="Encerrar a Ativação">
-          <span className="disc">
-            <Icon id="act_end_turn" />
-          </span>
-          <span className="an">Encerrar</span>
-        </button>
+        {!sorted.some((a) => a.reason) && endBtn}
       </div>
     </div>
   );

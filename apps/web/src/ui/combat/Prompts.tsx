@@ -8,6 +8,7 @@ import { useSession } from '../../app/hooks';
 import { Icon } from '../Icon';
 import { ATTR_NAME } from '../data';
 import { act } from './GameHUD';
+import { autoSpend } from './forecast';
 
 function answer(p: Pending, a: PendingAnswer) {
   return act({ t: 'combat', cmd: { t: 'answer', pendingId: p.id, answer: a } });
@@ -163,22 +164,6 @@ function Dice({ roll, onReroll }: { roll: { dice: { grade: number; value: number
       })}
     </div>
   );
-}
-
-function autoSpend(p: Extract<Pending, { kind: 'attackPost' }>): string[] {
-  const prio = (label: string) => (/dano|sucesso/i.test(label) ? 3 : /armadura|perfura/i.test(label) ? 2 : /guardado|exposto|quebrado|imobiliz/i.test(label) ? 1.5 : 1);
-  const onlyImpulse = p.options.filter((o) => (o.cost.impulso ?? 0) > 0 && !o.cost.mira && !o.cost.conviccao && !o.cost.brecha);
-  const hit = p.roll.successes > 0;
-  const picked: string[] = [];
-  let budget = p.roll.impulsos;
-  for (const o of [...onlyImpulse].sort((a, b) => prio(b.label) - prio(a.label))) {
-    if (o.requiresHit && !hit) continue;
-    if ((o.cost.impulso ?? 0) > budget) continue;
-    if (o.group && picked.some((id) => p.options.find((x) => x.id === id)?.group === o.group)) continue;
-    picked.push(o.id);
-    budget -= o.cost.impulso ?? 0;
-  }
-  return picked;
 }
 
 function AttackPost({ p, S }: { p: Extract<Pending, { kind: 'attackPost' }>; S: CombatState }) {
