@@ -65,6 +65,17 @@ interface Rect {
   round: boolean;
 }
 
+/** Lines are written for a phone; with a mouse and keyboard they say "clique" (and the world lessons name the keys). */
+const COARSE = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+const PC_LINES: Record<string, string> = {
+  'Arraste o dedo para andar (no PC: WASD ou clique).': 'Ande com WASD ou clicando no chão.',
+  'Perto de algo? Toque no botão para usar.': 'Perto de algo? Aperte E ou clique no botão.',
+};
+function forDevice(say: string): string {
+  if (COARSE) return say.replace(' (no PC: WASD ou clique)', '');
+  return PC_LINES[say] ?? say.replace(/\bToque\b/g, 'Clique').replace(/\btoque\b/g, 'clique');
+}
+
 export function TutorialLayer() {
   const s = useSession();
   const { diorama } = useApp();
@@ -299,7 +310,7 @@ export function TutorialLayer() {
       <div className={`tut-bubble ${bubbleTop ? 'top' : 'bottom'} ${side}`} role="status" aria-live="polite">
         <Mentor />
         <div className="txt">
-          <p>{showing.say}</p>
+          <p>{forDevice(showing.say)}</p>
           <div className="row">
             {showing.tip && (
               <button className="tut-ok" onClick={dismissTip}>
