@@ -1,6 +1,9 @@
 /* ==========================================================================
-   Exploration — the 3D place fills the screen; the place name sits on top,
-   the paths are big cards at the bottom, the party is a row of portraits.
+   Exploration HUD over the real-time world. The room fills the screen; the
+   UI hugs the corners: where you are (top-left) with the way forward, gold
+   and map (top-right), the one thing you can do right here (big button),
+   the party and the list of paths (bottom). Everything else lets taps and
+   drags through to the 3D view (walking).
    ========================================================================== */
 .x-screen {
   position: absolute;
@@ -11,77 +14,90 @@
   color: var(--ink);
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --glass: rgba(14, 11, 11, 0.72);
+  --glass-line: rgba(230, 207, 143, 0.2);
 }
-.x-screen > *,
 .x-screen button {
   pointer-events: auto;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.x-screen .k-sheet-back,
+.x-screen .k-sheet-back * {
+  pointer-events: auto;
+}
+/* scripted moments (doors, battle reveal): the HUD steps aside */
+.x-screen.busy .x-top,
+.x-screen.busy .x-bottom {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.x-screen.busy button {
+  pointer-events: none;
+}
+.x-top,
+.x-bottom {
+  transition: opacity 0.35s ease;
 }
 
-/* ------------------------------------------------------------------ top: where am I */
+/* ------------------------------------------------------------------ top: where am I, where to */
 .x-top {
   position: absolute;
   top: calc(var(--safe-t) + 10px);
-  left: 12px;
-  right: 64px; /* the global menu button lives in the top-right corner */
+  left: calc(var(--safe-l) + 12px);
+  right: calc(var(--safe-r) + 64px); /* the global menu button lives in the top-right corner */
   display: flex;
   align-items: flex-start;
   gap: 8px;
   pointer-events: none;
 }
-.x-top > * {
-  pointer-events: auto;
-}
 .x-place {
-  flex: 0 1 auto;
-  margin-right: auto;
+  flex: 1 1 auto;
   min-width: 0;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   background: none;
   border: 0;
   padding: 2px 0;
-  color: inherit;
   text-align: left;
-  cursor: pointer;
-  position: relative;
 }
 .x-place .code {
   font-family: var(--font-display);
   font-size: 11px;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.26em;
   color: var(--gold);
+  text-shadow: 0 1px 6px #000;
 }
 .x-place .name {
   font-family: var(--font-display);
-  font-size: clamp(20px, 6vw, 34px);
+  font-size: clamp(19px, 5.6vw, 32px);
   line-height: 1.05;
   letter-spacing: 0.03em;
   text-shadow: 0 3px 14px #000, 0 0 2px #000;
   max-width: 100%;
 }
-.x-place .i {
-  position: absolute;
-  top: 0;
-  right: -2px;
-  width: 16px;
-  height: 16px;
-  color: var(--ink-3);
-}
 .x-top-right {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex: none;
 }
 .x-gold {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  height: 36px;
+  height: 38px;
   padding: 0 12px 0 8px;
   border-radius: 999px;
-  background: rgba(14, 11, 11, 0.72);
-  border: 1px solid rgba(230, 207, 143, 0.25);
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(6px);
   font-family: var(--font-display);
   font-weight: 700;
   color: var(--gold-2);
@@ -90,8 +106,179 @@
   width: 20px;
   height: 20px;
 }
+.x-map-btn {
+  backdrop-filter: blur(6px);
+}
 
-/* ------------------------------------------------------------------ bottom: where to go + party */
+/* the way forward: compact tracker lines (tap = the party walks there) */
+.x-track {
+  position: absolute;
+  top: calc(var(--safe-t) + var(--x-top-h, 64px));
+  left: calc(var(--safe-l) + 12px);
+  right: calc(var(--safe-r) + 12px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+.x-screen.busy .x-track {
+  opacity: 0;
+}
+/* the place name wraps to two lines on narrow phones */
+@media (max-width: 480px) {
+  .x-screen {
+    --x-top-h: 82px;
+  }
+}
+.x-choice.x-obj {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 5px 12px 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(230, 207, 143, 0.28);
+  background: var(--glass);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  font-size: 13.5px;
+  line-height: 1.15;
+  color: var(--ink);
+  text-align: left;
+  animation: xDrop 0.4s ease both;
+}
+.x-choice.x-obj .lbl {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  letter-spacing: 0.03em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.x-obj .dia {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  transform: rotate(45deg);
+  background: var(--gold-2);
+  box-shadow: 0 0 10px rgba(240, 210, 130, 0.9);
+  animation: xDia 1.8s ease-in-out infinite;
+}
+.x-obj.fight .dia {
+  background: #ff9a7c;
+  box-shadow: 0 0 10px rgba(255, 120, 90, 0.9);
+}
+.x-obj.secret .dia {
+  background: #c9a8ff;
+  box-shadow: 0 0 10px rgba(180, 140, 255, 0.9);
+}
+.x-obj .warn {
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+}
+@keyframes xDia {
+  50% {
+    transform: rotate(45deg) scale(0.75);
+    opacity: 0.7;
+  }
+}
+@keyframes xDrop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+/* ------------------------------------------------------------------ arrival caption + first-time hint */
+.x-caption {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-b) + 150px);
+  transform: translateX(-50%);
+  width: min(560px, calc(100vw - 32px));
+  pointer-events: none;
+  text-align: center;
+  animation: xCaption 0.9s ease both;
+}
+.x-caption p {
+  margin: 0;
+  padding: 12px 18px;
+  border-radius: 14px;
+  background: radial-gradient(closest-side, rgba(8, 6, 6, 0.82), rgba(8, 6, 6, 0.62) 55%, rgba(8, 6, 6, 0));
+  padding: 18px 26px;
+  font-family: var(--font-prose);
+  font-style: italic;
+  font-size: 17px;
+  line-height: 1.45;
+  color: #efe5cf;
+  text-shadow: 0 2px 10px #000;
+}
+@keyframes xCaption {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}
+.x-hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-b) + 104px);
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 10px;
+  border-radius: 999px;
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  font-size: 13.5px;
+  color: var(--gold-2);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: xDrop 0.5s 0.6s ease both;
+}
+.x-hint-ic {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid rgba(230, 207, 143, 0.6);
+}
+.x-hint-ic::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: var(--gold-2);
+  box-shadow: 0 0 10px rgba(240, 210, 130, 0.9);
+  animation: xThumb 1.6s ease-in-out infinite;
+}
+.x-hint.mouse .x-hint-ic {
+  border-radius: 6px;
+}
+@keyframes xThumb {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  30% {
+    transform: translate(0, -7px);
+  }
+  60% {
+    transform: translate(7px, 0);
+  }
+}
+
+/* ------------------------------------------------------------------ bottom: the action, the party, the paths */
 .x-bottom {
   position: absolute;
   left: 0;
@@ -101,11 +288,8 @@
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  padding: 0 12px;
+  padding: 0 calc(var(--safe-r) + 12px) 0 calc(var(--safe-l) + 12px);
   pointer-events: none;
-}
-.x-bottom > * {
-  pointer-events: auto;
 }
 .x-fallen {
   display: flex;
@@ -113,13 +297,189 @@
   justify-content: center;
   gap: 6px;
 }
+.x-act-slot {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.x-act {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(440px, 100%);
+  min-height: 62px;
+  padding: 7px 16px 7px 8px;
+  border-radius: 16px;
+  border: 1px solid #f3dfa2;
+  background: linear-gradient(180deg, #e8cc85, #b88a3e);
+  color: #1d140a !important;
+  text-align: left;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 26px rgba(230, 190, 110, 0.4);
+  animation: xPop 0.32s cubic-bezier(0.2, 1.4, 0.4, 1) both, xBreath 2.2s 0.4s ease-in-out infinite;
+}
+.x-act:active {
+  transform: translateY(1px) scale(0.98);
+}
+.x-act-ic {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 40% 30%, #3b302a, #141010 75%);
+  border: 1px solid rgba(255, 236, 190, 0.7);
+  color: var(--gold-2);
+}
+.x-act-ic .ico {
+  width: 26px;
+  height: 26px;
+}
+.x-act-txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.x-act-txt .t {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.15;
+}
+.x-act-txt .s {
+  font-size: 12.5px;
+  color: rgba(29, 20, 10, 0.72);
+  line-height: 1.2;
+}
+.x-key {
+  display: none;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 7px;
+  border: 1px solid rgba(29, 20, 10, 0.45);
+  background: rgba(255, 246, 220, 0.35);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 24px;
+  text-align: center;
+  color: #2a1c0c;
+}
+@media (hover: hover) and (pointer: fine) {
+  .x-key {
+    display: inline-block;
+  }
+}
+.x-act.fight {
+  border-color: #ffc9a8;
+  background: linear-gradient(180deg, #f0b07c, #b4532f);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 26px rgba(255, 120, 80, 0.45);
+}
+.x-act.fight .x-act-ic {
+  color: #ffb5a0;
+}
+.x-act.secret {
+  border-color: #e2d0ff;
+  background: linear-gradient(180deg, #c9adff, #6f4fb8);
+  color: #150d24 !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 30px rgba(170, 130, 255, 0.55);
+}
+.x-act.secret .x-act-ic {
+  color: #e0ccff;
+}
+.x-act.lore {
+  border-color: #d6f0ff;
+  background: linear-gradient(180deg, #b9e3fb, #4d86a8);
+  color: #0b1a24 !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 26px rgba(140, 210, 255, 0.45);
+}
+@keyframes xPop {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.94);
+  }
+}
+@keyframes xBreath {
+  50% {
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 40px rgba(240, 200, 120, 0.6);
+  }
+}
+.x-wait {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  color: var(--gold-2);
+  font-size: 13px;
+}
+
+.x-bar {
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+.x-paths-btn {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 62px;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+.x-paths-btn .ico {
+  width: 50px;
+  height: 50px;
+  padding: 12px;
+  border-radius: 50%;
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(6px);
+  color: var(--gold-2);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+}
+.x-paths-btn span {
+  font-size: 11px;
+  color: var(--ink-2);
+  text-shadow: 0 1px 4px #000;
+}
+.x-paths-btn b {
+  position: absolute;
+  top: -2px;
+  right: 2px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #f3dfa2, #b98d43);
+  color: #1a120a;
+  font-family: var(--font-display);
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+}
+
+/* ------------------------------------------------------------------ paths sheet: one card per option */
+.x-paths-sheet .k-h1 {
+  margin-bottom: 10px;
+}
 .x-choices {
-  width: min(520px, 100%);
+  width: 100%;
   display: grid;
   gap: 8px;
-  max-height: 46vh;
-  overflow-y: auto;
-  scrollbar-width: none;
 }
 .x-choice {
   display: flex;
@@ -131,7 +491,6 @@
   border-radius: 16px;
   border: 1px solid rgba(230, 207, 143, 0.22);
   background: linear-gradient(160deg, rgba(38, 31, 28, 0.9), rgba(14, 11, 11, 0.92));
-  backdrop-filter: blur(6px);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
   color: var(--ink);
   font: inherit;
@@ -214,12 +573,12 @@
 /* party portraits (tap = backpack) */
 .x-party {
   display: flex;
-  justify-content: center;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
 .x-port {
   position: relative;
-  width: 62px;
+  width: 58px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -227,12 +586,10 @@
   background: none;
   border: 0;
   padding: 0;
-  color: inherit;
-  cursor: pointer;
 }
 .x-port .ring {
-  width: 52px;
-  height: 52px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   padding: 3px;
   background: conic-gradient(#d5483b var(--hp), rgba(255, 255, 255, 0.1) 0);
@@ -251,10 +608,11 @@
 .x-port .face .ico {
   width: 58%;
   height: 58%;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--acc) 50%, transparent));
 }
 .x-port .hpnum {
   position: absolute;
-  top: 41px;
+  top: 39px;
   min-width: 24px;
   padding: 0 5px;
   border-radius: 999px;
@@ -269,7 +627,7 @@
 }
 .x-port .nm {
   margin-top: 7px;
-  max-width: 62px;
+  max-width: 58px;
   font-size: 11px;
   color: var(--ink-2);
   white-space: nowrap;
@@ -304,35 +662,154 @@
   margin: 10px 0 14px;
 }
 
+/* ------------------------------------------------------------------ layouts */
+/* five heroes on a narrow phone: tighter portraits */
+@media (max-width: 420px) {
+  .x-party {
+    gap: 2px;
+  }
+  .x-port {
+    width: 54px;
+  }
+}
+/* PC / tablet */
 @media (min-width: 900px) and (min-height: 600px) {
   .x-top {
     top: 18px;
     left: 24px;
-    right: 80px;
+    right: 84px;
+  }
+  .x-track {
+    top: 82px;
+    left: 24px;
   }
   .x-bottom {
     bottom: 18px;
+    padding: 0 24px;
   }
-  .x-choice {
+  .x-act {
     min-height: 66px;
   }
+  .x-act-txt .t {
+    font-size: 17px;
+  }
   .x-port {
-    width: 72px;
+    width: 68px;
+  }
+  .x-port .ring {
+    width: 56px;
+    height: 56px;
+  }
+  .x-port .hpnum {
+    top: 44px;
+  }
+  .x-caption {
+    bottom: 104px;
+    width: min(640px, calc(100vw - 420px));
+  }
+  .x-caption p {
+    font-size: 18px;
+  }
+  .x-choice.x-obj .lbl {
+    font-size: 14px;
   }
 }
+/* short landscape screens (phones held sideways): action on the right under the thumb, party bottom-left */
 @media (max-height: 500px) and (orientation: landscape) {
-  .x-choices {
-    max-height: 52vh;
-    width: min(460px, 60vw);
+  .x-top {
+    top: calc(var(--safe-t) + 8px);
   }
-  .x-choice {
-    min-height: 48px;
+  .x-place .name {
+    font-size: 20px;
   }
-  .x-choice .det {
-    display: none;
+  .x-place .code {
+    font-size: 10px;
+  }
+  .x-track {
+    gap: 4px;
+    top: calc(var(--safe-t) + 46px);
+    right: 50%;
+  }
+  .x-choice.x-obj {
+    min-height: 30px;
+    padding: 4px 11px 4px 9px;
+  }
+  .x-bottom {
+    bottom: calc(var(--safe-b) + 8px);
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+  .x-bar {
+    order: 0;
+    width: auto;
+    flex: 1 1 auto;
+    justify-content: flex-start;
+    align-items: flex-end;
+  }
+  .x-act-slot {
+    order: 1;
+    width: min(360px, 44vw);
+    align-items: flex-end;
+  }
+  .x-fallen {
+    position: absolute;
+    left: calc(var(--safe-l) + 12px);
+    bottom: 76px;
+    justify-content: flex-start;
+  }
+  .x-act {
+    min-height: 54px;
+    width: 100%;
+  }
+  .x-act-ic {
+    width: 40px;
+    height: 40px;
+  }
+  .x-act-txt .t {
+    font-size: 13.5px;
+  }
+  .x-act-txt .s {
+    font-size: 11.5px;
+  }
+  .x-port {
+    width: 50px;
+  }
+  .x-port .ring {
+    width: 44px;
+    height: 44px;
+  }
+  .x-port .hpnum {
+    top: 34px;
   }
   .x-port .nm {
     display: none;
+  }
+  .x-paths-btn {
+    order: 2;
+    margin-left: 6px;
+  }
+  .x-paths-btn .ico {
+    width: 44px;
+    height: 44px;
+    padding: 10px;
+  }
+  .x-paths-btn span {
+    display: none;
+  }
+  .x-caption {
+    bottom: calc(var(--safe-b) + 84px);
+    width: min(520px, 60vw);
+  }
+  .x-caption p {
+    font-size: 15px;
+    padding: 8px 14px;
+  }
+  .x-hint {
+    left: auto;
+    right: calc(var(--safe-r) + 12px);
+    bottom: calc(var(--safe-b) + 14px);
+    transform: none;
   }
 }
 
@@ -421,28 +898,5 @@
   from {
     opacity: 0;
     transform: translateY(14px);
-  }
-}
-
-/* phone held sideways: the place and the party left, the paths in a right-hand column */
-@media (max-height: 500px) and (min-aspect-ratio: 19/10) {
-  .x-bottom {
-    left: auto;
-    right: 10px;
-    top: calc(var(--safe-t) + 58px);
-    width: 46%;
-    padding: 0;
-    justify-content: flex-end;
-  }
-  .x-choices {
-    width: 100%;
-    max-height: none;
-    flex: 0 1 auto;
-  }
-  .x-top {
-    right: 10px;
-  }
-  .x-top-right {
-    margin-right: 54px;
   }
 }

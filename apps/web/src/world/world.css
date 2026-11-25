@@ -1,0 +1,319 @@
+/* ==========================================================================
+   Real-time world overlay: floating tags over doors/objects, the floating
+   thumb-stick, enemy "!" alerts, the door fade and the location title card.
+   Everything here ignores pointer input (taps go to the 3D view).
+   ========================================================================== */
+.w-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  overflow: hidden;
+  font-family: var(--font-ui);
+}
+
+/* ------------------------------------------------------------------ floating tags */
+/* .w-tag is a 0×0 anchor moved by script; .w-tag-b is the pill sitting on top of it */
+.w-tag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  will-change: transform;
+  --tag: #e6cf8f;
+  transition: opacity 0.25s ease;
+}
+.w-tag-b {
+  position: absolute;
+  left: 0;
+  top: 0;
+  translate: -50% -100%;
+  transform-origin: 50% 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(300px, 78vw);
+  padding: 4px 11px 4px 4px;
+  border-radius: 999px;
+  background: rgba(14, 11, 11, 0.74);
+  border: 1px solid color-mix(in srgb, var(--tag) 40%, transparent);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55), 0 0 18px color-mix(in srgb, var(--tag) 25%, transparent);
+  color: var(--ink);
+  white-space: nowrap;
+  transition: scale 0.2s ease, background 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+.w-tag.fight {
+  --tag: #ff8d6a;
+}
+.w-tag.secret {
+  --tag: #c9a8ff;
+}
+.w-tag.object {
+  --tag: #a8dcff;
+}
+.w-tag-ic {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 40% 30%, #3b302a, #141010 75%);
+  border: 1px solid color-mix(in srgb, var(--tag) 70%, transparent);
+  color: var(--tag);
+}
+.w-tag-ic .ico {
+  width: 16px;
+  height: 16px;
+}
+.w-tag-t {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  letter-spacing: 0.03em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 4px #000;
+}
+.w-tag-x {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-left: -2px;
+  color: #ff9a7c;
+}
+.w-tag-x .ico {
+  width: 14px;
+  height: 14px;
+}
+.w-tag.main .w-tag-b {
+  border-color: color-mix(in srgb, var(--tag) 75%, transparent);
+  animation: wTagGlow 2.2s ease-in-out infinite;
+}
+.w-tag.near .w-tag-b {
+  scale: 1.12;
+  background: rgba(30, 22, 16, 0.92);
+  border-color: var(--tag);
+}
+.w-tag.hidden-tag {
+  opacity: 0;
+}
+/* over the party: step back so the heroes stay visible */
+.w-tag.dim {
+  opacity: 0.28;
+}
+/* off-screen: the tag sticks to the edge with an arrow pointing the way */
+.w-tag-arrow {
+  display: none;
+}
+.w-tag.edge .w-tag-b {
+  translate: -50% -50%;
+  padding: 4px;
+  opacity: 0.95;
+}
+.w-tag.edge .w-tag-t,
+.w-tag.edge .w-tag-x {
+  display: none;
+}
+.w-tag.edge .w-tag-arrow {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform: rotate(var(--ang, 0rad)) translateX(25px);
+}
+.w-tag.edge .w-tag-arrow::after {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: -7px;
+  border-style: solid;
+  border-width: 7px 0 7px 11px;
+  border-color: transparent transparent transparent var(--tag);
+  filter: drop-shadow(0 0 4px var(--tag));
+}
+@keyframes wTagGlow {
+  0%,
+  100% {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55), 0 0 12px color-mix(in srgb, var(--tag) 22%, transparent);
+  }
+  50% {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55), 0 0 26px color-mix(in srgb, var(--tag) 55%, transparent);
+  }
+}
+
+/* ------------------------------------------------------------------ floating thumb-stick */
+.w-joy {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 128px;
+  height: 128px;
+  margin: -64px 0 0 -64px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0 55%, rgba(230, 207, 143, 0.1) 72%, rgba(230, 207, 143, 0) 74%);
+  border: 2px solid rgba(230, 207, 143, 0.35);
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.35), inset 0 0 18px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  will-change: transform;
+}
+.w-joy.on {
+  opacity: 1;
+}
+.w-joy-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, #f6e2a8, #b88a3e 70%, #7d5a26);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 16px rgba(240, 210, 130, 0.45);
+  will-change: transform;
+}
+
+/* ------------------------------------------------------------------ enemy alert "!" */
+.w-alert {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 30px;
+  height: 38px;
+  margin: -40px 0 0 -15px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 30px;
+  line-height: 1;
+  color: #fff3d6;
+  text-shadow: 0 0 10px #ff6a3c, 0 0 22px #ff3a1a, 0 2px 4px #000;
+  animation: wAlert 1.3s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+@keyframes wAlert {
+  0% {
+    opacity: 0;
+    scale: 0.2;
+    translate: 0 12px;
+  }
+  18% {
+    opacity: 1;
+    scale: 1.35;
+    translate: 0 -4px;
+  }
+  30% {
+    scale: 1;
+    translate: 0 0;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+}
+
+/* ------------------------------------------------------------------ door fade + title card */
+.w-fade {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #070505;
+  opacity: 0;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+}
+.w-title {
+  position: fixed;
+  z-index: 61;
+  left: 50%;
+  top: 34%;
+  translate: -50% -50%;
+  width: min(92vw, 640px);
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  color: var(--ink);
+}
+.w-title small {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.4em;
+  color: var(--gold);
+  margin-bottom: 6px;
+}
+.w-title b {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(26px, 7.5vw, 46px);
+  letter-spacing: 0.06em;
+  line-height: 1.08;
+  text-shadow: 0 4px 24px #000, 0 0 2px #000;
+}
+.w-title b::after {
+  content: '';
+  display: block;
+  width: 140px;
+  height: 1px;
+  margin: 12px auto 0;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.w-title.show {
+  animation: wTitle 2.1s ease both;
+}
+@keyframes wTitle {
+  0% {
+    opacity: 0;
+    letter-spacing: 0.3em;
+  }
+  20% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    letter-spacing: 0.08em;
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .w-title {
+    top: 19%;
+  }
+  .w-title b {
+    font-size: 34px;
+  }
+  .w-tag-t {
+    font-size: 11.5px;
+  }
+  .w-tag-ic {
+    width: 22px;
+    height: 22px;
+  }
+}
+@media (min-width: 900px) and (min-height: 600px) {
+  .w-title {
+    top: 20%;
+  }
+  .w-tag-b {
+    max-width: 360px;
+  }
+  .w-tag-t {
+    font-size: 14px;
+  }
+  .w-tag-ic {
+    width: 30px;
+    height: 30px;
+  }
+}
