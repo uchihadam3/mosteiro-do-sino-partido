@@ -128,7 +128,7 @@ export const FIRST_BATTLE: Chapter = {
     {
       id: 'forecast',
       after: ['tap-enemy'],
-      say: 'Chance de acertar e dano provável. Toque em Atacar!',
+      say: 'Chance de acertar, dano e chance de derrubar. Toque em Atacar!',
       target: { dom: '.g-fc-go' },
       block: true,
       when: (t) => t.has('.g-forecast'),
@@ -137,7 +137,7 @@ export const FIRST_BATTLE: Chapter = {
     {
       id: 'dice',
       after: ['forecast'],
-      say: 'Os dados decidem: números altos são acertos. Toque em Continuar.',
+      say: 'Cada dado mostra o que valeu: ✓ acerta, ✗ erra. Toque em Continuar.',
       target: { dom: '.prompt .btn.primary' },
       block: true,
       when: (t) => pending(t) === 'attackPost',
