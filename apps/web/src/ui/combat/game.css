@@ -1866,3 +1866,24 @@
   margin-left: 4px;
   color: #f3d7a8;
 }
+
+/* take back a plain move */
+.g-undo {
+  align-self: flex-start;
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--glass);
+  border: 1px solid rgba(159, 210, 255, 0.5);
+  color: #cfe5ff;
+  font-size: 13px;
+  box-shadow: 0 0 14px rgba(120, 180, 255, 0.25);
+  animation: gPop 0.25s ease both;
+}
+.g-undo .ico {
+  width: 16px;
+  height: 16px;
+}

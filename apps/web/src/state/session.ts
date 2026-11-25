@@ -148,6 +148,13 @@ export class GameSession {
     return this.commit(r.state, r.events);
   }
 
+  /** Local play only: put back a state captured just before a plain move (nothing random happened since). */
+  undoTo(s: CampaignState): boolean {
+    if (this.role !== 'local' || !this.state) return false;
+    this.commit(structuredClone(s), []);
+    return true;
+  }
+
   private commit(s: CampaignState, events: DomainEvent[]): null {
     this.state = s;
     this.votes = {};

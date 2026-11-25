@@ -103,11 +103,24 @@ export function GameHUD() {
 
   const fire = (x: { targetIds?: string[]; sector?: SectorKey; sectors?: SectorKey[] }) => {
     if (!sel || !heroActive) return;
+    // plain moves can be taken back (local play) as long as nothing random or reactive happened
+    const isMove = sel.def.kind === 'move' || sel.def.targeting.type === 'move';
+    const snap = isMove && session.role === 'local' && session.state ? structuredClone(session.state) : null;
+    const rngBefore = JSON.stringify(S.rng);
+    const label = sel.def.name;
     void act({ t: 'combat', cmd: { t: 'action', actionId: sel.def.id, figureId: heroActive.id, pre: [...pre], option: sel.option, ...x } }).then((err) => {
-      if (!err) audio.play('ui_confirm', { volume: 0.4 });
+      if (err) return;
+      audio.play('ui_confirm', { volume: 0.4 });
+      const now = session.state?.combat;
+      if (snap && now && JSON.stringify(now.rng) === rngBefore && !now.pending && now.activeId === heroActive.id) setUndo({ snap, label, seq: now.logSeq, key: Date.now() });
     });
     setSel(null);
   };
+  const [undo, setUndo] = useState<{ snap: NonNullable<typeof session.state>; label: string; seq: number; key: number } | null>(null);
+  // the undo offer lasts until anything else happens
+  useEffect(() => {
+    if (undo && (S.logSeq !== undo.seq || S.activeId !== heroActive?.id)) setUndo(null);
+  }, [S.logSeq, S.activeId]);
 
   const attackNow = (defId: string, targetId: string) => {
     if (!heroActive) return;
@@ -394,6 +407,18 @@ export function GameHUD() {
           </button>
         )}
         {S.phase === 'tempo' && !S.pending && <TempoPicker S={S} heroId={tempoHero} setHero={setTempoHero} />}
+        {undo && heroActive && canAct && !S.pending && !sel && !forecast && (
+          <button
+            className="g-undo"
+            onClick={() => {
+              const snap = undo.snap;
+              setUndo(null);
+              if (session.undoTo(snap)) audio.play('ui_cancel', { volume: 0.5 });
+            }}
+          >
+            <Icon id="back" /> Desfazer {undo.label.toLowerCase()}
+          </button>
+        )}
         {heroActive && canAct && !S.pending && !forecast && <ActionWheel f={heroActive} S={S} sel={sel} pre={pre} setPre={setPre} onPick={choose} onEnd={() => void act({ t: 'combat', cmd: { t: 'end', figureId: heroActive.id } })} />}
         <Dock S={S} heroes={heroes} tempoHero={tempoHero} incoming={showThreats ? incomingDamage(threats) : {}} onTap={(id) => handlers.current.fig(id)} />
       </div>
