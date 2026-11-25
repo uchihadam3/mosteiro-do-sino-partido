@@ -7,6 +7,7 @@ import { canInstall, isStandalone, onPwaChange, promptInstall } from '../pwa/reg
 import { SettingsModal, Sheet } from './Settings';
 import { toast } from './Toasts';
 import { audio } from '../audio/AudioDirector';
+import { GameLogo } from '../cinema/GameLogo';
 import './menus.css';
 
 export function Title() {
@@ -36,9 +37,9 @@ export function Title() {
   return (
     <div className="m-title">
       <div className="m-logo">
-        <div className="pre">Mosteiro do</div>
-        <h1>Sino Partido</h1>
-        <div className="rule" />
+        <h1 className="m-logo-h1">
+          <GameLogo size="title" layout="auto" />
+        </h1>
         <p className="tag">O sino rachou há décadas. O som nunca parou.</p>
       </div>
       <div className="spacer" />

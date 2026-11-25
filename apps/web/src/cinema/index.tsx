@@ -1,17 +1,28 @@
 /**
- * Cinematics — studio splash, intro, cutscenes. Owned by the Cinema module.
+ * Cinematics — studio splash, game logo, intro and cutscenes. Owned by the Cinema module.
  * App.tsx shows <Splash> as the first route when SPLASH_ENABLED, and always renders <CinemaLayer> above the game.
  */
-import { useEffect } from 'react';
+import React, { useSyncExternalStore } from 'react';
+import { Splash as SplashView } from './Splash';
+import { getCineView, subscribeCinema as subscribe } from './player';
+import { Gallery } from './Gallery';
 
-export const SPLASH_ENABLED = false;
+export const SPLASH_ENABLED = true;
 
 export function Splash({ onDone }: { onDone(): void }) {
-  useEffect(() => onDone(), []);
-  return null;
+  if (new URLSearchParams(location.search).get('cinema') === 'gallery') return <Gallery />;
+  return <SplashView onDone={onDone} />;
 }
 
-/** Plays cutscenes when the game reaches story beats (new campaign, boss encounters, ending). */
-export function CinemaLayer() {
-  return null;
+export { CinemaLayer } from './Layer';
+export { GameLogo, GameEmblem, GameWordmark } from './GameLogo';
+export { StudioMark, StudioWordmark } from './StudioMark';
+export { MentorPortrait } from './MentorPortrait';
+export { STUDIO, GAME, MENTOR } from './brand';
+export { cinema, isCinemaPlaying, subscribeCinema } from './player';
+export { registerCutscene, cutscenesFor } from './registry';
+
+/** True while a cutscene owns the screen (the tutorial / HUD can wait for it). */
+export function useCinemaPlaying(): boolean {
+  return useSyncExternalStore(subscribe, () => getCineView().active);
 }
