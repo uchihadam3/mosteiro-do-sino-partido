@@ -354,6 +354,7 @@ export function GameHUD() {
     <div className="g-hud">
       <TopBar S={S} heroes={heroes} onLog={() => setLog(true)} onMenu={() => setPause(true)} onSkip={() => diorama?.skip()} />
       <BossGauge S={S} />
+      <ObjectivePill S={S} />
       {hint && (
         <div className="g-hint" key={hint}>
           {hint}
@@ -650,7 +651,22 @@ function BossGauge({ S }: { S: CombatState }) {
       {[1, 2, 3].map((i) => (
         <i key={i} className={i <= v ? 'on' : ''} />
       ))}
+      {sev && S.objectives['contrapesos'] && <span className="cw">· Contrapesos {S.boss.contrapesos.filter((c) => c.used).length}/3</span>}
     </div>
+  );
+}
+
+/** Extra objectives of special encounters (e.g. deciphering the Sete Linhas) — tap for how. */
+function ObjectivePill({ S }: { S: CombatState }) {
+  const [open, setOpen] = useState(false);
+  const o = S.objectives['setelinhas'];
+  if (!o) return null;
+  return (
+    <button className={`g-obj ${o.done ? 'done' : ''}`} onClick={() => setOpen(!open)} aria-expanded={open}>
+      <Icon id="sete_linhas" />
+      <span>{o.done ? 'Sete Linhas decifradas' : 'Objetivo: decifrar as Sete Linhas'}</span>
+      {open && !o.done && <small>Um herói na Retaguarda usa a ação “Decifrar as Sete Linhas” (1 AP, uma tentativa por ciclo).</small>}
+    </button>
   );
 }
 

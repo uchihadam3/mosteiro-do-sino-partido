@@ -1823,3 +1823,46 @@
     height: 22px;
   }
 }
+
+/* special-encounter objective */
+.g-obj {
+  position: absolute;
+  top: calc(var(--safe-t) + 58px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: calc(100vw - 24px);
+  padding: 5px 12px;
+  border-radius: 14px;
+  background: rgba(30, 22, 40, 0.86);
+  border: 1px solid rgba(176, 140, 255, 0.55);
+  color: #dccbff;
+  font-size: 12.5px;
+  box-shadow: 0 0 16px rgba(160, 120, 255, 0.25);
+}
+.g-obj .ico {
+  width: 16px;
+  height: 16px;
+}
+.g-obj small {
+  width: 100%;
+  font-size: 12px;
+  color: var(--ink-2);
+  text-align: center;
+}
+.g-obj.done {
+  border-color: rgba(143, 191, 114, 0.6);
+  color: #bff0a8;
+  background: rgba(16, 30, 14, 0.86);
+}
+.g-obj ~ .g-hint {
+  top: calc(var(--safe-t) + 92px);
+}
+.g-gauge .cw {
+  margin-left: 4px;
+  color: #f3d7a8;
+}
