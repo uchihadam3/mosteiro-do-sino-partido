@@ -351,3 +351,27 @@
     transform: translateY(100%);
   }
 }
+
+/* phone held sideways: headers and tabs stay small so the screen is for the game */
+@media (max-height: 500px) and (orientation: landscape) {
+  .k-screen {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 4px);
+  }
+  .k-head {
+    padding-bottom: 4px;
+  }
+  .k-kicker {
+    font-size: 9px;
+  }
+  .k-h1,
+  .pt-h1.k-h1 {
+    font-size: 19px;
+  }
+  .k-tabs button {
+    min-height: 30px;
+    font-size: 12.5px;
+  }
+  .pt-tabbar {
+    padding-bottom: 4px;
+  }
+}
