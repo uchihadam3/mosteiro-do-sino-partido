@@ -11,6 +11,8 @@ export interface TutCtx {
   S: CombatState | null;
   /** true if a selector currently matches a visible element */
   has(sel: string): boolean;
+  /** how many visible elements match */
+  count(sel: string): number;
   /** first enemy the active hero could attack (glowing), if any */
   attackableEnemy(): string | null;
 }
@@ -27,16 +29,23 @@ export interface Step {
   when?: (t: TutCtx) => boolean;
   /** The player did it: go on. */
   done: (t: TutCtx) => boolean;
-  /** Not relevant anymore: jump to the next step. */
+  /** Can never happen anymore in this chapter: drop it (it is not shown later). */
   skipIf?: (t: TutCtx) => boolean;
   /** Info-only steps auto-advance after this many ms (or on tap). */
   autoMs?: number;
 }
 
+/**
+ * A chapter is a set of lessons. The coach shows the first lesson not learned yet whose situation is happening
+ * now (`when`), waits for the player to do it (`done`), and comes back to the others when their moment arrives
+ * (e.g. enemies may act before the heroes: the attack lessons simply wait for the heroes' turn).
+ */
 export interface Chapter {
   id: string;
   /** Starts when this is true (checked continuously). */
   start: (t: TutCtx) => boolean;
+  /** The chapter is over (its context is gone): remaining lessons are dropped. */
+  end: (t: TutCtx) => boolean;
   steps: Step[];
 }
 
@@ -45,9 +54,11 @@ const phase = (t: TutCtx) => t.S?.phase;
 const pending = (t: TutCtx) => t.S?.pending?.kind ?? null;
 
 /** The first battle teaches the whole loop by doing it. */
+const cycle = (t: TutCtx) => t.S?.cycle ?? 0;
 export const FIRST_BATTLE: Chapter = {
   id: 'first-battle',
-  start: (t) => inCombat(t) && (phase(t) === 'deploy' || phase(t) === 'tempo') && (t.S?.cycle ?? 0) <= 1,
+  start: (t) => inCombat(t) && (phase(t) === 'deploy' || phase(t) === 'tempo') && cycle(t) <= 1,
+  end: (t) => !inCombat(t) || !!t.S?.result,
   steps: [
     {
       id: 'deploy',
@@ -65,7 +76,7 @@ export const FIRST_BATTLE: Chapter = {
       block: true,
       when: (t) => pending(t) === 'choice',
       done: (t) => pending(t) !== 'choice',
-      skipIf: (t) => phase(t) === 'tempo' && !pending(t) && t.has('.g-tempo-sum, .g-tempo-btn'),
+      skipIf: (t) => cycle(t) > 1 || phase(t) === 'heroBand' || phase(t) === 'heroActing' || phase(t) === 'enemyBand',
     },
     {
       id: 'threats',
@@ -73,7 +84,7 @@ export const FIRST_BATTLE: Chapter = {
       target: { dom: '.g-threats' },
       when: (t) => phase(t) === 'tempo' && !pending(t) && t.has('.g-threats .th'),
       done: () => false,
-      skipIf: (t) => phase(t) !== 'tempo' || !t.has('.g-threats .th'),
+      skipIf: (t) => cycle(t) > 1,
       autoMs: 3800,
     },
     {
@@ -83,16 +94,16 @@ export const FIRST_BATTLE: Chapter = {
       block: true,
       when: (t) => phase(t) === 'tempo' && !pending(t) && t.has('.g-tempo .g-cta'),
       done: (t) => phase(t) !== 'tempo',
-      skipIf: (t) => phase(t) !== 'tempo',
+      skipIf: (t) => cycle(t) > 1,
     },
     {
       id: 'pick-hero',
       say: 'Sua vez! Toque no herói que está brilhando.',
       target: { dom: '.g-port.can' },
       block: true,
-      when: (t) => phase(t) === 'heroBand' && t.has('.g-port.can'),
+      // only when there is a real choice (a single eligible hero is activated automatically)
+      when: (t) => phase(t) === 'heroBand' && t.count('.g-port.can') >= 2,
       done: (t) => phase(t) === 'heroActing',
-      skipIf: (t) => phase(t) === 'heroActing' || phase(t) === 'enemyBand',
     },
     {
       id: 'tap-enemy',
@@ -101,7 +112,6 @@ export const FIRST_BATTLE: Chapter = {
       block: true,
       when: (t) => phase(t) === 'heroActing' && !pending(t) && !!t.attackableEnemy(),
       done: (t) => t.has('.g-forecast') || !!pending(t),
-      skipIf: (t) => phase(t) !== 'heroActing',
     },
     {
       id: 'forecast',
@@ -110,7 +120,6 @@ export const FIRST_BATTLE: Chapter = {
       block: true,
       when: (t) => t.has('.g-forecast'),
       done: (t) => !t.has('.g-forecast'),
-      skipIf: (t) => !t.has('.g-forecast') && phase(t) !== 'heroActing',
     },
     {
       id: 'dice',
@@ -119,7 +128,6 @@ export const FIRST_BATTLE: Chapter = {
       block: true,
       when: (t) => pending(t) === 'attackPost',
       done: (t) => pending(t) !== 'attackPost',
-      skipIf: (t) => phase(t) !== 'heroActing' && pending(t) !== 'attackPost',
     },
     {
       id: 'ap',
@@ -127,7 +135,6 @@ export const FIRST_BATTLE: Chapter = {
       target: { dom: '.g-act.end' },
       when: (t) => phase(t) === 'heroActing' && !pending(t) && t.has('.g-act.end'),
       done: (t) => phase(t) !== 'heroActing',
-      skipIf: (t) => phase(t) !== 'heroActing',
       autoMs: 5000,
     },
     {
@@ -145,6 +152,7 @@ export const FIRST_BATTLE: Chapter = {
 export const FIRST_LOOT: Chapter = {
   id: 'first-loot',
   start: (t) => t.st?.phase === 'reward' && t.has('.m-lootcard'),
+  end: (t) => t.st?.phase !== 'reward',
   steps: [
     {
       id: 'give',
@@ -171,6 +179,7 @@ export const FIRST_LOOT: Chapter = {
 export const FIRST_PREP: Chapter = {
   id: 'first-prep',
   start: (t) => t.st?.phase === 'prep' && (t.st?.visited?.length ?? 0) === 0,
+  end: (t) => t.st?.phase !== 'prep',
   steps: [
     {
       id: 'gear',

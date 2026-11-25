@@ -66,7 +66,7 @@ export function TutorialLayer() {
   const s = useSession();
   const { diorama } = useApp();
   const [prog, setProg] = useState<Progress>(load);
-  const [chapter, setChapter] = useState<{ id: string; i: number } | null>(null);
+  const [chapter, setChapter] = useState<{ id: string; done: string[]; cur: string | null } | null>(null);
   const [tip, setTip] = useState<Tip | null>(null);
   const [rect, setRect] = useState<Rect | null>(null);
   const [tick, setTick] = useState(0);
@@ -90,6 +90,7 @@ export function TutorialLayer() {
         const r = el.getBoundingClientRect();
         return r.width > 0 && r.height > 0;
       },
+      count: (sel) => [...document.querySelectorAll(sel)].filter((el) => (el as HTMLElement).getBoundingClientRect().width > 0).length,
       attackableEnemy: () => {
         if (!S || S.phase !== 'heroActing' || !S.activeId) return null;
         const hero = S.figures.find((f) => f.id === S.activeId);
@@ -112,7 +113,7 @@ export function TutorialLayer() {
 
   const active = !prog.off && !debugBlocked() && !!st;
   const ch = chapter ? CHAPTERS.find((c) => c.id === chapter.id) : null;
-  const step: Step | null = ch && chapter ? (ch.steps[chapter.i] ?? null) : null;
+  const step: Step | null = ch && chapter?.cur ? (ch.steps.find((x) => x.id === chapter.cur) ?? null) : null;
 
   // heartbeat: DOM-driven conditions (forecast open, buttons shown) are re-checked a few times per second
   useEffect(() => {
@@ -121,62 +122,61 @@ export function TutorialLayer() {
     return () => clearInterval(id);
   }, [active]);
 
-  // drive chapters / steps / tips
+  // drive chapters / lessons / tips
   useEffect(() => {
     if (!active) {
       if (chapter) setChapter(null);
       if (tip) setTip(null);
       return;
     }
+    const finish = (id: string) => {
+      const p = { ...prog, chapters: [...prog.chapters, id] };
+      save(p);
+      setProg(p);
+      setChapter(null);
+    };
     // start a chapter
     if (!chapter) {
       const next = CHAPTERS.find((c) => !prog.chapters.includes(c.id) && c.start(ctx));
       if (next) {
-        setChapter({ id: next.id, i: 0 });
+        setChapter({ id: next.id, done: [], cur: null });
         return;
       }
     }
     if (ch && chapter) {
-      if (chapter.i >= ch.steps.length) {
-        const p = { ...prog, chapters: [...prog.chapters, ch.id] };
-        save(p);
-        setProg(p);
-        setChapter(null);
-        return;
-      }
-      const cur = ch.steps[chapter.i];
-      if (cur.skipIf?.(ctx) || (cur.when ? false : false)) {
-        setChapter({ ...chapter, i: chapter.i + 1 });
-        return;
-      }
-      if (cur.when && !cur.when(ctx)) {
-        // waiting for the right moment; if the battle moved on past this whole chapter, close it
-        if (!ctx.S) {
-          const p = { ...prog, chapters: [...prog.chapters, ch.id] };
-          save(p);
-          setProg(p);
-          setChapter(null);
+      // lessons that can no longer happen are dropped
+      const dropped = ch.steps.filter((x) => !chapter.done.includes(x.id) && x.id !== chapter.cur && x.skipIf?.(ctx)).map((x) => x.id);
+      if (dropped.length) return setChapter({ ...chapter, done: [...chapter.done, ...dropped] });
+      if (ch.end(ctx) || ch.steps.every((x) => chapter.done.includes(x.id))) return finish(ch.id);
+      if (chapter.cur) {
+        const cur = ch.steps.find((x) => x.id === chapter.cur)!;
+        if (cur.done(ctx)) {
+          audio.play('ui_confirm', { volume: 0.35 });
+          return setChapter({ ...chapter, done: [...chapter.done, cur.id], cur: null });
         }
+        // the moment passed without the player doing it: put the lesson back, it returns next time
+        if (cur.when && !cur.when(ctx) && !cur.autoMs) return setChapter({ ...chapter, cur: null });
         return;
       }
-      if (cur.done(ctx)) {
-        audio.play('ui_confirm', { volume: 0.35 });
-        setChapter({ ...chapter, i: chapter.i + 1 });
-        return;
-      }
+      const ready = ch.steps.find((x) => !chapter.done.includes(x.id) && (!x.when || x.when(ctx)) && !x.done(ctx));
+      if (ready) return setChapter({ ...chapter, cur: ready.id });
       return;
     }
-    // tips, one at a time, when no chapter step is showing
+    // tips, one at a time, when no lesson is showing
     if (!tip) {
       const t = TIPS.find((x) => !prog.tips.includes(x.id) && x.when(ctx));
       if (t) setTip(t);
     }
-  }, [tick, st, S, prog, chapter?.id, chapter?.i, active]);
+  }, [tick, st, S, prog, chapter?.id, chapter?.cur, chapter?.done.length, active]);
 
-  // info steps advance by themselves
+  // info lessons complete by themselves after a moment
+  const learn = (id: string) => setChapter((c) => (c && c.cur === id ? { ...c, done: [...c.done, id], cur: null } : c));
   useEffect(() => {
     if (autoTimer.current) clearTimeout(autoTimer.current);
-    if (step?.autoMs && (!step.when || step.when(ctx))) autoTimer.current = setTimeout(() => setChapter((c) => (c ? { ...c, i: c.i + 1 } : c)), step.autoMs);
+    if (step?.autoMs) {
+      const id = step.id;
+      autoTimer.current = setTimeout(() => learn(id), step.autoMs);
+    }
     return () => {
       if (autoTimer.current) clearTimeout(autoTimer.current);
     };
@@ -224,7 +224,7 @@ export function TutorialLayer() {
     setChapter(null);
     setTip(null);
   };
-  const next = () => setChapter((c) => (c ? { ...c, i: c.i + 1 } : c));
+  const next = () => step && learn(step.id);
   const pad = 8;
   const hole = rect ? { x: rect.x - pad, y: rect.y - pad, w: rect.w + pad * 2, h: rect.h + pad * 2 } : null;
   const vw = typeof window !== 'undefined' ? window.innerWidth : 0;
