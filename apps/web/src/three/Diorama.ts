@@ -2,6 +2,11 @@
  * Diorama — Three.js renderer for exploration and combat.
  * It OBSERVES game state and domain events and schedules animations; it never decides tactical math.
  * Animation queue is skippable (speed multiplier / fast-forward) and never blocks the rules engine.
+ *
+ * Look: quality presets (low = direct render, no shadows; medium = shadows + bloom + grade; high = + GTAO,
+ * bigger shadow maps), a capped render pixel ratio, per-location palette (fog, exposure, colour grade).
+ * Juice: anticipation → lunge → impact (hit-stop, flash, recoil, shake) → recovery; critical hits get a
+ * slow-motion punch-in; deaths collapse then dissolve with glowing edges; the camera leans into each action.
  */
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -9,39 +14,64 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { intentFor, type CombatState, type DomainEvent, type Figure, type SectorKey } from '@mosteiro/core';
 import { buildEnemy, buildHero, CLASS_ACCENT, type Rig } from './characters';
-import { buildEnemySkinned, buildHeroSkinned, hasSkinnedEnemy } from './skinned';
-import { buildScene, type BuiltScene } from './scenes';
-import { VFX } from './vfx';
-import { model, pbr, setAnisotropy, flat, sprite } from './assets';
+import { buildEnemySkinned, buildHeroSkinned, hasSkinnedEnemy, projectileModel } from './skinned';
+import { buildScene, roomPalette, type BuiltScene } from './scenes';
+import { VFX, blobTexture, ringTexture, plateGlowTexture, plateTopTexture } from './vfx';
+import { model, setAnisotropy, flat, sprite, kitTime } from './assets';
 
 export type Quality = 'low' | 'medium' | 'high';
 
+/** Per-quality render settings. dpr = cap on the device pixel ratio; px = cap on drawing-buffer pixels. */
+const PRESETS: Record<Quality, { dpr: number; minDpr: number; px: number; shadows: boolean; post: boolean; ao: boolean; samples: number; vfx: number }> = {
+  low: { dpr: 1.25, minDpr: 0.75, px: 0.75e6, shadows: false, post: false, ao: false, samples: 0, vfx: 0.5 },
+  medium: { dpr: 1.75, minDpr: 1, px: 1.6e6, shadows: true, post: true, ao: false, samples: 4, vfx: 0.8 },
+  high: { dpr: 2.25, minDpr: 1, px: 2.6e6, shadows: true, post: true, ao: true, samples: 4, vfx: 1 },
+};
+
 const GRADE_SHADER = {
-  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uVignette: { value: 0.85 }, uGrain: { value: 0.016 }, uFlash: { value: 0 }, uFlashColor: { value: new THREE.Color(1, 1, 1) } },
+  uniforms: {
+    tDiffuse: { value: null },
+    uTime: { value: 0 },
+    uVignette: { value: 0.55 },
+    uGrain: { value: 0.012 },
+    uFlash: { value: 0 },
+    uFlashColor: { value: new THREE.Color(1, 1, 1) },
+    uLift: { value: new THREE.Color(0x0a0812) },
+    uGain: { value: new THREE.Color(0xfff2e0) },
+    uSat: { value: 1.05 },
+    uContrast: { value: 1.06 },
+    uAberration: { value: 0 },
+  },
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
   fragmentShader: `
     uniform sampler2D tDiffuse; uniform float uTime; uniform float uVignette; uniform float uGrain; uniform float uFlash; uniform vec3 uFlashColor;
+    uniform vec3 uLift; uniform vec3 uGain; uniform float uSat; uniform float uContrast; uniform float uAberration;
     varying vec2 vUv;
     float rand(vec2 co){ return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453); }
     void main(){
+      vec2 d = vUv - 0.5;
       vec4 c = texture2D(tDiffuse, vUv);
-      // warm highlights, cool shadows (split tone)
-      float l = dot(c.rgb, vec3(0.299,0.587,0.114));
-      vec3 shadow = vec3(0.92,0.96,1.06);
-      vec3 high = vec3(1.06,1.0,0.9);
-      c.rgb *= mix(shadow, high, smoothstep(0.15, 0.75, l));
-      // gentle contrast
-      c.rgb = (c.rgb - 0.5) * 1.06 + 0.5;
-      // vignette
-      vec2 d = vUv - 0.5; d.x *= 1.3;
-      float v = smoothstep(0.85, 0.25, length(d));
-      c.rgb *= mix(1.0 - uVignette * 0.55, 1.0, v);
-      // grain
-      c.rgb += (rand(vUv * 900.0 + uTime) - 0.5) * uGrain;
+      if (uAberration > 0.0) {
+        vec2 o = d * uAberration;
+        c.r = texture2D(tDiffuse, vUv + o).r;
+        c.b = texture2D(tDiffuse, vUv - o).b;
+      }
+      // display-space grade: lift the shadows toward the location's tint, tint the highlights
+      c.rgb = c.rgb * uGain + uLift * (1.0 - c.rgb);
+      float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+      c.rgb = mix(vec3(l), c.rgb, uSat);
+      c.rgb = (c.rgb - 0.5) * uContrast + 0.5;
+      // vignette (soft, oval)
+      vec2 dv = d; dv.x *= 1.15;
+      float v = smoothstep(0.92, 0.28, length(dv));
+      c.rgb *= mix(1.0 - uVignette * 0.6, 1.0, v);
+      // fine grain, stronger in the shadows
+      c.rgb += (rand(vUv * 731.0 + fract(uTime)) - 0.5) * uGrain * (1.2 - l);
       c.rgb = mix(c.rgb, uFlashColor, uFlash);
-      gl_FragColor = c;
+      gl_FragColor = vec4(max(c.rgb, 0.0), 1.0);
     }`,
 };
 
@@ -51,6 +81,11 @@ const ROW_Z: Record<string, number> = { 'E:R': -3.55, 'E:F': -1.45, 'H:F': 1.45,
 export function sectorCenter(k: SectorKey): THREE.Vector3 {
   return new THREE.Vector3(COL_X(Number(k[3])), 0, ROW_Z[k.slice(0, 3)]);
 }
+
+const easeOutCubic = (k: number) => 1 - Math.pow(1 - k, 3);
+const easeInCubic = (k: number) => k * k * k;
+const easeInOut = (k: number) => (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2);
+const UP = new THREE.Vector3(0, 1, 0);
 
 interface FigView {
   id: string;
@@ -71,11 +106,28 @@ interface FigView {
   hidden: boolean;
   phase: number;
   weaponIcon?: string;
+  /** soft contact shadow + selection ring (scene-level decals that follow the figure) */
+  blob: THREE.Mesh;
+  ring: THREE.Mesh;
+  /** choreography offset on top of the slot position (lunges, recoils, dodges) */
+  off: THREE.Vector3;
+  offTween: { from: THREE.Vector3; to: THREE.Vector3; t: number; dur: number; ease: (k: number) => number; then?: () => void } | null;
+  /** explicit facing (yaw) while acting; null = face the other side */
+  faceYaw: number | null;
+  /** forward lean (anticipation / recoil) */
+  lean: number;
+  leanTarget: number;
+  /** coloured rim pulse (heal, guard, buff) */
+  glow: { color: THREE.Color; t: number; dur: number } | null;
+  /** seconds until the next idle variation */
+  idleT: number;
 }
 
 interface Task {
   dur: number;
   t: number;
+  /** id of the attacker whose strike this task belongs to (area attacks chain several) */
+  strikeOf?: string;
   start?: () => void;
   tick?: (k: number, dt: number) => void;
   end?: () => void;
@@ -107,10 +159,11 @@ export interface CameraController {
 export class Diorama {
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(38, 1, 0.1, 120);
+  camera = new THREE.PerspectiveCamera(38, 1, 0.1, 160);
   composer!: EffectComposer;
   bloom!: UnrealBloomPass;
   grade!: ShaderPass;
+  private gtao: GTAOPass | null = null;
   vfx = new VFX();
   quality: Quality = 'medium';
   private clock = new THREE.Clock();
@@ -134,16 +187,27 @@ export class Diorama {
   private camLook = new THREE.Vector3();
   private shake = 0;
   private flash = 0;
+  private aberration = 0;
+  /** hit-stop (real seconds of near-freeze) and slow motion (real seconds, time scale) */
+  private hitStop = 0;
+  private slowMo = 0;
+  private slowMoScale = 1;
+  /** camera lean into the action */
+  private punch = { at: new THREE.Vector3(), amt: 0, want: 0, hold: 0 };
   private running = true;
   private raf = 0;
   private lastState: CombatState | null = null;
   private exploreParty: { id: string; classId: string; weaponIcon?: string }[] = [];
-  stats = { fps: 0, frameMs: 0, calls: 0, tris: 0, geos: 0, texs: 0, sceneLoadMs: 0 };
+  stats = { fps: 0, frameMs: 0, calls: 0, tris: 0, geos: 0, texs: 0, sceneLoadMs: 0, dpr: 1 };
   private fpsAcc = 0;
   private fpsN = 0;
   private dpr = 1;
   private autoQuality = true;
+  /** no auto-downgrade while a scene is still compiling/loading */
+  private qualityGrace = 0;
   private slowFrames = 0;
+  /** fallback light used only while no location backdrop is visible */
+  private stage: THREE.SpotLight;
 
   constructor(
     private container: HTMLElement,
@@ -154,16 +218,17 @@ export class Diorama {
     this.renderer.domElement.className = 'three';
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.35;
+    this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.info.autoReset = false;
     setAnisotropy(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
     container.appendChild(this.renderer.domElement);
     this.scene.background = new THREE.Color(0x0e0c0c);
     this.scene.add(this.boardGroup, this.vfx.group, this.markers, this.engageLines);
-    const stage = new THREE.SpotLight(0xfff0dc, 70, 30, 0.75, 0.6, 1.4);
-    stage.position.set(0, 13, 6);
-    stage.target.position.set(0, 0, -0.5);
-    this.scene.add(stage, stage.target);
+    this.stage = new THREE.SpotLight(0xfff0dc, 70, 30, 0.75, 0.6, 1.4);
+    this.stage.position.set(0, 13, 6);
+    this.stage.target.position.set(0, 0, -0.5);
+    this.scene.add(this.stage, this.stage.target);
     this.camera.position.set(0, 9, 12);
     this.camPos.copy(this.camera.position);
     this.setupComposer();
@@ -184,37 +249,65 @@ export class Diorama {
 
   // ------------------------------------------------------------------ setup
   private setupComposer() {
-    this.composer = new EffectComposer(this.renderer);
+    const P = PRESETS[this.quality];
+    this.composer?.dispose();
+    this.gtao?.dispose();
+    this.gtao = null;
+    const rt = new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType, samples: P.samples });
+    this.composer = new EffectComposer(this.renderer, rt);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.55, 0.6, 0.82);
+    if (P.ao) {
+      this.gtao = new GTAOPass(this.scene, this.camera, 2, 2);
+      this.gtao.updateGtaoMaterial({ radius: 0.6, distanceExponent: 1.4, thickness: 1.2, scale: 1, samples: 12, distanceFallOff: 1 });
+      // glows, light shafts, decals and particles must not occlude anything: keep them out of the AO normal pass
+      const pass = this.gtao as unknown as { overrideVisibility(): void };
+      const base = pass.overrideVisibility.bind(pass);
+      pass.overrideVisibility = () => {
+        base();
+        this.scene.traverse((o) => {
+          const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+          if (m && !Array.isArray(m) && (m.transparent || m.blending === THREE.AdditiveBlending)) o.visible = false;
+        });
+      };
+      this.gtao.blendIntensity = 0.85;
+      this.composer.addPass(this.gtao);
+    }
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.62, 0.55, 0.85);
     this.composer.addPass(this.bloom);
-    this.grade = new ShaderPass(GRADE_SHADER);
-    this.composer.addPass(this.grade);
     this.composer.addPass(new OutputPass());
+    const prev = this.grade?.uniforms;
+    this.grade = new ShaderPass(GRADE_SHADER);
+    if (prev) for (const k of Object.keys(prev)) if (k !== 'tDiffuse') this.grade.uniforms[k].value = prev[k].value;
+    this.composer.addPass(this.grade);
   }
 
   setQuality(q: Quality | 'auto') {
     this.autoQuality = q === 'auto';
     const qq: Quality = q === 'auto' ? (this.isMobile() ? 'medium' : 'high') : q;
-    this.quality = qq;
-    this.renderer.shadowMap.enabled = qq !== 'low';
-    this.bloom.enabled = qq !== 'low';
-    this.vfx.density = qq === 'low' ? 0.45 : qq === 'medium' ? 0.75 : 1;
-    this.dpr = Math.min(window.devicePixelRatio || 1, qq === 'high' ? 2 : qq === 'medium' ? 1.5 : 1);
-    this.resize();
-    if (this.envScene) {
+    const changed = qq !== this.quality || !this.composer;
+    this.applyQuality(qq);
+    if (changed && this.envScene) {
       const id = this.sceneId;
       this.sceneId = '';
       void this.loadScene(id);
     }
+  }
+  private applyQuality(qq: Quality) {
+    const rebuild = qq !== this.quality;
+    this.quality = qq;
+    const P = PRESETS[qq];
+    this.renderer.shadowMap.enabled = P.shadows;
+    this.vfx.density = P.vfx;
+    if (rebuild) this.setupComposer();
+    this.resize();
   }
   private isMobile() {
     return /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) || Math.min(window.innerWidth, window.innerHeight) < 560;
   }
 
   /** Portrait combat framing (tunable at runtime for device checks). */
-  camTune = { y: 15.5, z: 10.5, lz: 1.4, fov: 52 };
-  camTuneL = { y: 13, z: 10.2, lz: 1.9 };
+  camTune = { y: 19, z: 16, lz: 0.6, fov: 40 };
+  camTuneL = { y: 14.5, z: 13.4, lz: 0.75 };
   camTuneW = { x: 4.6, y: 13.4, z: 10.4, lz: -0.2 };
   camTuneWE = { x: 3.4, y: 4.8, z: 12.5, ly: 1.6, lz: -2.5 };
   camTuneE = { y: 5.6, z: 15.5, ly: 1.1, lz: 5.6 };
@@ -230,6 +323,11 @@ export class Diorama {
   resize = () => {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
+    const P = PRESETS[this.quality];
+    // cap the pixel ratio and the total pixel count (a 2.8-dpr phone renders ~1–1.6 MP, not 2.5 MP)
+    const dev = window.devicePixelRatio || 1;
+    this.dpr = Math.max(Math.min(dev, P.minDpr), Math.min(dev, P.dpr, Math.sqrt(P.px / Math.max(1, w * h))));
+    this.stats.dpr = +this.dpr.toFixed(2);
     this.renderer.setPixelRatio(this.dpr);
     this.renderer.setSize(w, h, false);
     this.composer.setPixelRatio(this.dpr);
@@ -238,38 +336,69 @@ export class Diorama {
     const wide = w >= h;
     if (this.lastAspectWide !== null && this.lastAspectWide !== wide) this.snapCamera = true;
     this.lastAspectWide = wide;
-    // keep the whole 5×2 board in frame on narrow (portrait-ish) screens
-    this.camera.fov = w / h < 0.9 ? this.camTune.fov : w / h < 1.2 ? 52 : w / h < 1.6 ? 42 : 36;
+    // framing per aspect: upright phones, tablets, laptops, phones held sideways
+    this.camera.fov = this.modeFov();
     this.camera.updateProjectionMatrix();
     this.vfx.setPixelScale(h * this.dpr);
+    this.envScene?.setPixelScale(this.glowScale());
   };
+  /** Vertical field of view for the built-in framing of the current mode and aspect. */
+  private modeFov() {
+    const a = this.camera.aspect;
+    if (this.mode === 'title' || this.mode === 'explore') return a < 0.9 ? 52 : a < 1.2 ? 50 : a < 1.6 ? 44 : 40;
+    return a < 0.9 ? this.camTune.fov : a < 1.2 ? 46 : a < 1.6 ? 40 : a > 1.9 ? 36 : 37;
+  }
+  /** Device pixels per world unit at distance 1 for the current projection. */
+  private glowScale() {
+    const h = (this.container.clientHeight || window.innerHeight) * this.dpr;
+    return h / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)));
+  }
 
+  /** Board sectors: raised limestone slabs with a carved border (warm on the heroes' side, cold on the enemies'). */
   private buildBoard() {
-    void model('formation_plate').then((proto) => {
-      for (const side of ['E', 'H'] as const)
-        for (const row of ['F', 'R'] as const)
-          for (let col = 1; col <= 5; col++) {
-            const k = `${side}:${row}${col}` as SectorKey;
-            const p = proto.clone(true);
-            p.position.copy(sectorCenter(k));
-            p.scale.set(1.12, 1, 1.4);
-            p.traverse((o) => {
-              const m = o as THREE.Mesh;
-              if (m.isMesh) {
-                m.material = pbr('stone_plate', { color: side === 'E' ? 0x8a8078 : 0xa49c90 });
-                m.castShadow = false;
-                m.receiveShadow = true;
-                m.userData.sector = k;
-              }
-            });
-            const hl = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.62), new THREE.MeshBasicMaterial({ map: sprite('textures/glow_radial.png'), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-            hl.rotation.x = -Math.PI / 2;
-            hl.position.copy(sectorCenter(k)).setY(0.11);
-            hl.userData.sector = k;
-            this.boardGroup.add(p, hl);
-            this.plates.set(k, { mesh: p, hl });
-          }
-    });
+    const W = 1.84;
+    const D = 1.86;
+    const r = 0.16;
+    const shape = new THREE.Shape();
+    shape.moveTo(-W / 2 + r, -D / 2);
+    shape.lineTo(W / 2 - r, -D / 2);
+    shape.quadraticCurveTo(W / 2, -D / 2, W / 2, -D / 2 + r);
+    shape.lineTo(W / 2, D / 2 - r);
+    shape.quadraticCurveTo(W / 2, D / 2, W / 2 - r, D / 2);
+    shape.lineTo(-W / 2 + r, D / 2);
+    shape.quadraticCurveTo(-W / 2, D / 2, -W / 2, D / 2 - r);
+    shape.lineTo(-W / 2, -D / 2 + r);
+    shape.quadraticCurveTo(-W / 2, -D / 2, -W / 2 + r, -D / 2);
+    const uvGen = {
+      generateTopUV: (_g: THREE.ExtrudeGeometry, v: number[], a: number, b: number, c: number) => [a, b, c].map((i) => new THREE.Vector2((v[i * 3] + W / 2) / W, (v[i * 3 + 1] + D / 2) / D)),
+      generateSideWallUV: () => [new THREE.Vector2(0.02, 0.5), new THREE.Vector2(0.02, 0.5), new THREE.Vector2(0.02, 0.5), new THREE.Vector2(0.02, 0.5)],
+    };
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.12, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.03, bevelSegments: 2, curveSegments: 4, UVGenerator: uvGen as unknown as THREE.UVGenerator });
+    geo.rotateX(-Math.PI / 2);
+    geo.translate(0, -0.035, 0);
+    const top = plateTopTexture();
+    const mats = {
+      H: new THREE.MeshStandardMaterial({ map: top, color: 0xcfc2ae, roughness: 0.86 }),
+      E: new THREE.MeshStandardMaterial({ map: top, color: 0x9a98a2, roughness: 0.86 }),
+    };
+    const hlGeo = new THREE.PlaneGeometry(W + 0.16, D + 0.16);
+    for (const side of ['E', 'H'] as const)
+      for (const row of ['F', 'R'] as const)
+        for (let col = 1; col <= 5; col++) {
+          const k = `${side}:${row}${col}` as SectorKey;
+          const p = new THREE.Mesh(geo, mats[side]);
+          p.position.copy(sectorCenter(k));
+          p.castShadow = false;
+          p.receiveShadow = true;
+          p.userData.sector = k;
+          const hl = new THREE.Mesh(hlGeo, new THREE.MeshBasicMaterial({ map: plateGlowTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+          hl.rotation.x = -Math.PI / 2;
+          hl.position.copy(sectorCenter(k)).setY(0.115);
+          hl.userData.sector = k;
+          hl.renderOrder = 3;
+          this.boardGroup.add(p, hl);
+          this.plates.set(k, { mesh: p, hl });
+        }
   }
 
   // ------------------------------------------------------------------ scenes
@@ -278,18 +407,40 @@ export class Diorama {
     const t0 = performance.now();
     this.sceneId = sceneId;
     const built = await buildScene(sceneId, this.quality);
-    if (this.sceneId !== sceneId) return;
-    if (this.envScene) this.scene.remove(this.envScene.group);
+    if (this.sceneId !== sceneId) {
+      built.dispose();
+      return;
+    }
+    if (this.envScene) {
+      this.scene.remove(this.envScene.group);
+      this.envScene.dispose();
+    }
     this.envScene = built;
     built.group.visible = !this.envHidden;
     this.scene.add(built.group);
-    const look = (await import('./scenes')).LOOKS[sceneId];
-    this.scene.fog = new THREE.FogExp2(look?.fog ?? 0x141216, (look?.fogDensity ?? 0.04) * 0.6);
-    this.scene.background = new THREE.Color(look?.fog ?? 0x0e0c0c);
+    this.applyLook(sceneId);
+    built.setPixelScale(this.glowScale());
     this.vfx.emberSources = built.emberSources;
+    this.vfx.dustSources = built.dustSources;
+    this.vfx.setAmbience(built.particles);
     this.stats.sceneLoadMs = Math.round(performance.now() - t0);
+    this.qualityGrace = performance.now() + 6000;
     this.flash = 0.6; // soft fade-in from dark
     this.grade.uniforms.uFlashColor.value.set(0x0b0909);
+  }
+
+  /** Location palette: fog, exposure and the colour grade. */
+  private applyLook(sceneId: string) {
+    const look = this.envScene?.look ?? roomPalette(sceneId);
+    this.scene.fog = new THREE.FogExp2(look.fog, look.fogDensity);
+    this.scene.background = new THREE.Color(look.fog);
+    this.renderer.toneMappingExposure = look.exposure;
+    const u = this.grade.uniforms;
+    u.uLift.value.set(look.grade.lift);
+    u.uGain.value.set(look.grade.gain);
+    u.uSat.value = look.grade.sat;
+    u.uContrast.value = look.grade.contrast;
+    u.uVignette.value = look.grade.vignette;
   }
 
   setMode(mode: DioramaMode) {
@@ -298,6 +449,7 @@ export class Diorama {
     if (mode !== 'combat') {
       for (const [id, f] of this.figs) if (f.side === 'E') this.removeFig(id);
       for (const f of this.figs.values()) if (f.plate) f.plate.style.display = 'none';
+      this.punch.want = 0;
     }
     // the world and cinema modules stage their own figures
     const own = mode === 'world' || mode === 'cinema';
@@ -330,14 +482,15 @@ export class Diorama {
     for (const f of this.figs.values()) f.rig.root.visible = v || (this.mode !== 'world' && this.mode !== 'cinema');
   }
   /** Feedback burst used by gameplay outside combat (hits in the world, cutscene beats). */
-  impulse(o: { shake?: number; flash?: number; flashColor?: THREE.ColorRepresentation }) {
+  impulse(o: { shake?: number; flash?: number; flashColor?: THREE.ColorRepresentation; hitStop?: number }) {
     if (o.shake) this.shake = Math.max(this.shake, o.shake);
     if (o.flash) {
       this.flash = Math.max(this.flash, o.flash);
       this.grade.uniforms.uFlashColor.value.set(o.flashColor ?? 0xffffff);
     }
+    if (o.hitStop) this.hitStop = Math.max(this.hitStop, o.hitStop);
   }
-  /** The currently loaded location backdrop (lights, props, bell, ember sources). */
+  /** The currently loaded location backdrop (lights, props, bell, ember sources, walk data). */
   get environment() {
     return this.envScene;
   }
@@ -378,7 +531,50 @@ export class Diorama {
     if (f.side === 'E') rig.root.rotation.y = 0;
     else rig.root.rotation.y = Math.PI;
     this.scene.add(rig.root);
-    v = { id: f.id, rig, sector: f.sector, slot: 0, side: f.side, pos: new THREE.Vector3(), status: f.status, typeId: f.typeId, tween: null, anim: null, fallen: f.status === 'caido' || f.status === 'derrotado' ? 1 : 0, dead: false, deathT: 0, flash: 0, hidden: false, phase: Math.random() * 10, weaponIcon };
+    const foot = Math.max(0.9, Math.min(2.2, rig.height * 0.62));
+    const blob = new THREE.Mesh(Diorama.decalGeo, new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, opacity: 0.62, color: 0x000000 }));
+    blob.rotation.x = -Math.PI / 2;
+    blob.scale.setScalar(foot);
+    blob.renderOrder = 1;
+    const ring = new THREE.Mesh(Diorama.decalGeo, new THREE.MeshBasicMaterial({ map: ringTexture(), transparent: true, depthWrite: false, opacity: 0, blending: THREE.AdditiveBlending }));
+    ring.rotation.x = -Math.PI / 2;
+    ring.scale.setScalar(foot * 1.12);
+    ring.renderOrder = 2;
+    ring.visible = false;
+    this.scene.add(blob, ring);
+    if (rig.rim) {
+      rig.rim.color.set(f.side === 'H' ? HERO_RIM : ENEMY_RIM);
+      rig.rim.strength.value = f.side === 'H' ? 0.34 : 0.3;
+    }
+    v = {
+      id: f.id,
+      rig,
+      sector: f.sector,
+      slot: 0,
+      side: f.side,
+      pos: new THREE.Vector3(),
+      status: f.status,
+      typeId: f.typeId,
+      tween: null,
+      anim: null,
+      fallen: f.status === 'caido' || f.status === 'derrotado' ? 1 : 0,
+      dead: false,
+      deathT: 0,
+      flash: 0,
+      hidden: false,
+      phase: Math.random() * 10,
+      weaponIcon,
+      blob,
+      ring,
+      off: new THREE.Vector3(),
+      offTween: null,
+      faceYaw: null,
+      lean: 0,
+      leanTarget: 0,
+      glow: null,
+      idleT: 5 + Math.random() * 7,
+    };
+    if (this.mode === 'world' || this.mode === 'cinema') rig.root.visible = this.figuresForced;
     // nameplate
     const plate = document.createElement('div');
     plate.className = `nameplate ${f.side === 'E' ? 'enemy' : 'hero'}`;
@@ -387,10 +583,13 @@ export class Diorama {
     this.figs.set(f.id, v);
     return v;
   }
+  private static decalGeo = new THREE.PlaneGeometry(1, 1);
   private removeFig(id: string) {
     const v = this.figs.get(id);
     if (!v) return;
-    this.scene.remove(v.rig.root);
+    this.scene.remove(v.rig.root, v.blob, v.ring);
+    (v.blob.material as THREE.Material).dispose();
+    (v.ring.material as THREE.Material).dispose();
     v.plate?.remove();
     this.figs.delete(id);
   }
@@ -499,8 +698,8 @@ export class Diorama {
     const bf = S.battlefield;
     for (const k of bf.cover) {
       const c = sectorCenter(k);
-      void model('formation_divider').then((m) => {
-        m.position.copy(c).add(new THREE.Vector3(0, 0, k[0] === 'E' ? 0.82 : -0.82));
+      void model('formation_divider', 'kit').then((m) => {
+        m.position.copy(c).add(new THREE.Vector3(0, 0, k[0] === 'E' ? 0.86 : -0.86));
         m.scale.set(1.2, 0.8, 0.8);
         this.markers.add(m);
       });
@@ -537,13 +736,13 @@ export class Diorama {
       const hf = S.figures.some((f) => f.side === 'H' && f.status === 'active' && f.sector === `H:F${col}`);
       const ef = S.figures.some((f) => f.side === 'E' && f.status === 'active' && f.sector === `E:F${col}`);
       if (!hf || !ef) continue;
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 1.2), new THREE.MeshBasicMaterial({ color: 0xc2463a, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false }));
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 1.0), new THREE.MeshBasicMaterial({ color: 0xff5a3a, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
       m.rotation.x = -Math.PI / 2;
-      m.position.set(COL_X(col), 0.03, 0);
+      m.position.set(COL_X(col), 0.05, 0);
       this.engageLines.add(m);
-      const x = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6), new THREE.MeshBasicMaterial({ map: sprite('textures/glow_radial.png'), color: 0xff5a3a, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false }));
+      const x = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.7), new THREE.MeshBasicMaterial({ map: sprite('textures/glow_radial.png'), color: 0xff5a3a, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
       x.rotation.x = -Math.PI / 2;
-      x.position.set(COL_X(col), 0.04, 0);
+      x.position.set(COL_X(col), 0.06, 0);
       this.engageLines.add(x);
     }
   }
@@ -608,10 +807,21 @@ export class Diorama {
       t.tick?.(1, 0);
       t.end?.();
     }
-    for (const v of this.figs.values()) {
+    for (const v of [...this.figs.values()]) {
       v.tween = null;
       v.anim = null;
+      v.offTween = null;
+      v.off.set(0, 0, 0);
+      v.faceYaw = null;
+      v.leanTarget = 0;
+      if (v.dead) this.removeFig(v.id);
     }
+    this.hitStop = 0;
+    this.slowMo = 0;
+    this.punch.want = 0;
+    this.punch.hold = 0;
+    for (const o of this.projectiles) this.scene.remove(o);
+    this.projectiles.clear();
     if (this.lastState) void this.syncCombat(this.lastState, {});
   }
 
@@ -625,15 +835,40 @@ export class Diorama {
   private headPos(id: string) {
     const v = this.figs.get(id);
     if (!v) return new THREE.Vector3();
-    return v.pos.clone().setY(v.rig.height * 0.75);
+    return this.figPos(v).setY(v.rig.height * 0.78);
   }
   private chestPos(id: string) {
     const v = this.figs.get(id);
     if (!v) return new THREE.Vector3();
-    return v.pos.clone().setY(v.rig.height * 0.55);
+    return this.figPos(v).setY(v.rig.height * 0.55);
+  }
+  /** where the figure is drawn right now (slot + choreography offset) */
+  private figPos(v: FigView) {
+    return v.pos.clone().add(v.off);
   }
 
-  private pendingAttack: { sourceId: string; cat: string; school: string } | null = null;
+  private pendingAttack: { sourceId: string; cat: string; school: string; targetId?: string; struck?: number } | null = null;
+
+  /** Ease the figure's choreography offset to `to` (world vector) over `dur` game-seconds. */
+  private offsetTo(v: FigView, to: THREE.Vector3, dur: number, ease: (k: number) => number = easeOutCubic, then?: () => void) {
+    v.offTween = { from: v.off.clone(), to: to.clone(), t: 0, dur: Math.max(0.01, dur), ease, then };
+  }
+  private faceToward(v: FigView, target: THREE.Vector3) {
+    const d = target.clone().sub(v.pos);
+    v.faceYaw = Math.atan2(d.x, d.z);
+  }
+  /** Lean the camera toward a point (0..1) and hold for `hold` real seconds. */
+  private punchTo(at: THREE.Vector3, amount: number, hold = 0.6) {
+    this.punch.at.copy(at);
+    this.punch.want = Math.max(this.punch.want, amount);
+    this.punch.hold = Math.max(this.punch.hold, hold);
+  }
+  private isRanged(cat?: string) {
+    return cat === 'distancia' || cat === 'global';
+  }
+  private isSpell(school?: string) {
+    return school === 'arcane' || school === 'holy' || school === 'profane' || school === 'shadow' || school === 'bell' || school === 'fire';
+  }
 
   private enqueueEvent(ev: DomainEvent) {
     const snd = (id: string, o?: { volume?: number; delay?: number }) => this.cb.onSound?.(id, o);
@@ -656,15 +891,24 @@ export class Diorama {
         break;
       }
       case 'attackDeclared': {
-        this.pendingAttack = { sourceId: ev.sourceId, cat: ev.cat, school: ev.school };
+        this.pendingAttack = { sourceId: ev.sourceId, cat: ev.cat, school: ev.school, targetId: ev.targetIds[0] };
         const v = this.figs.get(ev.sourceId);
         if (!v) break;
         const tgt = ev.targetIds[0] ? this.figs.get(ev.targetIds[0]) : undefined;
-        const dir = tgt ? tgt.pos.clone().sub(v.pos).setY(0).normalize() : new THREE.Vector3(0, 0, v.side === 'H' ? -1 : 1);
+        const spell = this.isSpell(ev.school);
+        const ranged = this.isRanged(ev.cat);
+        // ANTICIPATION: turn to the target, gather (lean back / raise the weapon), the camera leans in
         this.task({
-          dur: 0.32,
+          dur: 0.34,
           start: () => {
-            v.anim = { kind: ev.school === 'arcane' || ev.school === 'holy' || ev.school === 'bell' ? 'cast' : 'windup', t: 0, dur: 0.32, dir };
+            if (tgt) this.faceToward(v, tgt.pos);
+            v.leanTarget = spell ? 0 : -0.14;
+            if (spell) {
+              v.anim = { kind: 'cast', t: 0, dur: 0.34 };
+              this.vfx.charge(this.chestPos(v.id).add(new THREE.Vector3(0, 0.25, 0)), schoolColor(ev.school));
+            } else if (ranged) v.anim = { kind: 'aim', t: 0, dur: 0.34 };
+            const mid = tgt ? v.pos.clone().lerp(tgt.pos, 0.5) : v.pos.clone();
+            this.punchTo(mid.setY(0.8), ranged || spell ? 0.32 : 0.42, 1.4);
             snd(ev.school === 'arcane' ? 'spell_arcane_cast' : ev.school === 'holy' ? 'holy_cast' : ev.school === 'arrow' ? 'bow_draw' : ev.school === 'bolt' ? 'crossbow_shot' : ev.school === 'bell' ? 'bell_toll_short' : ev.cat === 'cac' ? 'swing_light' : 'swing_heavy', { volume: 0.8 });
           },
         });
@@ -674,46 +918,9 @@ export class Diorama {
         this.task({ dur: 0.62, start: () => this.cb.onRoll?.(ev) });
         break;
       case 'hit':
-      case 'miss': {
-        const src = this.figs.get(ev.sourceId);
-        const tgt = this.figs.get(ev.targetId);
-        if (!tgt) break;
-        const ranged = this.pendingAttack && (this.pendingAttack.cat === 'distancia' || this.pendingAttack.cat === 'global');
-        const school = ev.type === 'hit' ? ev.school : this.pendingAttack?.school ?? 'metal';
-        const travel = ranged && src ? 0.38 : 0.12;
-        if (src) {
-          const dir = tgt.pos.clone().sub(src.pos).setY(0).normalize();
-          this.task({ dur: 0.14, start: () => (src.anim = { kind: ranged ? 'release' : 'lunge', t: 0, dur: 0.38, dir }) });
-          if (ranged) this.projectile(src, tgt, school, travel);
-        }
-        this.task({
-          dur: travel + 0.1,
-          tick: () => undefined,
-          end: () => {
-            const at = this.chestPos(tgt.id);
-            if (ev.type === 'miss') {
-              this.floatText(at, 'Erro', 'miss');
-              snd('miss_whoosh', { volume: 0.7 });
-              return;
-            }
-            if (ev.damage > 0) {
-              this.vfx.impact(at, school, ev.damage / 2 + (ev.critical ? 0.6 : 0));
-              tgt.anim = { kind: 'hurt', t: 0, dur: 0.45, dir: src ? tgt.pos.clone().sub(src.pos).setY(0).normalize() : new THREE.Vector3() };
-              tgt.flash = 1;
-              this.floatText(at, `${ev.damage}`, ev.critical ? 'crit' : 'dmg');
-              this.shake = Math.min(0.35, 0.08 + ev.damage * 0.05 + (ev.critical ? 0.15 : 0));
-              snd(impactSound(school, ev.damage), { volume: Math.min(1, 0.6 + ev.damage * 0.12) });
-              if (ev.critical) snd('dice_critical', { volume: 0.6 });
-            } else {
-              tgt.anim = { kind: 'block', t: 0, dur: 0.4 };
-              this.vfx.guard(at);
-              this.floatText(at, 'Bloqueado', 'block');
-              snd(ev.blocked > 0 ? 'block_shield' : 'armor_absorb', { volume: 0.8 });
-            }
-          },
-        });
+      case 'miss':
+        this.enqueueStrike(ev);
         break;
-      }
       case 'damage': {
         if (!ev.direct) break; // attack damage is already shown by the 'hit' event
         this.task({
@@ -733,10 +940,12 @@ export class Diorama {
       }
       case 'heal':
         this.task({
-          dur: 0.45,
+          dur: 0.5,
           start: () => {
+            const v = this.figs.get(ev.targetId);
             const at = this.chestPos(ev.targetId);
-            this.vfx.heal(this.figs.get(ev.targetId)?.pos.clone() ?? at);
+            this.vfx.heal(v ? this.figPos(v) : at);
+            if (v) v.glow = { color: new THREE.Color(0xb8ff9a), t: 0, dur: 0.9 };
             this.floatText(at, `+${ev.amount}`, 'heal');
             snd('heal', { volume: 0.8 });
           },
@@ -750,6 +959,12 @@ export class Diorama {
             if (!ev.added) return;
             const at = this.headPos(ev.targetId);
             this.vfx.condition(at, ev.condition);
+            const v = this.figs.get(ev.targetId);
+            if (v && ev.condition === 'guardado') {
+              v.glow = { color: new THREE.Color(0x9fd0ff), t: 0, dur: 0.8 };
+              this.vfx.shield(this.chestPos(ev.targetId), v.rig.height * 0.62);
+            }
+            if (v && (ev.condition === 'bencao' || ev.condition === 'julgado')) v.glow = { color: new THREE.Color(0xffe2a0), t: 0, dur: 0.8 };
             this.floatText(at.clone().add(new THREE.Vector3(0, 0.25, 0)), CONDITION_LABEL[ev.condition] ?? ev.condition, 'cond');
             const s: Record<string, string> = { guardado: 'guard_gain', veneno: 'cond_poison', sangramento: 'cond_bleed', queimando: 'cond_burn', atordoado: 'cond_stun', imobilizado: 'cond_immobilize', exposto: 'cond_exposed', quebrado: 'cond_broken', bencao: 'bless', julgado: 'holy_impact', furtivo: 'dash' };
             snd(s[ev.condition] ?? 'ui_click', { volume: 0.55 });
@@ -757,26 +972,40 @@ export class Diorama {
         });
         break;
       case 'guardUsed':
-        this.task({ dur: 0.1, start: () => this.vfx.guard(this.chestPos(ev.targetId)) });
+        this.task({
+          dur: 0.12,
+          start: () => {
+            const v = this.figs.get(ev.targetId);
+            this.vfx.guard(this.chestPos(ev.targetId));
+            if (v) this.vfx.shield(this.chestPos(ev.targetId), v.rig.height * 0.62);
+          },
+        });
         break;
       case 'move': {
         const v = this.figs.get(ev.figureId);
         if (!v) break;
         const to = this.lastState ? this.slotPositions({ figures: this.lastState.figures.map((f) => (f.id === ev.figureId ? { ...f, sector: ev.to } : f)) }).get(ev.figureId) ?? sectorCenter(ev.to) : sectorCenter(ev.to);
-        const dur = ev.teleport ? 0.35 : ev.forced ? 0.32 : 0.48;
+        const dur = ev.teleport ? 0.35 : ev.forced ? 0.32 : 0.5;
         this.task({
           dur,
           start: () => {
-            v.tween = { from: v.pos.clone(), to: to.clone(), t: 0, dur, hop: ev.forced ? 0.05 : ev.teleport ? 0 : 0.22 };
+            v.tween = { from: v.pos.clone(), to: to.clone(), t: 0, dur, hop: ev.forced ? 0.05 : ev.teleport ? 0 : 0.18 };
             v.sector = ev.to;
+            if (!ev.forced && !ev.teleport) this.faceToward(v, to);
             if (ev.teleport) {
               this.vfx.impact(v.pos.clone().setY(0.8), 'arcane', 0.6);
               snd('teleport', { volume: 0.7 });
-            } else snd(ev.forced ? 'push_impact' : `step_stone_${1 + Math.floor(Math.random() * 3)}`, { volume: 0.55 });
+            } else if (ev.forced) {
+              this.vfx.dust(v.pos.clone().setY(0.15), 0.8);
+              this.shake = Math.max(this.shake, 0.12);
+              snd('push_impact', { volume: 0.55 });
+            } else snd(`step_stone_${1 + Math.floor(Math.random() * 3)}`, { volume: 0.55 });
           },
           end: () => {
             v.pos.copy(to);
             v.tween = null;
+            v.faceYaw = null;
+            this.vfx.dust(to.clone().setY(0.15), ev.forced ? 0.8 : 0.4);
             if (ev.teleport) this.vfx.impact(to.clone().setY(0.8), 'arcane', 0.6);
           },
         });
@@ -788,6 +1017,7 @@ export class Diorama {
           start: () => {
             const v = this.figs.get(ev.figureId);
             if (v) v.anim = { kind: 'fall', t: 0, dur: 0.6 };
+            if (v) this.vfx.dust(v.pos.clone().setY(0.15), 1);
             snd('body_fall', { volume: 0.9 });
           },
           end: () => {
@@ -802,6 +1032,7 @@ export class Diorama {
           start: () => {
             const v = this.figs.get(ev.figureId);
             if (v) v.anim = { kind: 'rise', t: 0, dur: 0.6 };
+            if (v) v.glow = { color: new THREE.Color(0xfff0b0), t: 0, dur: 1 };
             this.vfx.heal(v?.pos.clone() ?? new THREE.Vector3());
             snd('rise_up', { volume: 0.8 });
           },
@@ -812,19 +1043,32 @@ export class Diorama {
         });
         break;
       case 'death':
+        // DEATH: a heavy collapse, a beat of stillness, then the body burns away into embers (non-blocking tail)
         this.task({
-          dur: 1.2,
+          dur: 0.85,
           start: () => {
             const v = this.figs.get(ev.figureId);
             if (!v) return;
             v.dead = true;
-            v.deathT = v.rig.anim ? -0.7 : 0;
-            v.rig.anim?.play('death', { hold: true, speed: 1.3 });
-            this.vfx.dissolve(v.pos.clone(), v.rig.height);
+            v.deathT = 0;
+            v.faceYaw = null;
+            v.rig.anim?.play('death', { hold: true, speed: 1.05 });
+            if (!v.rig.anim) v.anim = { kind: 'fall', t: 0, dur: 0.6 };
             if (v.plate) v.plate.style.display = 'none';
+            this.shake = Math.max(this.shake, v.typeId === 'severin' || v.typeId === 'cavaleiro' || v.typeId === 'cantor' || v.typeId === 'vigia' ? 0.5 : 0.18);
+            if (v.rig.height > 2.2) {
+              this.slowMo = 0.6;
+              this.slowMoScale = 0.35;
+              this.punchTo(this.chestPos(v.id), 0.5, 1.2);
+            }
             snd('death_enemy', { volume: 0.85 });
           },
-          end: () => this.removeFig(ev.figureId),
+          end: () => {
+            const v = this.figs.get(ev.figureId);
+            if (!v) return;
+            this.vfx.dust(v.pos.clone().setY(0.12), 1.2);
+            if (!v.rig.anim) this.removeFig(ev.figureId);
+          },
         });
         break;
       case 'spawn':
@@ -867,10 +1111,13 @@ export class Diorama {
               if (ev.what === 'terceira') {
                 this.flash = 0.5;
                 this.grade.uniforms.uFlashColor.value.set(0xffd9a0);
+                this.aberration = 1;
+                this.punchTo(at, 0.45, 1);
               }
             } else if (ev.what === 'phase2') {
               this.vfx.impact(at, 'profane', 2);
               this.shake = 0.4;
+              this.punchTo(at, 0.5, 1.2);
               snd('bell_toll_long', { volume: 0.9 });
             } else if (ev.what === 'canto') {
               this.vfx.ring(at, 'holy', 0xff7a5a, 0.3, 2, 0.6, true);
@@ -900,48 +1147,203 @@ export class Diorama {
         if (ev.resource === 'amem') this.task({ dur: 0.5, start: () => (this.vfx.ring(this.figs.get(ev.figureId)?.pos.clone().setY(0.1) ?? new THREE.Vector3(), 'holy', 0xfff0c0, 0.4, 4, 1), snd('bless', { volume: 0.9 })) });
         break;
       case 'victory':
+        this.task({
+          dur: 0.4,
+          start: () => {
+            for (const v of this.figs.values()) if (v.side === 'H' && !v.dead && v.fallen < 0.5) v.rig.anim?.play('cheer', { speed: 1 });
+            this.punch.want = 0;
+          },
+        });
+        break;
       case 'defeat':
         this.task({ dur: 0.2 });
         break;
       default:
         break;
     }
-    if (ev.type === 'activationEnd') this.pendingAttack = null;
+    if (ev.type === 'activationEnd') {
+      this.pendingAttack = null;
+      const v = this.figs.get(ev.figureId);
+      if (v)
+        this.task({
+          dur: 0.01,
+          start: () => {
+            v.faceYaw = null;
+            v.leanTarget = 0;
+          },
+        });
+    }
   }
 
-  private projectile(src: FigView, tgt: FigView, school: string, dur: number) {
-    const from = src.pos.clone().setY(src.rig.height * 0.65);
-    const to = tgt.pos.clone().setY(tgt.rig.height * 0.55);
-    let obj: THREE.Object3D;
-    if (school === 'arrow' || school === 'bolt') {
-      const g = new THREE.Group();
-      g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.7, 5), flat(0x5a4632)));
-      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.1, 6), flat(0x9aa0a8, { metalness: 0.8 }));
-      tip.position.y = 0.38;
-      g.add(tip);
-      obj = g;
-    } else {
-      const c = school === 'holy' ? 0xffe2a0 : school === 'fire' ? 0xff7a2a : school === 'profane' || school === 'bell' ? 0xb070ff : 0x9a8cff;
-      obj = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), flat(c, { emissive: c, emissiveIntensity: 4 }));
+  /**
+   * One strike: LUNGE (melee closes most of the gap with the swing timed to land) or RELEASE (shot / spell
+   * travels) → IMPACT (hit-stop, flash, recoil, sparks, number, shake; crits: slow motion, punch-in, chromatic
+   * flash) → RECOVERY (the attacker steps back to its slot, the camera eases out).
+   */
+  private enqueueStrike(ev: Extract<DomainEvent, { type: 'hit' | 'miss' }>) {
+    const snd = (id: string, o?: { volume?: number; delay?: number }) => this.cb.onSound?.(id, o);
+    const src = this.figs.get(ev.sourceId);
+    const tgt = this.figs.get(ev.targetId);
+    if (!tgt) return;
+    const pa = this.pendingAttack;
+    const ranged = this.isRanged(pa?.cat) && !!src;
+    const school = ev.type === 'hit' ? ev.school : pa?.school ?? 'metal';
+    const spell = this.isSpell(school) && ranged;
+    const crit = ev.type === 'hit' && ev.critical;
+    const dist = src ? tgt.pos.distanceTo(src.pos) : 0;
+    const dir = src ? tgt.pos.clone().sub(src.pos).setY(0).normalize() : new THREE.Vector3(0, 0, tgt.side === 'E' ? -1 : 1);
+    // area attacks: one lunge for the whole sweep, then each further target just takes the blow
+    const follow = !!pa && (pa.struck ?? 0) > 0 && !ranged;
+    if (pa) pa.struck = (pa.struck ?? 0) + 1;
+    if (src && !follow) {
+      if (!ranged) {
+        // melee: close in; the attack clip starts with the dash so its swing lands on arrival
+        const reach = pa?.cat === 'alcance' ? Math.max(0.2, dist - 2.4) : Math.max(0.25, dist - 1.4);
+        this.task({
+          dur: 0.2,
+          start: () => {
+            this.faceToward(src, tgt.pos);
+            src.leanTarget = 0.22;
+            src.anim = { kind: 'strike', t: 0, dur: 0.5 };
+            this.offsetTo(src, dir.clone().multiplyScalar(reach), 0.2, easeInCubic);
+            this.vfx.dust(src.pos.clone().setY(0.15), 0.5);
+            snd(crit ? 'swing_heavy' : 'swing_light', { volume: 0.7 });
+          },
+        });
+      } else {
+        this.task({
+          dur: 0.12,
+          start: () => {
+            this.faceToward(src, tgt.pos);
+            src.anim = { kind: 'release', t: 0, dur: 0.38, dir };
+            src.leanTarget = -0.1;
+            this.offsetTo(src, dir.clone().multiplyScalar(-0.18), 0.12, easeOutCubic);
+          },
+        });
+        this.projectile(src, tgt, school, spell ? 0.42 : 0.32);
+      }
     }
-    this.scene.add(obj);
+    // IMPACT
+    this.task({
+      dur: follow ? 0.1 : 0.06,
+      strikeOf: src?.id,
+      start: () => {
+        const at = this.chestPos(tgt.id);
+        if (ev.type === 'miss') {
+          // the target sidesteps the blow
+          const side = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(Math.random() < 0.5 ? 0.45 : -0.45);
+          tgt.rig.anim?.play('dodge', { speed: 1.6 });
+          this.offsetTo(tgt, side, 0.12, easeOutCubic, () => this.offsetTo(tgt, new THREE.Vector3(), 0.35, easeInOut));
+          this.floatText(at, 'Erro', 'miss');
+          snd('miss_whoosh', { volume: 0.7 });
+          this.vfx.dust(tgt.pos.clone().setY(0.15), 0.4);
+          return;
+        }
+        if (ev.damage > 0) {
+          const heavy = ev.damage >= 3 || crit;
+          this.vfx.impact(at, school, ev.damage / 2 + (crit ? 0.8 : 0));
+          this.vfx.slash(at, dir, crit ? 0xfff0c0 : schoolColor(school), crit ? 1.5 : 1);
+          tgt.anim = { kind: 'hurt', t: 0, dur: 0.45, dir };
+          tgt.flash = 1;
+          tgt.leanTarget = -0.25;
+          const knock = dir.clone().multiplyScalar(crit ? 0.55 : heavy ? 0.38 : 0.26);
+          this.offsetTo(tgt, knock, 0.07, easeOutCubic, () => this.offsetTo(tgt, new THREE.Vector3(), 0.4, easeInOut, () => (tgt.leanTarget = 0)));
+          this.floatText(at, `${ev.damage}`, crit ? 'crit' : 'dmg');
+          this.shake = Math.max(this.shake, Math.min(0.45, 0.1 + ev.damage * 0.05 + (crit ? 0.2 : 0)));
+          // hit-stop: the world freezes for a few frames (shorter at higher animation speed)
+          this.hitStop = Math.max(this.hitStop, (crit ? 0.13 : heavy ? 0.095 : 0.07) / Math.sqrt(this.speed));
+          if (crit) {
+            this.slowMo = 0.55 / Math.sqrt(this.speed);
+            this.slowMoScale = 0.28;
+            this.flash = Math.max(this.flash, 0.45);
+            this.grade.uniforms.uFlashColor.value.set(0xfff2d0);
+            this.aberration = 1;
+            this.punchTo(at, 0.75, 0.9);
+            this.vfx.ring(at, 'glow', 0xffe0a0, 0.3, 3.2, 0.45, true);
+            snd('dice_critical', { volume: 0.6 });
+          }
+          snd(impactSound(school, ev.damage), { volume: Math.min(1, 0.6 + ev.damage * 0.12) });
+        } else {
+          tgt.anim = { kind: 'block', t: 0, dur: 0.4 };
+          this.vfx.guard(at);
+          this.vfx.impact(at, 'metal', 0.5);
+          this.offsetTo(tgt, dir.clone().multiplyScalar(0.12), 0.06, easeOutCubic, () => this.offsetTo(tgt, new THREE.Vector3(), 0.3, easeInOut));
+          this.hitStop = Math.max(this.hitStop, 0.05 / Math.sqrt(this.speed));
+          this.floatText(at, 'Bloqueado', 'block');
+          snd(ev.blocked > 0 ? 'block_shield' : 'armor_absorb', { volume: 0.8 });
+        }
+      },
+    });
+    // RECOVERY (only after the last target of a sweep)
+    this.task({
+      dur: follow ? 0.12 : ranged ? 0.22 : 0.3,
+      strikeOf: src?.id,
+      start: () => {
+        if (!src) return;
+        const more = this.queue.some((t, i) => i > 0 && t.strikeOf === src.id);
+        if (more) return;
+        src.leanTarget = 0;
+        this.offsetTo(src, new THREE.Vector3(), ranged ? 0.25 : 0.38, easeInOut);
+      },
+    });
+  }
+
+  private projectiles = new Set<THREE.Object3D>();
+  private projectile(src: FigView, tgt: FigView, school: string, dur: number) {
+    const from = src.pos.clone().setY(src.rig.height * 0.62);
+    const to = tgt.pos.clone().setY(tgt.rig.height * 0.55);
+    const arrow = school === 'arrow' || school === 'bolt';
+    const color = schoolColor(school);
+    const holder = new THREE.Group();
+    if (arrow) {
+      void projectileModel('arrow').then((m) => {
+        if (m) {
+          holder.add(m);
+          return;
+        }
+        const g = new THREE.Group();
+        g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.7, 5), flat(0x5a4632)));
+        const tip = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.1, 6), flat(0x9aa0a8, { metalness: 0.8 }));
+        tip.position.y = 0.38;
+        g.add(tip);
+        g.rotation.x = Math.PI / 2;
+        holder.add(g);
+      });
+    } else {
+      const core = new THREE.Mesh(new THREE.SphereGeometry(0.11, 14, 10), new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(3) }));
+      const halo = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshBasicMaterial({ map: sprite('textures/glow_radial.png'), color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+      halo.userData.billboard = true;
+      holder.add(core, halo);
+    }
+    holder.visible = false;
+    this.scene.add(holder);
+    this.projectiles.add(holder);
+    const arc = arrow ? 0.7 : 0.35;
+    const pt = (k: number) => {
+      const p = from.clone().lerp(to, k);
+      p.y += Math.sin(k * Math.PI) * arc;
+      return p;
+    };
     const task: Task = {
       dur,
       t: 0,
-      tick: (k) => {
-        const p = from.clone().lerp(to, k);
-        p.y += Math.sin(k * Math.PI) * (school === 'arrow' ? 0.8 : 0.3);
-        obj.position.copy(p);
-        const ahead = from.clone().lerp(to, Math.min(1, k + 0.05));
-        ahead.y += Math.sin(Math.min(1, k + 0.05) * Math.PI) * (school === 'arrow' ? 0.8 : 0.3);
-        obj.lookAt(ahead);
-        obj.rotateX(Math.PI / 2);
-        if (school !== 'arrow' && school !== 'bolt' && Math.random() < 0.6) this.vfx.condition(p, 'exposto');
+      start: () => {
+        holder.visible = true;
+        if (arrow) this.cb.onSound?.('bow_release', { volume: 0.8 });
       },
-      end: () => this.scene.remove(obj),
+      tick: (k) => {
+        const p = pt(k);
+        holder.position.copy(p);
+        holder.lookAt(pt(Math.min(1, k + 0.04)));
+        for (const c of holder.children) if (c.userData.billboard) c.quaternion.copy(this.camera.quaternion).premultiply(holder.quaternion.clone().invert());
+        this.vfx.trail(p, color, arrow ? 0.4 : 1);
+      },
+      end: () => {
+        this.scene.remove(holder);
+        this.projectiles.delete(holder);
+      },
     };
     this.queue.push(task);
-    if (school === 'arrow') this.cb.onSound?.('bow_release', { volume: 0.8 });
   }
 
   private floatText(at: THREE.Vector3, text: string, kind: string) {
@@ -954,76 +1356,161 @@ export class Diorama {
     const h = this.renderer.domElement.clientHeight;
     el.style.left = `${((p.x + 1) / 2) * w}px`;
     el.style.top = `${((1 - p.y) / 2) * h}px`;
-    setTimeout(() => el.remove(), 1500);
+    // juicy pop: overshoot, settle, drift up and fade (crits shake and stay longer)
+    const big = kind === 'crit';
+    const dmg = kind === 'dmg' || big || kind === 'direct' || kind === 'burn' || kind === 'bleed' || kind === 'poison';
+    const dx = (Math.random() - 0.5) * (dmg ? 46 : 16);
+    const life = big ? 1500 : dmg ? 1150 : 1250;
+    el.style.animation = 'none';
+    el.style.willChange = 'transform, opacity';
+    if (big) {
+      el.style.textShadow = '0 2px 0 rgba(0,0,0,0.85), 0 0 18px rgba(255,190,90,0.85), 0 0 4px rgba(255,240,200,0.9)';
+      el.style.zIndex = '3';
+    }
+    const tr = (x: number, y: number, s: number, r = 0) => `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${s}) rotate(${r}deg)`;
+    const anim = el.animate(
+      big
+        ? [
+            { transform: tr(0, 10, 0.2), opacity: 0 },
+            { transform: tr(dx * 0.2, -8, 1.9, -4), opacity: 1, offset: 0.1 },
+            { transform: tr(dx * 0.3, -14, 1.25, 3), opacity: 1, offset: 0.2 },
+            { transform: tr(dx * 0.35, -16, 1.35, -2), opacity: 1, offset: 0.3 },
+            { transform: tr(dx * 0.5, -24, 1.2, 0), opacity: 1, offset: 0.72 },
+            { transform: tr(dx * 0.7, -62, 1.05, 0), opacity: 0 },
+          ]
+        : dmg
+          ? [
+              { transform: tr(0, 6, 0.3), opacity: 0 },
+              { transform: tr(dx * 0.3, -14, 1.45), opacity: 1, offset: 0.12 },
+              { transform: tr(dx * 0.5, -20, 1.0), opacity: 1, offset: 0.26 },
+              { transform: tr(dx * 0.8, -34, 1.0), opacity: 1, offset: 0.7 },
+              { transform: tr(dx, -58, 0.92), opacity: 0 },
+            ]
+          : [
+              { transform: tr(0, 4, 0.7), opacity: 0 },
+              { transform: tr(dx * 0.4, -10, 1.08), opacity: 1, offset: 0.15 },
+              { transform: tr(dx * 0.6, -16, 1), opacity: 1, offset: 0.65 },
+              { transform: tr(dx, -40, 0.96), opacity: 0 },
+            ],
+      { duration: life / Math.sqrt(this.speed), easing: 'cubic-bezier(0.2, 0.8, 0.25, 1)', fill: 'forwards' },
+    );
+    anim.onfinish = () => el.remove();
+    anim.oncancel = () => el.remove();
   }
 
   // ------------------------------------------------------------------ loop
+  private frozen = false;
+  private lastRealDt = 0.016;
+  private vtime = 0;
+  private lastNow = performance.now();
   private loop = () => {
     if (!this.running) return;
     this.raf = requestAnimationFrame(this.loop);
+    const now = performance.now();
+    const realMs = now - this.lastNow;
+    this.lastNow = now;
+    if (this.frozen) return;
     const rawDt = Math.min(0.05, this.clock.getDelta());
-    const t = this.clock.elapsedTime;
-    const dt = rawDt;
-    this.processQueue(dt * this.speed);
-    this.updateFigures(dt, t);
-    this.updateCamera(dt, t);
-    for (const h of this.frameHooks) h(dt, t);
-    this.vfx.update(dt);
-    // highlights
-    const time = t;
-    for (const [k, p] of this.plates) {
-      const kind = this.highlight.sectors.get(k);
-      const mat = p.hl.material as THREE.MeshBasicMaterial;
-      const hover = this.hoverSector === k && !this.hoverFig;
-      const target = kind ? (hover ? 0.95 : 0.55 + Math.sin(time * 3) * 0.12) : hover && this.mode === 'combat' ? 0.18 : 0;
-      mat.opacity += (target - mat.opacity) * Math.min(1, dt * 12);
-      mat.color.set(kind === 'attack' ? 0xff5a40 : kind === 'ally' ? 0x8fe07a : kind === 'area' ? 0xff8a40 : kind === 'objective' ? 0xb59cff : kind === 'deploy' ? 0x9fd0ff : 0xffd27a);
+    this.frame(rawDt, this.clock.elapsedTime, realMs);
+  };
+  /**
+   * Testing/capture aid: freeze real time and advance the scene by exact steps (deterministic frames for
+   * screenshots of a strike mid-impact). Call debugResume() to go back to real time.
+   */
+  debugAdvance(seconds: number, step = 1 / 30) {
+    if (!this.frozen) this.vtime = this.clock.elapsedTime;
+    this.frozen = true;
+    const n = Math.max(1, Math.round(seconds / step));
+    for (let i = 0; i < n; i++) {
+      this.vtime += step;
+      this.frame(step, this.vtime, step * 1000, i === n - 1);
     }
-    for (const m of this.markers.children) if (m.userData.spin) m.rotation.z += dt * m.userData.spin;
+  }
+  debugResume() {
+    this.frozen = false;
+    this.clock.getDelta();
+  }
+
+  private frame(rawDt: number, t: number, realMs: number, render = true) {
+    // game time: hit-stop nearly freezes the world, slow motion stretches a critical blow
+    let k = 1;
+    if (this.hitStop > 0) {
+      this.hitStop -= rawDt;
+      k = 0.04;
+    }
+    if (this.slowMo > 0) {
+      this.slowMo -= rawDt;
+      // hold the slow motion, then ease back to full speed over the last 0.2 s
+      const ramp = this.slowMo < 0.2 ? 1 - Math.max(0, this.slowMo) / 0.2 : 0;
+      k *= this.slowMoScale + (1 - this.slowMoScale) * ramp * ramp;
+    }
+    const gdt = rawDt * k;
+    this.lastRealDt = rawDt;
+    this.processQueue(gdt * this.speed);
+    this.updateFigures(gdt, t);
+    this.updateCamera(rawDt, t);
+    for (const h of this.frameHooks) h(rawDt, t);
+    this.vfx.update(gdt);
+    // highlights
+    for (const [key, p] of this.plates) {
+      const kind = this.highlight.sectors.get(key);
+      const mat = p.hl.material as THREE.MeshBasicMaterial;
+      const hover = this.hoverSector === key && !this.hoverFig;
+      const target = kind ? (hover ? 0.95 : 0.5 + Math.sin(t * 3) * 0.12) : hover && this.mode === 'combat' ? 0.2 : 0;
+      mat.opacity += (target - mat.opacity) * Math.min(1, rawDt * 12);
+      mat.color.set(kind === 'attack' ? 0xff5a40 : kind === 'ally' ? 0x8fe07a : kind === 'area' ? 0xff8a40 : kind === 'objective' ? 0xb59cff : kind === 'deploy' ? 0x9fd0ff : 0xffd27a);
+      p.hl.visible = mat.opacity > 0.01;
+    }
+    for (const m of this.markers.children) if (m.userData.spin) m.rotation.z += rawDt * m.userData.spin;
+    kitTime.value = t;
+    this.stage.visible = !this.envScene || this.envHidden;
     if (this.envScene) {
-      for (const f of this.envScene.flicker) f.light.intensity = f.base * (0.82 + Math.sin(t * 9 + f.phase) * 0.06 + Math.sin(t * 23 + f.phase * 3) * 0.05 + Math.random() * 0.05);
+      this.envScene.update(gdt, t);
       const bell = this.envScene.bell;
       if (bell) {
         const sw = (bell.userData.swing ?? 0) as number;
         bell.rotation.z = Math.sin(t * 2.2) * 0.04 * sw + Math.sin(t * 0.5) * 0.008;
-        bell.userData.swing = Math.max(0, sw - dt * 0.25);
+        bell.userData.swing = Math.max(0, sw - rawDt * 0.25);
       }
     }
-    this.flash = Math.max(0, this.flash - dt * 1.6);
+    this.flash = Math.max(0, this.flash - rawDt * 1.6);
+    this.aberration = Math.max(0, this.aberration - rawDt * 2.2);
     this.grade.uniforms.uFlash.value = this.flash * 0.6;
+    this.grade.uniforms.uAberration.value = this.aberration * 0.012;
     this.grade.uniforms.uTime.value = t;
-    const t0 = performance.now();
-    if (this.quality === 'low') this.renderer.render(this.scene, this.camera);
-    else this.composer.render(dt);
+    if (!render) return;
+    this.renderer.info.reset();
+    if (!PRESETS[this.quality].post) this.renderer.render(this.scene, this.camera);
+    else this.composer.render(rawDt);
     this.updateLabels();
     const info = this.renderer.info;
     this.stats.calls = info.render.calls;
     this.stats.tris = info.render.triangles;
     this.stats.geos = info.memory.geometries;
     this.stats.texs = info.memory.textures;
-    this.fpsAcc += rawDt;
+    // fps from real wall-clock time (dt is clamped for the simulation, not for the measurement)
+    this.fpsAcc += Math.min(realMs, 2000) / 1000;
     this.fpsN++;
     if (this.fpsAcc > 0.5) {
       this.stats.fps = Math.round(this.fpsN / this.fpsAcc);
       this.stats.frameMs = +((this.fpsAcc / this.fpsN) * 1000).toFixed(1);
       // adaptive quality: degrade when sustained low FPS
-      if (this.autoQuality && this.stats.fps < 40 && this.quality !== 'low') {
+      if (this.autoQuality && this.stats.fps < 40 && this.quality !== 'low' && performance.now() > this.qualityGrace) {
         if (++this.slowFrames > 6) {
           this.slowFrames = 0;
           const next: Quality = this.quality === 'high' ? 'medium' : 'low';
-          this.quality = next;
-          this.renderer.shadowMap.enabled = next !== 'low';
-          this.bloom.enabled = next !== 'low';
-          this.dpr = Math.max(1, this.dpr - 0.5);
-          this.vfx.density *= 0.7;
-          this.resize();
+          this.applyQuality(next);
+          if (this.envScene) {
+            const id = this.sceneId;
+            this.sceneId = '';
+            void this.loadScene(id);
+          }
         }
       } else this.slowFrames = 0;
       this.fpsAcc = 0;
       this.fpsN = 0;
     }
-    void t0;
-  };
+  }
 
   private processQueue(dt: number) {
     let budget = dt;
@@ -1044,6 +1531,7 @@ export class Diorama {
         t.end?.();
         if (!this.queue.length) {
           this.cb.onQueueIdle?.();
+          this.punch.hold = Math.min(this.punch.hold, 0.25);
           if (this.lastState) void this.syncCombat(this.lastState, {});
         }
       } else break;
@@ -1052,21 +1540,42 @@ export class Diorama {
   }
 
   private updateFigures(dt: number, t: number) {
-    for (const v of this.figs.values()) {
+    const sdt = dt * this.speed;
+    for (const v of [...this.figs.values()]) {
       const r = v.rig;
       // tween between sectors
       if (v.tween) {
-        if (r.anim && v.tween.t === 0 && v.tween.hop > 0.1) r.anim.play('walk', { speed: 1.6 });
-        v.tween.t = Math.min(v.tween.dur, v.tween.t + dt * this.speed);
+        if (r.anim && v.tween.t === 0 && v.tween.hop > 0.1) r.anim.play('walk', { speed: 1.7 });
+        v.tween.t = Math.min(v.tween.dur, v.tween.t + sdt);
         const k = v.tween.t / v.tween.dur;
-        const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+        const e = easeInOut(k);
         v.pos.lerpVectors(v.tween.from, v.tween.to, e);
         v.pos.y = 0.12 + Math.sin(k * Math.PI) * v.tween.hop;
       }
-      r.root.position.copy(v.pos);
-      // facing
+      // choreography offset (lunge / recoil / dodge)
+      if (v.offTween) {
+        const o = v.offTween;
+        o.t = Math.min(o.dur, o.t + sdt);
+        v.off.lerpVectors(o.from, o.to, o.ease(o.t / o.dur));
+        if (o.t >= o.dur) {
+          v.offTween = null;
+          o.then?.();
+        }
+      }
+      r.root.position.copy(v.pos).add(v.off);
+      // facing: toward the action while acting, else the other side; the active hero glances at the hovered target
       const baseYaw = v.side === 'H' ? Math.PI : 0;
-      r.root.rotation.y += (baseYaw - r.root.rotation.y) * Math.min(1, dt * 6);
+      let yaw = v.faceYaw ?? baseYaw;
+      if (v.faceYaw === null && this.mode === 'combat' && this.highlight.figures.get(v.id) === 'active' && this.hoverFig && this.highlight.figures.get(this.hoverFig) === 'attack') {
+        const h = this.figs.get(this.hoverFig);
+        if (h) yaw = Math.atan2(h.pos.x - v.pos.x, h.pos.z - v.pos.z);
+      }
+      let dy = yaw - r.root.rotation.y;
+      dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+      r.root.rotation.y += dy * Math.min(1, dt * (v.faceYaw !== null ? 14 : 6));
+      // lean (anticipation / follow-through / recoil)
+      v.lean += (v.leanTarget - v.lean) * Math.min(1, sdt * 12);
+      r.body.rotation.x = v.lean;
       // idle
       const id = r.idle;
       const ph = v.phase + t * id.speed;
@@ -1093,14 +1602,18 @@ export class Diorama {
       if (r.extras.halo) r.extras.halo.rotation.z = t * 0.5;
       if (r.extras.mouth) r.extras.mouth.scale.y = 1.4 + Math.sin(t * 6) * 0.4;
       if (r.anim) {
-        r.anim.update(dt * this.speed);
+        r.anim.update(sdt);
         if (v.anim && !v.anim.t) {
           const k = v.anim.kind;
           const school = this.pendingAttack?.school;
-          if (k === 'windup') r.anim.play(this.pendingAttack && (this.pendingAttack.cat === 'distancia') && (r.anim.map.shoot && (school === 'arrow' || school === 'bolt')) ? 'shoot' : 'attack', { speed: 1.25 });
+          const ranged = this.isRanged(this.pendingAttack?.cat);
+          if (k === 'strike') r.anim.play(r.anim.map.attack ? 'attack' : 'cast', { speed: 1.65 });
+          else if (k === 'release') r.anim.play(r.anim.map.shoot && (school === 'arrow' || school === 'bolt') ? 'shoot' : this.isSpell(school) ? 'cast' : 'attack', { speed: 1.45 });
+          else if (k === 'aim') r.anim.play(r.anim.map.shoot && (school === 'arrow' || school === 'bolt') ? 'shoot' : 'attack', { speed: 0.6 });
+          else if (k === 'windup') r.anim.play(ranged && r.anim.map.shoot && (school === 'arrow' || school === 'bolt') ? 'shoot' : 'attack', { speed: 1.25 });
           else if (k === 'cast') r.anim.play(school === 'holy' || school === 'bell' ? 'raise' : 'cast', { speed: 1.2 });
-          else if (k === 'hurt') r.anim.play('hit', { speed: 1.2 });
-          else if (k === 'block') r.anim.play('block', { speed: 1.2 });
+          else if (k === 'hurt') r.anim.play('hit', { speed: 1.3 });
+          else if (k === 'block') r.anim.play('block', { speed: 1.3 });
           else if (k === 'fall') {
             r.anim.play('fall', { hold: true });
           } else if (k === 'rise') {
@@ -1108,101 +1621,134 @@ export class Diorama {
             r.anim.play('rise');
           } else if (k === 'intent') r.anim.play('taunt', { speed: 1.4 });
         }
+        // idle life: now and then a figure shifts its weight, looks around, readies its weapon
+        if (!v.dead && !v.anim && !v.tween && !v.offTween && v.fallen < 0.5 && !this.queue.length && this.mode === 'combat') {
+          v.idleT -= sdt;
+          if (v.idleT <= 0) {
+            v.idleT = 6 + Math.random() * 8;
+            if (r.anim.map.idle2) r.anim.play('idle2', { speed: 0.9 + Math.random() * 0.2 });
+          }
+        }
       }
       // one-shot animations
       if (v.anim) {
-        v.anim.t += dt * this.speed;
+        v.anim.t += sdt;
         const k = Math.min(1, v.anim.t / v.anim.dur);
         const dir = v.anim.dir ?? new THREE.Vector3();
-        const local = dir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), -r.root.rotation.y);
-        if (r.anim) {
-          if (v.anim.kind === 'lunge') r.root.position.addScaledVector(dir, Math.sin(k * Math.PI) * 0.45);
-          if (v.anim.kind === 'hurt') r.root.position.addScaledVector(dir, Math.sin(k * Math.PI) * 0.12);
-        } else switch (v.anim.kind) {
-          case 'windup':
-            r.armR.rotation.x = -k * 1.8;
-            r.body.position.z = -local.z * 0.08 * k;
-            break;
-          case 'cast':
-            r.armR.rotation.x = -k * 2.4;
-            r.armL.rotation.x = -k * 2.2;
-            r.body.position.y += k * 0.06;
-            break;
-          case 'lunge': {
-            const s = Math.sin(k * Math.PI);
-            r.root.position.addScaledVector(dir, s * 0.55);
-            r.armR.rotation.x = -1.8 + k * 2.6;
-            r.torso.rotation.x = id.hunch + s * 0.25;
-            break;
+        const local = dir.clone().applyAxisAngle(UP, -r.root.rotation.y);
+        if (!r.anim)
+          switch (v.anim.kind) {
+            case 'windup':
+            case 'aim':
+              r.armR.rotation.x = -k * 1.8;
+              r.body.position.z = -local.z * 0.08 * k;
+              break;
+            case 'cast':
+              r.armR.rotation.x = -k * 2.4;
+              r.armL.rotation.x = -k * 2.2;
+              r.body.position.y += k * 0.06;
+              break;
+            case 'strike': {
+              const s = Math.sin(k * Math.PI);
+              r.armR.rotation.x = -1.8 + k * 2.6;
+              r.torso.rotation.x = id.hunch + s * 0.25;
+              break;
+            }
+            case 'release':
+              r.armR.rotation.x = -1.4 + k * 0.8;
+              r.body.position.z = Math.sin(k * Math.PI) * -0.05;
+              break;
+            case 'hurt': {
+              const s = Math.sin(k * Math.PI);
+              r.torso.rotation.x = id.hunch - s * 0.3;
+              break;
+            }
+            case 'block':
+              r.armL.rotation.x = -Math.sin(k * Math.PI) * 1.3;
+              break;
+            case 'intent':
+              r.body.position.y += Math.sin(k * Math.PI) * 0.12;
+              break;
+            case 'fall':
+              v.fallen = k;
+              break;
+            case 'rise':
+              v.fallen = 1 - k;
+              break;
           }
-          case 'release':
-            r.armR.rotation.x = -1.4 + k * 0.8;
-            r.body.position.z = Math.sin(k * Math.PI) * -0.05;
-            break;
-          case 'hurt': {
-            const s = Math.sin(k * Math.PI);
-            r.root.position.addScaledVector(dir, s * 0.18);
-            r.torso.rotation.x = id.hunch - s * 0.3;
-            break;
-          }
-          case 'block':
-            r.armL.rotation.x = -Math.sin(k * Math.PI) * 1.3;
-            break;
-          case 'intent':
-            r.body.position.y += Math.sin(k * Math.PI) * 0.12;
-            break;
-          case 'fall':
-            v.fallen = k;
-            break;
-          case 'rise':
-            v.fallen = 1 - k;
-            break;
-        }
         if (k >= 1) v.anim = null;
       }
       // fallen pose (procedural rigs only; skinned rigs use Lie_Down/Death clips)
       if (!r.anim) {
         r.root.rotation.x = -v.fallen * (Math.PI / 2.2) * (v.side === 'H' ? -1 : 1);
         r.root.position.y = v.pos.y + v.fallen * 0.1;
-      } else if (v.fallen >= 1 && !r.anim.holding && !v.anim) {
+      } else if (v.fallen >= 1 && !r.anim.holding && !v.anim && !v.dead) {
         r.anim.play('fall', { hold: true, speed: 4 });
       }
-      // hit flash
+      // hit flash (decays in real time so slow motion does not keep a figure white)
       if (v.flash > 0) {
-        v.flash = Math.max(0, v.flash - dt * 4);
+        v.flash = Math.max(0, v.flash - Math.max(dt, this.lastRealDt) * 6);
+        const f = v.flash * v.flash;
         for (const m of r.mats) {
-          m.emissive.copy(m.userData.baseEmissive).lerp(new THREE.Color(0xffd0b0), v.flash);
-          m.emissiveIntensity = Math.max(m.userData.baseEmissiveIntensity, v.flash * 1.4);
+          m.emissive.copy(m.userData.baseEmissive).lerp(FLASH, f);
+          m.emissiveIntensity = Math.max(m.userData.baseEmissiveIntensity, f * 0.9);
         }
       }
-      // dissolve
+      // death: hold the collapse, then burn away into embers (dissolve shader with glowing edges)
       if (v.dead) {
-        v.deathT += dt * this.speed;
-        const s = Math.max(0, 1 - Math.max(0, v.deathT) / 0.75);
-        r.root.scale.setScalar(r.scale * (0.6 + 0.4 * s));
-        r.root.position.y -= (1 - s) * 0.6;
-        for (const m of r.mats) {
-          m.transparent = true;
-          m.opacity = s;
+        v.deathT += sdt;
+        const d = Math.max(0, (v.deathT - 1.0) / 0.9);
+        if (r.dissolve) {
+          r.dissolve.value = Math.min(1.05, d);
+          if (d > 0 && d < 1 && Math.random() < sdt * 30) this.vfx.ember(this.figPos(v).add(new THREE.Vector3((Math.random() - 0.5) * 0.6, Math.random() * r.height * (1 - d), (Math.random() - 0.5) * 0.6)));
+        } else {
+          const s = Math.max(0, 1 - d);
+          r.root.scale.setScalar(r.scale * (0.6 + 0.4 * s));
+          for (const m of r.mats) {
+            m.transparent = true;
+            m.opacity = s;
+          }
+        }
+        if (d >= 1.05) {
+          this.removeFig(v.id);
+          continue;
         }
       }
-      // highlight ring under figure
+      // contact shadow + selection ring follow the figure on the floor
+      const visible = r.root.visible;
+      const groundY = v.pos.y + 0.012;
+      v.blob.visible = visible;
+      v.blob.position.set(r.root.position.x, groundY, r.root.position.z);
+      const bm = v.blob.material as THREE.MeshBasicMaterial;
+      bm.opacity = (v.dead ? Math.max(0, 1 - Math.max(0, v.deathT - 1) / 0.6) : 1) * 0.62;
       const hl = this.highlight.figures.get(v.id);
-      let ring = r.root.getObjectByName('hlring') as THREE.Mesh | undefined;
-      if (hl || this.hoverFig === v.id) {
-        if (!ring) {
-          ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.52, 40), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
-          ring.name = 'hlring';
-          ring.rotation.x = -Math.PI / 2;
-          ring.position.y = 0.04;
-          r.root.add(ring);
+      const rm = v.ring.material as THREE.MeshBasicMaterial;
+      const want = visible && !v.dead && this.mode === 'combat' && (hl || this.hoverFig === v.id) ? 1 : 0;
+      rm.opacity += ((want ? (hl === 'active' ? 0.95 : 0.8) + Math.sin(t * 5 + v.phase) * 0.15 : 0) - rm.opacity) * Math.min(1, Math.max(dt, 0.016) * 10);
+      v.ring.visible = rm.opacity > 0.01;
+      if (v.ring.visible) {
+        rm.color.set(hl === 'attack' ? 0xff4a32 : hl === 'ally' ? 0x8fe07a : hl === 'active' ? 0xffcf6a : hl === 'intent' ? 0xb59cff : 0xffffff);
+        v.ring.position.set(r.root.position.x, groundY + 0.01, r.root.position.z);
+        v.ring.rotation.z = t * (hl === 'active' ? 0.6 : 0.25) + v.phase;
+        const base = Math.max(0.9, Math.min(2.2, r.height * 0.62)) * 1.12;
+        v.ring.scale.setScalar(base * (hl === 'attack' ? 1 + Math.sin(t * 6) * 0.04 : 1));
+      }
+      // rim: team colour; the figure whose turn it is glows a little brighter; heals/guards pulse their colour
+      if (r.rim) {
+        const baseRim = v.side === 'H' ? 0.34 : 0.3;
+        let s = baseRim + (hl === 'active' ? 0.3 + Math.sin(t * 4) * 0.12 : hl === 'attack' && this.hoverFig === v.id ? 0.35 : 0);
+        r.rim.color.set(v.side === 'H' ? HERO_RIM : ENEMY_RIM);
+        // the hero whose turn it is wears its class colour on the rim
+        if (hl === 'active' && v.side === 'H' && CLASS_ACCENT[v.typeId]) r.rim.color.lerp(TMP_COLOR.set(CLASS_ACCENT[v.typeId]), 0.55);
+        if (v.glow) {
+          v.glow.t += sdt;
+          const g = Math.sin(Math.min(1, v.glow.t / v.glow.dur) * Math.PI);
+          r.rim.color.lerp(v.glow.color, g);
+          s += g * 1.6;
+          if (v.glow.t >= v.glow.dur) v.glow = null;
         }
-        ring.visible = true;
-        const c = hl === 'attack' ? 0xff5a40 : hl === 'ally' ? 0x8fe07a : hl === 'active' ? 0xffd27a : hl === 'intent' ? 0xb59cff : 0xffffff;
-        (ring.material as THREE.MeshBasicMaterial).color.set(c);
-        (ring.material as THREE.MeshBasicMaterial).opacity = 0.65 + Math.sin(t * 5) * 0.25;
-        ring.scale.setScalar(1 / r.scale);
-      } else if (ring) ring.visible = false;
+        r.rim.strength.value = s;
+      }
     }
   }
 
@@ -1239,9 +1785,9 @@ export class Diorama {
       this.camTarget.set(Math.sin(a) * 6, 5.2, 11.5);
       this.camLook.set(Math.sin(a) * 1.5, 1.4, -3.5);
     } else if (aspect < 0.9) {
-      // phones held upright: high, steep camera so all 5 columns fit the width; board sits between top bar and hero dock
+      // phones held upright: a 3/4 view — all 5 columns across, the room's back wall above the board
       const T = this.camTune;
-      this.camTarget.set(Math.sin(t * 0.15) * 0.1, T.y, T.z);
+      this.camTarget.set(Math.sin(t * 0.15) * 0.12, T.y, T.z);
       this.camLook.set(0, 0, T.lz);
     } else {
       const narrow = aspect < 1.45;
@@ -1252,20 +1798,36 @@ export class Diorama {
       // phones held sideways (wide): board on the left, controls in a right-hand column under the thumb
       const W = this.camTuneW;
       const x = wide ? W.x : 0;
-      this.camTarget.set(x + Math.sin(t * 0.15) * 0.2, narrow ? 13.2 : wide ? W.y : L.y, narrow ? 11.2 : wide ? W.z : L.z);
-      this.camLook.set(x, 0.2, narrow ? 0.6 : wide ? W.lz : L.lz);
+      this.camTarget.set(x + Math.sin(t * 0.15) * 0.2, narrow ? 15.5 : wide ? W.y : L.y, narrow ? 14.5 : wide ? W.z : L.z);
+      this.camLook.set(x, 0.2, narrow ? 0.4 : wide ? W.lz : L.lz);
+    }
+    const fov = this.modeFov();
+    if (Math.abs(this.camera.fov - fov) > 0.01) {
+      this.camera.fov += (fov - this.camera.fov) * (this.snapCamera ? 1 : Math.min(1, dt * 3));
+      this.camera.updateProjectionMatrix();
     }
     if (this.snapCamera) {
       this.camPos.copy(this.camTarget);
       this.snapCamera = false;
     } else this.camPos.lerp(this.camTarget, Math.min(1, dt * 1.8));
     this.camera.position.copy(this.camPos);
+    // punch-in: dolly toward the action and turn the gaze onto it, then ease back to the board view
+    const P = this.punch;
+    if (P.hold > 0) P.hold -= dt;
+    else P.want = 0;
+    P.amt += (P.want - P.amt) * Math.min(1, dt * (P.want > P.amt ? 6 : 2.2));
+    const look = this.camLook.clone();
+    if (P.amt > 0.001 && this.mode === 'combat') {
+      const k = easeInOut(Math.min(1, P.amt));
+      this.camera.position.lerp(P.at.clone().add(this.camPos.clone().sub(P.at).multiplyScalar(0.7)), k * 0.6);
+      look.lerp(P.at, k * 0.45);
+    }
     if (this.shake > 0) {
       this.shake = Math.max(0, this.shake - dt * 1.5);
       this.camera.position.x += (Math.random() - 0.5) * this.shake * 0.25;
       this.camera.position.y += (Math.random() - 0.5) * this.shake * 0.25;
     }
-    this.camera.lookAt(this.camLook);
+    this.camera.lookAt(look);
   }
 
   private updateLabels() {
@@ -1298,6 +1860,11 @@ export class Diorama {
   }
 }
 
+const HERO_RIM = 0xffd2a0;
+const ENEMY_RIM = 0xa8b8ff;
+const FLASH = new THREE.Color(0xffe0c8);
+const TMP_COLOR = new THREE.Color();
+
 const CONDITION_LABEL: Record<string, string> = {
   veneno: 'Veneno',
   sangramento: 'Sangramento',
@@ -1312,6 +1879,32 @@ const CONDITION_LABEL: Record<string, string> = {
   bencao: 'Bênção',
   semReacoes: 'Sem Reações',
 };
+
+function schoolColor(school: string): number {
+  switch (school) {
+    case 'holy':
+      return 0xffe2a0;
+    case 'fire':
+      return 0xff7a2a;
+    case 'profane':
+    case 'shadow':
+      return 0xb070ff;
+    case 'bell':
+      return 0xffb060;
+    case 'arcane':
+      return 0x9a8cff;
+    case 'poison':
+      return 0x8fd060;
+    case 'flesh':
+    case 'blood':
+      return 0xff5040;
+    case 'arrow':
+    case 'bolt':
+      return 0xffe0b0;
+    default:
+      return 0xffd8a0;
+  }
+}
 
 function impactSound(school: string, dmg: number) {
   switch (school) {

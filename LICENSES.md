@@ -21,6 +21,17 @@ licença a ele. Ver a nota sobre assets gerados na seção 3.
   `apps/web/public/assets/characters/` (o `manifest.json` dessa pasta repete a licença).
 - Os pacotes originais não estão no repositório; o script recebe o caminho deles como argumento.
 
+### KayKit — Dungeon Remastered (cenários)
+
+- **KayKit Dungeon Remastered 1.0**, por **Kay Lousberg** (kaylousberg.com).
+- Licença: **CC0 1.0 Universal** (domínio público). Atribuição não é exigida; é feita aqui por cortesia.
+- Uso: paredes, pisos, pilares, escadas, portas, tochas/velas, móveis, estandartes e objetos de todas as salas
+  (`apps/web/src/three/scenes.ts`). `tools/python/kaykit/build_kit.py` copia só as peças usadas, tira a textura
+  que cada GLB repetia (um único atlas `dungeon_texture.png`, reduzido para 512²), quantiza a geometria
+  (`KHR_mesh_quantization`) e separa as chamas em um nó próprio; saída em `apps/web/public/assets/kaykit-dungeon/`
+  (o `manifest.json` dessa pasta repete a licença).
+- O pacote original não está no repositório; o script recebe o caminho dele como argumento.
+
 ### Fontes (via `@fontsource`)
 
 | Pacote | Versão | Licença |
@@ -84,6 +95,7 @@ malhas, texturas ou ícones de terceiros:
 | `assets/icons/` (SVG + sprite) e `public/icons/app-*.png` | `tools/python/textures/build_icons.py`, `build_app_icons.py` | idem texturas |
 | `assets/models/` (cenário GLB) | `tools/python/models/build_models.py` (numpy, sem Blender) | `tools/python/models/README.md`: geometria original; "coberta pela licença do próprio projeto" |
 | `assets/characters/` | derivados do KayKit (seção 1) | CC0 1.0 (origem KayKit) |
+| `assets/kaykit-dungeon/` | `tools/python/kaykit/build_kit.py` a partir do KayKit Dungeon Remastered (seção 1) | CC0 1.0 (origem KayKit) |
 
 Atenção: como o repositório não declara licença própria, as texturas, ícones e modelos de cenário ficam, na prática,
 sem licença explícita até que o dono do projeto escolha uma. Só o áudio tem declaração explícita (CC0).

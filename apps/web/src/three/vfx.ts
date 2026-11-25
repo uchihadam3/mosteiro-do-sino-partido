@@ -145,6 +145,22 @@ interface Ring {
   alive: boolean;
 }
 
+interface Fx {
+  mesh: THREE.Mesh;
+  t: number;
+  dur: number;
+  alive: boolean;
+  s0: number;
+  s1: number;
+}
+
+const SHIELD_VERT = /* glsl */ `varying vec3 vN; varying vec3 vV;
+  void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`;
+const SHIELD_FRAG = /* glsl */ `uniform vec3 uColor; uniform float uAlpha; uniform float uTime; varying vec3 vN; varying vec3 vV;
+  void main(){ float f = pow(1.0 - abs(dot(vN, vV)), 2.2);
+    float hex = 0.5 + 0.5 * sin(vN.x * 40.0 + uTime * 3.0) * sin(vN.y * 40.0 - uTime * 2.0);
+    gl_FragColor = vec4(uColor * (f * 1.6 + hex * 0.12), (f * 0.9 + 0.06) * uAlpha); }`;
+
 export class VFX {
   group = new THREE.Group();
   private glow: ParticleLayer;
@@ -152,10 +168,21 @@ export class VFX {
   private ash: ParticleLayer;
   private rings: Ring[] = [];
   private ringMats: Record<string, THREE.MeshBasicMaterial> = {};
+  private slashes: Fx[] = [];
+  private shields: Fx[] = [];
+  private time = 0;
   density = 1;
   private ambientAcc = 0;
+  private dustAcc = 0;
   ambientBounds = new THREE.Box3(new THREE.Vector3(-9, 0, -8), new THREE.Vector3(9, 6, 7));
   emberSources: THREE.Vector3[] = [];
+  /** points where lit dust motes hang (light shafts, candles) */
+  dustSources: THREE.Vector3[] = [];
+  /** room ambience levels (0..2): dust motes, falling ash, rising embers */
+  private amb = { dust: 0.6, ash: 0.6, embers: 0.6 };
+  setAmbience(a?: { dust?: number; ash?: number; embers?: number }) {
+    this.amb = { dust: a?.dust ?? 0.6, ash: a?.ash ?? 0.4, embers: a?.embers ?? 0.5 };
+  }
 
   constructor() {
     this.glow = new ParticleLayer(900, 'textures/ember_particle.png', 4, true);
@@ -172,6 +199,25 @@ export class VFX {
       m.renderOrder = 5;
       this.group.add(m);
       this.rings.push({ mesh: m, t: 0, dur: 1, from: 0.2, to: 2, alive: false });
+    }
+    // weapon-swing crescents
+    const arc = new THREE.RingGeometry(0.42, 0.6, 28, 1, -Math.PI * 0.45, Math.PI * 0.9);
+    for (let i = 0; i < 6; i++) {
+      const m = new THREE.Mesh(arc, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, opacity: 0 }));
+      m.visible = false;
+      m.renderOrder = 6;
+      this.group.add(m);
+      this.slashes.push({ mesh: m, t: 0, dur: 0.2, alive: false, s0: 0.6, s1: 1.2 });
+    }
+    // guard bubbles
+    const sph = new THREE.SphereGeometry(1, 28, 18);
+    for (let i = 0; i < 4; i++) {
+      const mat = new THREE.ShaderMaterial({ vertexShader: SHIELD_VERT, fragmentShader: SHIELD_FRAG, uniforms: { uColor: { value: new THREE.Color(0x9fd0ff) }, uAlpha: { value: 0 }, uTime: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+      const m = new THREE.Mesh(sph, mat);
+      m.visible = false;
+      m.renderOrder = 6;
+      this.group.add(m);
+      this.shields.push({ mesh: m, t: 0, dur: 0.7, alive: false, s0: 0.5, s1: 1 });
     }
   }
   setPixelScale(h: number) {
@@ -221,13 +267,15 @@ export class VFX {
     switch (school) {
       case 'metal':
       case 'blunt':
-        this.burst(this.glow, at, 26 * s, { speed: 4.5, up: 0.6, life: 0.45, size: 0.09, size1: 0.02, color: 0xffc070, gravity: 9, drag: 1.5 });
-        this.burst(this.smoke, at, 4, { speed: 0.6, life: 0.8, size: 0.6, size1: 1.2, color: 0x6a625c, alpha: 0.35 });
-        this.ring(at, 'glow', 0xffd8a0, 0.2, 1.4 * s, 0.25, true);
+        this.burst(this.glow, at, 30 * s, { speed: 5.5, up: 0.7, life: 0.5, size: 0.16, size1: 0.03, color: 0xffc070, gravity: 9, drag: 1.4 });
+        this.burst(this.glow, at, 8, { speed: 1.2, life: 0.18, size: 0.5, size1: 0.1, color: 0xfff0d0, drag: 4 });
+        this.burst(this.smoke, at, 5, { speed: 0.7, life: 0.8, size: 0.6, size1: 1.3, color: 0x6a625c, alpha: 0.35 });
+        this.ring(at, 'glow', 0xffd8a0, 0.2, 1.6 * s, 0.25, true);
         break;
       case 'flesh':
       case 'blood':
-        this.burst(this.smoke, at, 14 * s, { speed: 2.4, up: 0.4, life: 0.6, size: 0.18, size1: 0.08, color: 0x6e0f0c, gravity: 7, alpha: 0.95 });
+        this.burst(this.smoke, at, 16 * s, { speed: 2.8, up: 0.5, life: 0.6, size: 0.2, size1: 0.08, color: 0x7e140f, gravity: 7, alpha: 0.95 });
+        this.burst(this.glow, at, 6, { speed: 1.2, life: 0.16, size: 0.45, size1: 0.1, color: 0xffd0c0, drag: 4 });
         break;
       case 'arrow':
       case 'bolt':
@@ -287,9 +335,60 @@ export class VFX {
     this.burst(this.glow, at, 12, { speed: 1, up: 1, life: 0.8, size: 0.09, color: c[cond] ?? 0xffffff, drag: 1.5 });
   }
 
+  /** Ground puff where feet land, bodies fall, figures are shoved. */
+  dust(at: THREE.Vector3, k = 1) {
+    this.burst(this.smoke, at, 7 * k, { speed: 1.1 * k, up: 0.15, spread: 0.25, life: 0.8, size: 0.35, size1: 0.9 * k, color: 0x6a5e52, alpha: 0.32, drag: 3 });
+  }
+  /** A single ember rising (dissolving bodies). */
+  ember(at: THREE.Vector3) {
+    this.glow.spawn({ pos: at, vel: new THREE.Vector3((Math.random() - 0.5) * 0.4, 0.8 + Math.random() * 0.9, (Math.random() - 0.5) * 0.4), life: 1.1 + Math.random() * 0.6, size: 0.09, size1: 0.01, color: Math.random() < 0.5 ? 0xff9a40 : 0xffd080, drag: 0.6 });
+    if (Math.random() < 0.3) this.ash.spawn({ pos: at.clone(), vel: new THREE.Vector3((Math.random() - 0.5) * 0.3, 0.5 + Math.random() * 0.5, (Math.random() - 0.5) * 0.3), life: 1.6, size: 0.08, color: 0x3a3430, alpha: 0.8, drag: 0.5 });
+  }
+  /** Particles drawn into a point (a spell gathering). */
+  charge(at: THREE.Vector3, color: THREE.ColorRepresentation) {
+    const n = Math.round(18 * this.density);
+    for (let i = 0; i < n; i++) {
+      const d = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.3, Math.random() - 0.5).normalize().multiplyScalar(0.7 + Math.random() * 0.4);
+      this.glow.spawn({ pos: at.clone().add(d), vel: d.clone().multiplyScalar(-2.2), life: 0.36, size: 0.03, size1: 0.1, color, drag: 0 });
+    }
+    this.ring(at, 'rune', color, 0.9, 0.25, 0.4, true);
+  }
+  /** Glowing wake behind a projectile. */
+  trail(p: THREE.Vector3, color: THREE.ColorRepresentation, k = 1) {
+    if (Math.random() > 0.9 * this.density) return;
+    this.glow.spawn({ pos: p.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06)), vel: new THREE.Vector3((Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3), life: 0.32 * k + 0.1, size: 0.12 * k + 0.03, size1: 0.01, color, drag: 2 });
+  }
+  /** A bright crescent where the blade passes. */
+  slash(at: THREE.Vector3, dir: THREE.Vector3, color: THREE.ColorRepresentation, scale = 1) {
+    const f = this.slashes.find((x) => !x.alive) ?? this.slashes[0];
+    f.alive = true;
+    f.t = 0;
+    f.dur = 0.2;
+    f.s0 = 0.55 * scale;
+    f.s1 = 1.25 * scale;
+    f.mesh.visible = true;
+    f.mesh.position.copy(at).addScaledVector(dir, -0.15);
+    // stand the crescent across the strike direction, tilted
+    f.mesh.lookAt(at.clone().add(dir));
+    f.mesh.rotateZ((Math.random() - 0.5) * 1.6);
+    (f.mesh.material as THREE.MeshBasicMaterial).color.set(color);
+  }
+  /** Shimmering guard bubble. */
+  shield(at: THREE.Vector3, radius = 1) {
+    const f = this.shields.find((x) => !x.alive) ?? this.shields[0];
+    f.alive = true;
+    f.t = 0;
+    f.dur = 0.75;
+    f.s0 = radius * 0.6;
+    f.s1 = radius * 1.05;
+    f.mesh.visible = true;
+    f.mesh.position.copy(at);
+  }
+
   update(dt: number) {
+    this.time += dt;
     // ambient ash drifting through the scene
-    this.ambientAcc += dt * 18 * this.density;
+    this.ambientAcc += dt * 14 * this.density * this.amb.ash;
     while (this.ambientAcc > 1) {
       this.ambientAcc--;
       const b = this.ambientBounds;
@@ -297,15 +396,57 @@ export class VFX {
         pos: new THREE.Vector3(THREE.MathUtils.lerp(b.min.x, b.max.x, Math.random()), b.max.y * Math.random() + 0.5, THREE.MathUtils.lerp(b.min.z, b.max.z, Math.random())),
         vel: new THREE.Vector3(0.15 + Math.random() * 0.15, -0.12 - Math.random() * 0.1, (Math.random() - 0.5) * 0.1),
         life: 7 + Math.random() * 5,
-        size: 0.05 + Math.random() * 0.05,
+        size: 0.04 + Math.random() * 0.05,
         color: 0x9a928a,
-        alpha: 0.65,
+        alpha: 0.55,
       });
+    }
+    // lit dust motes hanging in the light shafts and around candles
+    if (this.dustSources.length) {
+      this.dustAcc += dt * 10 * this.density * this.amb.dust;
+      while (this.dustAcc > 1) {
+        this.dustAcc--;
+        const s = this.dustSources[Math.floor(Math.random() * this.dustSources.length)];
+        this.glow.spawn({
+          pos: s.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2.2, (Math.random() - 0.2) * 2.4, (Math.random() - 0.5) * 2.2)),
+          vel: new THREE.Vector3((Math.random() - 0.5) * 0.08, 0.02 + Math.random() * 0.05, (Math.random() - 0.5) * 0.08),
+          life: 4 + Math.random() * 4,
+          size: 0.025 + Math.random() * 0.03,
+          color: 0xfff0d8,
+          alpha: 0.55,
+          drag: 0.1,
+        });
+      }
     }
     // embers rising from torches/braziers
     for (const s of this.emberSources) {
-      if (Math.random() < dt * 4 * this.density)
+      if (Math.random() < dt * 4 * this.density * (0.4 + this.amb.embers))
         this.glow.spawn({ pos: s.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.15, 0, (Math.random() - 0.5) * 0.15)), vel: new THREE.Vector3((Math.random() - 0.5) * 0.3, 0.6 + Math.random() * 0.5, (Math.random() - 0.5) * 0.3), life: 1.6, size: 0.05, size1: 0.01, color: 0xff9a40, drag: 0.4 });
+    }
+    for (const f of this.slashes) {
+      if (!f.alive) continue;
+      f.t += dt;
+      const k = Math.min(1, f.t / f.dur);
+      f.mesh.scale.setScalar(f.s0 + (f.s1 - f.s0) * (1 - Math.pow(1 - k, 2)));
+      (f.mesh.material as THREE.MeshBasicMaterial).opacity = (1 - k) * 0.95;
+      f.mesh.rotateZ(dt * 9);
+      if (k >= 1) {
+        f.alive = false;
+        f.mesh.visible = false;
+      }
+    }
+    for (const f of this.shields) {
+      if (!f.alive) continue;
+      f.t += dt;
+      const k = Math.min(1, f.t / f.dur);
+      f.mesh.scale.setScalar(f.s0 + (f.s1 - f.s0) * (1 - Math.pow(1 - Math.min(1, k * 2.5), 3)));
+      const u = (f.mesh.material as THREE.ShaderMaterial).uniforms;
+      u.uAlpha.value = Math.sin(Math.min(1, k) * Math.PI) * 0.9;
+      u.uTime.value = this.time;
+      if (k >= 1) {
+        f.alive = false;
+        f.mesh.visible = false;
+      }
     }
     this.glow.update(dt);
     this.smoke.update(dt);
@@ -324,4 +465,157 @@ export class VFX {
       }
     }
   }
+}
+
+// ------------------------------------------------------------------ procedural decal textures (no image files)
+const canvasCache = new Map<string, THREE.Texture>();
+function canvasTex(key: string, size: number, draw: (g: CanvasRenderingContext2D, s: number) => void): THREE.Texture {
+  let t = canvasCache.get(key);
+  if (t) return t;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d')!;
+  draw(g, size);
+  t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  canvasCache.set(key, t);
+  return t;
+}
+
+/** Soft contact shadow under a figure. */
+export function blobTexture(): THREE.Texture {
+  return canvasTex('blob', 128, (g, s) => {
+    const r = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    r.addColorStop(0, 'rgba(0,0,0,0.85)');
+    r.addColorStop(0.45, 'rgba(0,0,0,0.55)');
+    r.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = r;
+    g.fillRect(0, 0, s, s);
+  });
+}
+
+/** Premium selection ring: crisp outer line, soft inner glow, four notches. White — tinted by the material. */
+export function ringTexture(): THREE.Texture {
+  return canvasTex('ring', 256, (g, s) => {
+    const c = s / 2;
+    const glow = g.createRadialGradient(c, c, s * 0.2, c, c, s * 0.46);
+    glow.addColorStop(0, 'rgba(255,255,255,0)');
+    glow.addColorStop(0.75, 'rgba(255,255,255,0.18)');
+    glow.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = glow;
+    g.fillRect(0, 0, s, s);
+    g.strokeStyle = 'rgba(255,255,255,1)';
+    g.lineWidth = s * 0.022;
+    g.beginPath();
+    g.arc(c, c, s * 0.405, 0, Math.PI * 2);
+    g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,0.55)';
+    g.lineWidth = s * 0.008;
+    g.beginPath();
+    g.arc(c, c, s * 0.355, 0, Math.PI * 2);
+    g.stroke();
+    g.fillStyle = 'rgba(255,255,255,1)';
+    for (let i = 0; i < 4; i++) {
+      g.save();
+      g.translate(c, c);
+      g.rotate((i * Math.PI) / 2 + Math.PI / 4);
+      g.beginPath();
+      g.moveTo(0, -s * 0.485);
+      g.lineTo(s * 0.03, -s * 0.425);
+      g.lineTo(0, -s * 0.395);
+      g.lineTo(-s * 0.03, -s * 0.425);
+      g.closePath();
+      g.fill();
+      g.restore();
+    }
+  });
+}
+
+/** Sector highlight: a rounded-square glow with a bright rim (tinted by the material). */
+export function plateGlowTexture(): THREE.Texture {
+  return canvasTex('plateglow', 256, (g, s) => {
+    const pad = s * 0.06;
+    const rr = s * 0.12;
+    const path = (inset: number) => {
+      const a = pad + inset;
+      const b = s - pad - inset;
+      g.beginPath();
+      g.moveTo(a + rr, a);
+      g.arcTo(b, a, b, b, rr);
+      g.arcTo(b, b, a, b, rr);
+      g.arcTo(a, b, a, a, rr);
+      g.arcTo(a, a, b, a, rr);
+      g.closePath();
+    };
+    const fill = g.createRadialGradient(s / 2, s / 2, s * 0.05, s / 2, s / 2, s * 0.62);
+    fill.addColorStop(0, 'rgba(255,255,255,0.28)');
+    fill.addColorStop(1, 'rgba(255,255,255,0.5)');
+    path(0);
+    g.fillStyle = fill;
+    g.fill();
+    g.lineWidth = s * 0.03;
+    g.strokeStyle = 'rgba(255,255,255,1)';
+    path(s * 0.015);
+    g.stroke();
+  });
+}
+
+/** Board sector top: worn limestone with a carved border and corner marks (white-ish; tinted per side). */
+export function plateTopTexture(): THREE.Texture {
+  return canvasTex('platetop', 256, (g, s) => {
+    // stone body with soft mottling
+    g.fillStyle = '#d9d4cc';
+    g.fillRect(0, 0, s, s);
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 260; i++) {
+      const x = rnd() * s;
+      const y = rnd() * s;
+      const r = 4 + rnd() * 26;
+      const a = 0.025 + rnd() * 0.05;
+      const grd = g.createRadialGradient(x, y, 0, x, y, r);
+      const dark = rnd() < 0.6;
+      grd.addColorStop(0, dark ? `rgba(60,52,44,${a})` : `rgba(255,250,240,${a})`);
+      grd.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = grd;
+      g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    // bevel shading towards the edges
+    const edge = g.createRadialGradient(s / 2, s / 2, s * 0.3, s / 2, s / 2, s * 0.75);
+    edge.addColorStop(0, 'rgba(0,0,0,0)');
+    edge.addColorStop(1, 'rgba(30,24,20,0.28)');
+    g.fillStyle = edge;
+    g.fillRect(0, 0, s, s);
+    // carved border: dark groove with a light lip below it
+    const inset = s * 0.11;
+    const rr = s * 0.06;
+    const rect = (o: number) => {
+      const a = inset + o;
+      const b = s - inset - o;
+      g.beginPath();
+      g.moveTo(a + rr, a);
+      g.arcTo(b, a, b, b, rr);
+      g.arcTo(b, b, a, b, rr);
+      g.arcTo(a, b, a, a, rr);
+      g.arcTo(a, a, b, a, rr);
+      g.closePath();
+    };
+    g.lineWidth = s * 0.016;
+    g.strokeStyle = 'rgba(255,250,240,0.35)';
+    rect(s * 0.008);
+    g.stroke();
+    g.strokeStyle = 'rgba(40,32,26,0.55)';
+    rect(0);
+    g.stroke();
+    // corner marks
+    g.fillStyle = 'rgba(40,32,26,0.45)';
+    for (const [x, y] of [[inset, inset], [s - inset, inset], [inset, s - inset], [s - inset, s - inset]]) {
+      g.save();
+      g.translate(x, y);
+      g.rotate(Math.PI / 4);
+      g.fillRect(-s * 0.018, -s * 0.018, s * 0.036, s * 0.036);
+      g.restore();
+    }
+  });
 }

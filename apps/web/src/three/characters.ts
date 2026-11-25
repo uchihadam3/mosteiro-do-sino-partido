@@ -24,6 +24,10 @@ export interface Rig {
   /** Per-prefab idle personality. */
   idle: { speed: number; sway: number; bob: number; hunch: number };
   weaponType?: string;
+  /** Fresnel rim light (set by the Diorama: team colour, pulses on the active figure). */
+  rim?: { color: THREE.Color; strength: { value: number } };
+  /** Death dissolve (0 = whole, 1 = gone) — skinned rigs burn away with glowing edges. */
+  dissolve?: { value: number };
   /** Skinned prefab animation controller (KayKit rig). */
   anim?: { play(key: string, opts?: { hold?: boolean; speed?: number }): number; setBase(key: string): void; update(dt: number): void; holding: boolean; map: Record<string, string | undefined> };
 }

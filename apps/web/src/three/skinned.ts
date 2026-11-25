@@ -36,7 +36,7 @@ export function clips(): Promise<Map<string, THREE.AnimationClip>> {
   return clipsP;
 }
 
-export type AnimKey = 'idle' | 'attack' | 'shoot' | 'cast' | 'raise' | 'hit' | 'block' | 'death' | 'fall' | 'down' | 'rise' | 'spawn' | 'walk' | 'cheer' | 'taunt' | 'use' | 'dodge';
+export type AnimKey = 'idle' | 'idle2' | 'attack' | 'shoot' | 'cast' | 'raise' | 'hit' | 'block' | 'death' | 'fall' | 'down' | 'rise' | 'spawn' | 'walk' | 'cheer' | 'taunt' | 'use' | 'dodge';
 
 export class AnimController {
   mixer: THREE.AnimationMixer;
@@ -104,6 +104,7 @@ export class AnimController {
 
 const SKELETON_ANIMS: Partial<Record<AnimKey, string>> = {
   idle: 'Idle',
+  idle2: 'Idle_B',
   attack: '1H_Melee_Attack_Chop',
   shoot: '1H_Ranged_Shoot',
   cast: 'Spellcast_Shoot',
@@ -121,6 +122,7 @@ const SKELETON_ANIMS: Partial<Record<AnimKey, string>> = {
 };
 const HERO_ANIMS: Partial<Record<AnimKey, string>> = {
   idle: 'Idle',
+  idle2: 'Idle_B',
   attack: '1H_Melee_Attack_Slice_Diagonal',
   shoot: '1H_Ranged_Shoot',
   cast: 'Spellcast_Shoot',
@@ -187,6 +189,8 @@ interface SkinnedSpec {
   prefab: string;
   scale: number;
   accent: number;
+  /** albedo lift (graded enemy palettes are very dark) */
+  bright?: number;
   right?: string | null; // accessory id or `proc:<weaponIcon>`
   left?: string | null;
   anims: Partial<Record<AnimKey, string>>;
@@ -212,6 +216,9 @@ export async function buildSkinned(spec: SkinnedSpec): Promise<Rig> {
   root.scale.setScalar(s);
   (root.userData as { rawH: number }).rawH = rawH;
   const mats: THREE.MeshStandardMaterial[] = [];
+  const rim = { color: new THREE.Color(0xffffff), strength: { value: 0 } };
+  const rimColor = { value: rim.color };
+  const dissolve = { value: 0 };
   model.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
@@ -219,8 +226,11 @@ export async function buildSkinned(spec: SkinnedSpec): Promise<Rig> {
     m.receiveShadow = true;
     m.frustumCulled = false;
     const mat = (m.material as THREE.MeshStandardMaterial).clone();
-    mat.roughness = 0.82;
+    mat.roughness = 0.78;
     mat.metalness = 0.05;
+    // the graded palettes are dark by design; a small lift keeps them readable in candlelit rooms
+    mat.color.multiplyScalar(spec.bright ?? 1.08);
+    withRim(mat, rimColor, rim.strength, dissolve);
     if (/Eyes/i.test(m.name) && spec.eyes !== undefined) {
       mat.emissive = new THREE.Color(spec.eyes);
       mat.emissiveIntensity = 3.2;
@@ -247,6 +257,7 @@ export async function buildSkinned(spec: SkinnedSpec): Promise<Rig> {
         if (m.isMesh) {
           m.castShadow = true;
           const mat = (m.material as THREE.MeshStandardMaterial).clone();
+          withRim(mat, rimColor, rim.strength, dissolve);
           mat.userData.baseEmissive = mat.emissive.clone();
           mat.userData.baseEmissiveIntensity = mat.emissiveIntensity;
           m.material = mat;
@@ -275,9 +286,68 @@ export async function buildSkinned(spec: SkinnedSpec): Promise<Rig> {
     extras: {},
     idle: spec.idle ?? { speed: 1, sway: 0, bob: 0, hunch: 0 },
     anim: new AnimController(model, lib, spec.anims),
+    rim,
+    dissolve,
   };
   spec.extras?.(rig, model);
   return rig;
+}
+
+/**
+ * Fresnel rim: a thin bright edge that separates the figure from the room (team colour, set by the Diorama).
+ * Strongest on the upper silhouette, like a back light catching shoulders and helmets.
+ */
+export function withRim(mat: THREE.MeshStandardMaterial, color: { value: THREE.Color }, strength: { value: number }, dissolve?: { value: number }) {
+  const dis = dissolve ?? { value: 0 };
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uRimColor = color;
+    sh.uniforms.uRimStrength = strength;
+    sh.uniforms.uDissolve = dis;
+    sh.vertexShader = sh.vertexShader
+      .replace('void main() {', 'varying vec3 vDisPos;\nvoid main() {')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvDisPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace(
+        'void main() {',
+        `uniform vec3 uRimColor;
+        uniform float uRimStrength;
+        uniform float uDissolve;
+        varying vec3 vDisPos;
+        float disHash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+        float disNoise(vec3 x){ vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(mix(disHash(i), disHash(i + vec3(1,0,0)), f.x), mix(disHash(i + vec3(0,1,0)), disHash(i + vec3(1,1,0)), f.x), f.y),
+                     mix(mix(disHash(i + vec3(0,0,1)), disHash(i + vec3(1,0,1)), f.x), mix(disHash(i + vec3(0,1,1)), disHash(i + vec3(1,1,1)), f.x), f.y), f.z); }
+        void main() {
+          float disN = 0.0;
+          if (uDissolve > 0.0) {
+            disN = disNoise(vDisPos * 5.0) * 0.65 + disNoise(vDisPos * 13.0) * 0.35;
+            // burn from the top down a little faster than from the feet
+            disN = disN * 0.85 + clamp(1.0 - vDisPos.y * 0.25, 0.0, 1.0) * 0.15;
+            if (disN < uDissolve) discard;
+          }`,
+      )
+      .replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+      { vec3 rn = normalize(normal); vec3 rv = normalize(vViewPosition);
+        float fr = pow(1.0 - clamp(dot(rn, rv), 0.0, 1.0), 2.4);
+        totalEmissiveRadiance += uRimColor * fr * uRimStrength * (0.45 + 0.55 * clamp(rn.y * 0.6 + 0.5, 0.0, 1.0));
+        if (uDissolve > 0.0) totalEmissiveRadiance += vec3(3.0, 1.3, 0.35) * smoothstep(uDissolve + 0.09, uDissolve, disN); }`,
+      );
+  };
+  mat.customProgramCacheKey = () => 'figrim2';
+}
+
+/** Projectile meshes (the KayKit arrow) for shots; null when unavailable. */
+export async function projectileModel(kind: 'arrow'): Promise<THREE.Object3D | null> {
+  const m = await accessory(kind);
+  if (!m) return null;
+  // the accessory points along +Y; aim it along +Z (lookAt forward)
+  const holder = new THREE.Group();
+  m.rotation.x = Math.PI / 2;
+  m.scale.setScalar(0.9);
+  holder.add(m);
+  return holder;
 }
 
 // ------------------------------------------------------------------ prefab table
@@ -347,6 +417,7 @@ export async function buildEnemySkinned(type: string): Promise<Rig> {
   const skeleton = sp.prefab.includes('penitente') || ['besteiro', 'escudeiro', 'acolito', 'turiferario', 'cantor', 'vigia'].includes(type);
   const base = skeleton ? SKELETON_ANIMS : HERO_ANIMS;
   return buildSkinned({
+    bright: 1.22,
     ...sp,
     anims: { ...base, ...(sp.anims ?? {}) },
     kind: type === 'vigia' || type === 'cantor' ? 'specter' : 'humanoid',
