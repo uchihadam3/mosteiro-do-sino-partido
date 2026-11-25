@@ -7,6 +7,7 @@ import { SettingsModal, Sheet } from './Settings';
 import { Icon } from './Icon';
 import { toast } from './Toasts';
 import { RulesModal } from './Rules';
+import { resetTutorial } from '../tutorial';
 import './menus.css';
 
 function Row({ icon, label, sub, onClick, danger }: { icon: string; label: string; sub?: string; onClick(): void; danger?: boolean }) {
@@ -66,6 +67,16 @@ export function PauseMenu({ onClose }: { onClose(): void }) {
       <div className="m-rows">
         {s.role !== 'client' && <Row icon="save" label="Salvar" sub="Guardar num dos 3 slots" onClick={() => setView('save')} />}
         <Row icon="info" label="Regras" sub="Referência rápida" onClick={() => setView('rules')} />
+        <Row
+          icon="tempo_rapido"
+          label="Rever tutorial"
+          sub="O mentor ensina de novo, passo a passo"
+          onClick={() => {
+            resetTutorial();
+            toast('O tutorial volta na próxima batalha.', 'info');
+            onClose();
+          }}
+        />
         <Row icon="settings" label="Configurações" sub="Som, imagem e acessibilidade" onClick={() => setView('settings')} />
         {s.state && <Row icon="load" label="Exportar save" sub="Baixar arquivo .json" onClick={() => exportSave(s.state!)} />}
         <Row icon="back" label="Sair para o menu" sub="Seu progresso fica salvo" danger onClick={() => void quit()} />

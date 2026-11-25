@@ -1,0 +1,196 @@
+/* ==========================================================================
+   Interactive tutorial: spotlight + pointing hand + one line from the mentor.
+   ========================================================================== */
+.tut {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  font-family: var(--font-ui);
+}
+.tut-scrim {
+  position: absolute;
+  inset: 0;
+  animation: tutFade 0.35s ease both;
+}
+.tut-block {
+  position: absolute;
+  pointer-events: auto;
+  background: transparent;
+}
+.tut-block.tap-next {
+  cursor: pointer;
+}
+.tut-ring {
+  position: absolute;
+  border-radius: 16px;
+  border: 2px solid #ffe08a;
+  box-shadow: 0 0 0 4px rgba(255, 224, 138, 0.18), 0 0 26px rgba(255, 210, 110, 0.65), inset 0 0 18px rgba(255, 210, 110, 0.25);
+  animation: tutPulse 1.25s ease-in-out infinite;
+  pointer-events: none;
+}
+.tut-ring.round {
+  border-radius: 50%;
+}
+.tut-hand {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  margin-left: -22px;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 8px rgba(255, 210, 110, 0.6));
+}
+.tut-hand svg {
+  width: 100%;
+  height: 100%;
+  fill: #ffe08a;
+  stroke: #6b4a14;
+  stroke-width: 1.5;
+}
+.tut-hand[data-up='0'] {
+  animation: tutBobUp 0.9s ease-in-out infinite;
+}
+.tut-hand[data-up='1'] {
+  margin-top: -44px;
+  transform: rotate(180deg);
+  animation: tutBobDown 0.9s ease-in-out infinite;
+}
+.tut-bubble {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(460px, calc(100vw - 20px));
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgba(44, 35, 28, 0.97), rgba(16, 12, 11, 0.98));
+  border: 1px solid rgba(255, 224, 138, 0.45);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 24px rgba(255, 210, 110, 0.18);
+  pointer-events: auto;
+  animation: tutIn 0.3s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+}
+.tut-bubble.top {
+  top: calc(env(safe-area-inset-top, 0px) + 64px);
+}
+.tut-bubble.bottom {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+}
+.tut.is-tip .tut-bubble.bottom {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 170px);
+}
+.tut-mentor {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.tut-mentor .face {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 40% 30%, #4a3a2a, #140f0d 75%);
+  border: 2px solid #c8a75e;
+  color: #ffe08a;
+  box-shadow: 0 0 14px rgba(230, 190, 110, 0.4);
+  overflow: hidden;
+}
+.tut-mentor .face .ico {
+  width: 30px;
+  height: 30px;
+}
+.tut-mentor .face svg:not(.ico) {
+  width: 100%;
+  height: 100%;
+}
+.tut-mentor .nm {
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  white-space: nowrap;
+}
+.tut-bubble .txt {
+  flex: 1;
+  min-width: 0;
+}
+.tut-bubble p {
+  margin: 2px 0 8px;
+  font-size: 16px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+.tut-bubble .row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.tut-ok {
+  min-height: 38px;
+  padding: 0 18px;
+  border-radius: 12px;
+  border: 1px solid #f3dfa2;
+  background: linear-gradient(180deg, #e8cc85, #b88a3e);
+  color: #1d140a;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.tut-skip {
+  background: none;
+  border: 0;
+  color: var(--ink-4);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  margin-right: auto;
+}
+@keyframes tutFade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes tutIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px) scale(0.96);
+  }
+}
+@keyframes tutPulse {
+  50% {
+    box-shadow: 0 0 0 9px rgba(255, 224, 138, 0.08), 0 0 36px rgba(255, 210, 110, 0.85), inset 0 0 18px rgba(255, 210, 110, 0.35);
+  }
+}
+@keyframes tutBobUp {
+  50% {
+    transform: translateY(8px);
+  }
+}
+@keyframes tutBobDown {
+  0%,
+  100% {
+    transform: rotate(180deg) translateY(0);
+  }
+  50% {
+    transform: rotate(180deg) translateY(8px);
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .tut-bubble {
+    width: min(420px, 46vw);
+    left: auto;
+    right: 10px;
+    transform: none;
+    animation: tutFade 0.3s ease both;
+  }
+  .tut-bubble p {
+    font-size: 14px;
+  }
+}

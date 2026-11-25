@@ -32,9 +32,9 @@ for (const vp of VIEWPORTS) {
       await expectNoPageScroll(page);
       // Every hero portrait and every Tempo button stays inside the viewport.
       await expect(page.locator('.rotate-hint')).toHaveCount(0);
-      const cards = page.locator('.g-port, .g-tempo-btn');
+      const cards = page.locator('.g-port');
       const n = await cards.count();
-      expect(n).toBe(8);
+      expect(n).toBe(5);
       for (let i = 0; i < n; i++) {
         const b = await cards.nth(i).boundingBox();
         expect(b, `hero card ${i}`).not.toBeNull();

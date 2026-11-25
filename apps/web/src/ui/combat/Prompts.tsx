@@ -3,7 +3,7 @@
  * Rules detail is available behind "O que faz" only.
  */
 import React, { useEffect, useState } from 'react';
-import { type CombatState, type Pending, type PendingAnswer } from '@mosteiro/core';
+import { probAtLeastOneSuccess, expectedSuccesses, type CombatState, type Grade, type Pending, type PendingAnswer } from '@mosteiro/core';
 import { useSession } from '../../app/hooks';
 import { Icon } from '../Icon';
 import { ATTR_NAME } from '../data';
@@ -236,6 +236,11 @@ function Defense({ p, S }: { p: Extract<Pending, { kind: 'defense' }>; S: Combat
     else setChosen([...chosen.filter((c) => c.heroId !== o.heroId), { heroId: o.heroId, kind: o.kind }]);
   };
   const pv = p.preview;
+  // odds with the dice as they are now (+ the D4s from the help being toggled)
+  const grades = [...p.d.dice.map((d) => d.grade), ...chosen.filter((c) => p.options.find((o) => o.heroId === c.heroId && o.kind === c.kind)?.addDie).map(() => 4)].slice(0, 3) as Grade[];
+  const pBlock = Math.round(probAtLeastOneSuccess(grades) * 100);
+  const expBlock = expectedSuccesses(grades);
+  const label = (o: (typeof p.options)[number]) => (o.kind === 'ajuda' ? (o.heroId === t.id ? 'Esforço extra · +1 dado' : `Ajuda de ${S.figures.find((f) => f.id === o.heroId)?.name ?? ''} · +1 dado`) : o.label);
   const extra = [...p.d.attack.onZero.map((e) => (e.kind === 'cond' ? condName(e.cond) : e.kind)), ...p.d.attack.onDamage.map((e) => (e.kind === 'cond' ? condName(e.cond) : e.kind === 'push' ? 'Empurrar' : e.kind === 'pull' ? 'Puxar' : ''))].filter(Boolean);
   return (
     <Sheet label="Defesa">
@@ -250,16 +255,23 @@ function Defense({ p, S }: { p: Extract<Pending, { kind: 'defense' }>; S: Combat
         {pv.cover && <span className="good">Cobertura −1</span>}
         {extra.length > 0 && <span className="bad">Risco: {[...new Set(extra)].join(', ')}</span>}
       </div>
+      <div className="g-odds">
+        <div className={`v ${pBlock >= 70 ? 'good' : pBlock < 45 ? 'bad' : ''}`}>{pBlock}%</div>
+        <div className="t">
+          de bloquear algum dano
+          <small>cada sucesso bloqueia 1 · média {expBlock.toFixed(1)}</small>
+        </div>
+      </div>
       {p.options.length > 0 && (
         <>
-          <div className="sub">Ajudar com uma Reação ({dice}/3 dados)</div>
+          <div className="sub">Gastar a Reação para rolar mais dados ({dice}/3)</div>
           <div className="opts">
             {p.options.map((o) => {
               const on = chosen.some((c) => c.heroId === o.heroId && c.kind === o.kind);
               const mine = s.controls(o.heroId);
               return (
                 <button key={o.heroId + o.kind} className={`opt ${on ? 'on' : ''}`} disabled={!mine || (!on && dice >= 3 && !!o.addDie)} onClick={() => toggle(o)}>
-                  {o.label}
+                  {label(o)}
                   {!mine && <small>de outro jogador</small>}
                 </button>
               );

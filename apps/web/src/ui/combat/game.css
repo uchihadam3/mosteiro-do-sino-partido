@@ -1205,3 +1205,374 @@
     animation: gSlideUp 0.28s cubic-bezier(0.2, 0.9, 0.3, 1) both;
   }
 }
+
+/* ------------------------------------------------------------------ attack forecast */
+.g-forecast {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-b) + var(--port) + 46px);
+  transform: translateX(-50%);
+  width: min(420px, calc(100vw - 20px));
+  padding: 10px 12px 12px;
+  border-radius: 18px;
+  background: linear-gradient(170deg, rgba(48, 18, 15, 0.94), rgba(14, 10, 10, 0.96));
+  border: 1px solid rgba(239, 139, 124, 0.55);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6), 0 0 26px rgba(194, 70, 58, 0.25);
+  z-index: 12;
+  animation: gFcIn 0.22s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+}
+.g-fc-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+}
+.g-fc-head .who {
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: #ffd3c9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 44vw;
+}
+.g-fc-head .hp {
+  position: relative;
+  height: 9px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.g-fc-head .hp i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #b5352b, #e0574a);
+}
+.g-fc-head .hp i.loss {
+  background: repeating-linear-gradient(135deg, #ffe08a 0 4px, #f0a648 4px 8px);
+  animation: gBlink 0.9s ease-in-out infinite;
+}
+.g-fc-head .hpn {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.g-fc-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 10px 0 8px;
+}
+.g-fc-stats .st {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 4px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.g-fc-stats .st b {
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 1.05;
+  color: var(--ink);
+}
+.g-fc-stats .st small {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.g-fc-stats .st.good b {
+  color: #bff0a8;
+}
+.g-fc-stats .st.bad b {
+  color: #ffb0a2;
+}
+.g-fc-alts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  justify-content: center;
+}
+.g-fc-go {
+  width: 100%;
+  min-width: 0;
+  background: linear-gradient(180deg, #e66a52, #9c2a20) !important;
+  border-color: #ffc7a0 !important;
+  color: #fff3e0 !important;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55), 0 0 26px rgba(230, 90, 60, 0.45) !important;
+}
+@keyframes gFcIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 18px) scale(0.96);
+  }
+}
+@keyframes gBlink {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* ------------------------------------------------------------------ turn call-outs */
+.g-callout {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 34%;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(30px, 9vw, 60px);
+  letter-spacing: 0.06em;
+  pointer-events: none !important;
+  animation: gCallout 1.3s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  z-index: 9;
+}
+.g-callout.hero {
+  color: #ffe9b0;
+  text-shadow: 0 4px 22px #000, 0 0 34px rgba(240, 200, 110, 0.65);
+}
+.g-callout.enemy {
+  color: #ffb0a0;
+  text-shadow: 0 4px 22px #000, 0 0 34px rgba(230, 80, 60, 0.6);
+}
+.g-callout::before,
+.g-callout::after {
+  content: '';
+  display: block;
+  height: 2px;
+  margin: 0 auto;
+  width: min(70vw, 420px);
+  background: linear-gradient(90deg, transparent, currentColor, transparent);
+  opacity: 0.6;
+}
+.g-callout::before {
+  margin-bottom: 8px;
+}
+.g-callout::after {
+  margin-top: 8px;
+}
+@keyframes gCallout {
+  0% {
+    opacity: 0;
+    transform: scale(1.25);
+    filter: blur(6px);
+  }
+  18% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+}
+
+/* ------------------------------------------------------------------ enemy acting */
+.g-enemy-turn {
+  position: absolute;
+  top: calc(var(--safe-t) + 58px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(40, 10, 8, 0.86);
+  border: 1px solid rgba(239, 139, 124, 0.6);
+  box-shadow: 0 0 20px rgba(194, 70, 58, 0.35);
+  white-space: nowrap;
+  max-width: calc(100vw - 24px);
+  pointer-events: none !important;
+  animation: gDrop 0.25s ease both;
+}
+.g-enemy-turn .who {
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: #ffd3c9;
+}
+.g-enemy-turn .what {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #ffb5a6;
+}
+.g-enemy-turn .what .ico {
+  width: 15px;
+  height: 15px;
+}
+
+/* ------------------------------------------------------------------ tempo summary (everyone preset) */
+.g-tempo-sum {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.g-tempo-sum .chip-t {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 40% 30%, #3a302a, #120e0d 75%);
+  border: 2px solid color-mix(in srgb, var(--acc) 70%, #000);
+}
+.g-tempo-sum .chip-t .cls {
+  width: 22px;
+  height: 22px;
+  color: var(--acc);
+}
+.g-tempo-sum .chip-t .tmp {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 20px;
+  height: 20px;
+  padding: 2px;
+  border-radius: 50%;
+  background: #1b1512;
+  border: 1px solid var(--gold);
+}
+.g-tempo-sum .chip-t.t-rapido .tmp {
+  color: #9fd6ff;
+}
+.g-tempo-sum .chip-t.t-tatico .tmp {
+  color: var(--gold-2);
+}
+.g-tempo-sum .chip-t.t-pesado .tmp {
+  color: #ff9f86;
+}
+.g-tempo-sum .lbl {
+  width: 100%;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-3);
+  text-shadow: 0 1px 4px #000;
+}
+
+@media (max-height: 500px) and (min-aspect-ratio: 19/10) {
+  .g-forecast {
+    left: auto;
+    right: 8px;
+    bottom: 8px;
+    transform: none;
+    width: 44%;
+    animation: gFade0 0.2s ease both;
+  }
+  .g-callout,
+  .g-enemy-turn {
+    left: 0;
+    right: 44%;
+    transform: none;
+    margin: 0 auto;
+    width: max-content;
+  }
+}
+
+/* ------------------------------------------------------------------ threat arcs */
+.g-threats {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none !important;
+  z-index: 1;
+  overflow: visible;
+}
+.g-threats .th path {
+  fill: none;
+  stroke: rgba(255, 96, 70, 0.8);
+  stroke-width: 2.2;
+  stroke-dasharray: 7 6;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px rgba(255, 70, 40, 0.7));
+  animation: gDash 0.9s linear infinite;
+}
+.g-threats .th.t-rapido path {
+  stroke: rgba(120, 200, 255, 0.85);
+  filter: drop-shadow(0 0 4px rgba(90, 170, 255, 0.7));
+}
+.g-threats .th.t-pesado path {
+  stroke-width: 3.2;
+}
+.g-threats .th circle {
+  fill: #3a0d09;
+  stroke: #ff7a5c;
+  stroke-width: 1.5;
+}
+.g-threats .th.t-rapido circle {
+  stroke: #8fd0ff;
+}
+.g-threats .th text {
+  fill: #ffe0d6;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+}
+@keyframes gDash {
+  to {
+    stroke-dashoffset: -26;
+  }
+}
+.g-port .threat {
+  position: absolute;
+  top: calc(var(--port) * 0.32);
+  right: -2px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #b8261c;
+  border: 1px solid #ffb09a;
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 16px;
+  box-shadow: 0 0 10px rgba(230, 60, 40, 0.7);
+  animation: gBlink 1.4s ease-in-out infinite;
+}
+
+/* defense odds */
+.g-hud .prompt .g-odds {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 6px 0 4px;
+}
+.g-hud .prompt .g-odds .v {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 30px;
+  color: var(--gold-2);
+  transition: color 0.2s;
+}
+.g-hud .prompt .g-odds .v.good {
+  color: #bff0a8;
+}
+.g-hud .prompt .g-odds .v.bad {
+  color: #ffb0a2;
+}
+.g-hud .prompt .g-odds .t {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  color: var(--ink);
+}
+.g-hud .prompt .g-odds small {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}

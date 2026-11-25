@@ -1,3 +1,4 @@
+import { setTutorialEnabled, tutorialEnabled } from '../tutorial';
 import React from 'react';
 import { useSettings } from '../app/hooks';
 import { setSettings, type Settings } from '../state/settings';
@@ -108,6 +109,7 @@ export function SettingsModal({ onClose }: { onClose(): void }) {
             {slider('sfx', 'Efeitos', 'act_attack_melee')}
             {slider('ambience', 'Ambiência', 'loc_claustro')}
             {toggle('subtitles', 'Legendas de áudio', 'info')}
+            <TutorialSwitch />
           </div>
         </div>
         <div className="m-set-group">
@@ -138,5 +140,29 @@ export function SettingsModal({ onClose }: { onClose(): void }) {
         </button>
       )}
     </Sheet>
+  );
+}
+
+/** The interactive tutorial lives outside the Settings object (per device progress in the tutorial module). */
+function TutorialSwitch() {
+  const [on, setOn] = React.useState(tutorialEnabled);
+  return (
+    <div className="m-set-row">
+      <Icon id="info" />
+      <span className="l">
+        Tutorial interativo
+        <small>O mentor mostra o que fazer, passo a passo</small>
+      </span>
+      <button
+        role="switch"
+        aria-checked={on}
+        aria-label="Tutorial interativo"
+        className={`m-switch ${on ? 'on' : ''}`}
+        onClick={() => {
+          setTutorialEnabled(!on);
+          setOn(!on);
+        }}
+      />
+    </div>
   );
 }

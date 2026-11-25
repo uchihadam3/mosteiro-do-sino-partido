@@ -5,7 +5,7 @@
  * Everything else (log, details, rules text) stays out of the way until asked for.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { actionAvailability, actionTargets, ctxOf, dungeon, intentFor, reg, type ActionDef, type Band, type CombatState, type DomainEvent, type Figure, type SectorKey, type Tempo } from '@mosteiro/core';
+import { actionAvailability, actionTargets, ctxOf, dungeon, expectedSuccesses, intentFor, probAtLeastOneSuccess, reg, type ActionDef, type Band, type CombatState, type DomainEvent, type Figure, type Grade, type SectorKey, type Tempo } from '@mosteiro/core';
 import { useSession } from '../../app/hooks';
 import { useApp } from '../../app/App';
 import { Icon } from '../Icon';
@@ -61,13 +61,20 @@ export function GameHUD() {
   const [deploySel, setDeploySel] = useState<string | null>(null);
   const [tempoHero, setTempoHero] = useState<string | null>(null);
   const [areaFirst, setAreaFirst] = useState<SectorKey | null>(null);
+  const [forecast, setForecast] = useState<{ targetId: string; defId: string } | null>(null);
+  const [callout, setCallout] = useState<{ text: string; kind: 'hero' | 'enemy'; key: number } | null>(null);
+  const lastTempo = useRef<Record<string, Tempo>>({});
+  const presetCycle = useRef(-1);
   const rollKey = useRef(0);
 
   const heroes = S.figures.filter((f) => f.side === 'H');
   const mineActive = heroes.filter((h) => h.status === 'active' && s.controls(h.id));
   const band = BAND_INFO.find((b) => b.b === S.band);
 
-  useEffect(() => setSel(null), [S.activeId, S.phase, S.pending?.id]);
+  useEffect(() => {
+    setSel(null);
+    setForecast(null);
+  }, [S.activeId, S.phase, S.pending?.id]);
   useEffect(() => setAreaFirst(null), [sel]);
   useEffect(() => {
     if (enc && S.cycle <= 1 && S.phase === 'tempo') {
@@ -88,6 +95,8 @@ export function GameHUD() {
   }, [S.phase, S.cycle]);
 
   const targets = useMemo(() => (sel && heroActive ? actionTargets(c, heroActive, sel.def) : null), [sel, heroActive, c]);
+  const threats = useMemo(() => predictThreats(S), [S]);
+  const showThreats = !S.pending && !S.result && (S.phase === 'tempo' || S.phase === 'heroBand' || S.phase === 'heroActing');
 
   const fire = (x: { targetIds?: string[]; sector?: SectorKey; sectors?: SectorKey[] }) => {
     if (!sel || !heroActive) return;
@@ -95,6 +104,22 @@ export function GameHUD() {
       if (!err) audio.play('ui_confirm', { volume: 0.4 });
     });
     setSel(null);
+  };
+
+  const attackNow = (defId: string, targetId: string) => {
+    if (!heroActive) return;
+    const def = actionAvailability(c, heroActive).find((a) => a.def.id === defId && !a.reason)?.def;
+    setForecast(null);
+    if (!def) return;
+    const opts = def.options?.(c, heroActive) ?? [];
+    if (opts.length && !(def.id.startsWith('a_') && opts.every((o) => o.id.startsWith('sobrecarga')))) {
+      // this attack needs a choice first: open its picker with the target already known
+      setSel({ def });
+      return;
+    }
+    void act({ t: 'combat', cmd: { t: 'action', actionId: def.id, figureId: heroActive.id, pre: [...pre], targetIds: [targetId] } }).then((err) => {
+      if (!err) audio.play('ui_confirm', { volume: 0.45 });
+    });
   };
 
   // ---- taps on the board (figures and sectors)
@@ -120,6 +145,17 @@ export function GameHUD() {
     if (S.phase === 'heroBand' && f.side === 'H' && s.controls(f.id) && f.tempo === band?.tempo && !f.acted) {
       void act({ t: 'combat', cmd: { t: 'activate', figureId: f.id } });
       return;
+    }
+    // the hero's turn: tapping an enemy shows what the best attack would do (then one tap to confirm)
+    if (heroActive && canAct && f.side === 'E' && f.status === 'active') {
+      const options = attacksOn(c, heroActive, id);
+      if (options.length) {
+        audio.play('ui_click', { volume: 0.45 });
+        setForecast(forecast?.targetId === id ? null : { targetId: id, defId: options[0].id });
+        return;
+      }
+      const why = actionAvailability(c, heroActive).find((a) => (a.def.kind === 'attack' || a.def.kind === 'spell') && a.reason)?.reason;
+      toast(why ? `Não dá para atacar: ${why}` : 'Fora de alcance — aproxime-se primeiro.', 'error');
     }
     // anything else: look at it
     setInspect(id);
@@ -212,8 +248,56 @@ export function GameHUD() {
       }
     if (p?.kind === 'defense') h.figures.set(p.d.targetId, 'attack');
     if (inspect) h.figures.set(inspect, h.figures.get(inspect) ?? 'intent');
+    if (forecast) h.figures.set(forecast.targetId, 'attack');
+    // the hero's turn with nothing chosen yet: every enemy that can be attacked right now glows
+    if (heroActive && canAct && !sel && !forecast && !S.pending) for (const e of S.figures) if (e.side === 'E' && e.status === 'active' && attacksOn(c, heroActive, e.id).length) h.figures.set(e.id, 'attack');
     diorama.setHighlight(h);
-  }, [diorama, targets, sel, S, areaFirst, deploySel, tempoHero, inspect]);
+  }, [diorama, targets, sel, S, areaFirst, deploySel, tempoHero, inspect, forecast]);
+
+  // ---- automatic flow: the game never waits for a tap that has only one possible answer
+  // only one hero can act in this band → activate it
+  useEffect(() => {
+    if (S.phase !== 'heroBand' || S.pending) return;
+    const elig = heroes.filter((h) => h.status === 'active' && !h.acted && h.tempo === band?.tempo && s.controls(h.id));
+    if (elig.length !== 1) return;
+    const t = setTimeout(() => void act({ t: 'combat', cmd: { t: 'activate', figureId: elig[0].id } }), 450);
+    return () => clearTimeout(t);
+  }, [S.phase, S.band, S.pending?.id, heroes.map((h) => `${h.id}${h.acted}`).join()]);
+  // nothing left to do (no AP / no valid action) → end the activation
+  const avail = heroActive && canAct ? actionAvailability(c, heroActive) : [];
+  const stuck = !!heroActive && canAct && !S.pending && !sel && avail.length > 0 && avail.every((a) => a.reason);
+  useEffect(() => {
+    if (!stuck || !heroActive) return;
+    const id = heroActive.id;
+    const t = setTimeout(() => void act({ t: 'combat', cmd: { t: 'end', figureId: id } }), 1100);
+    return () => clearTimeout(t);
+  }, [stuck, heroActive?.id, S.logSeq]);
+  // Tempo: everybody starts with the rhythm they used last time (Tático the first time) — one tap on "Lutar!"
+  useEffect(() => {
+    if (S.phase !== 'tempo' || S.pending || presetCycle.current === S.cycle) return;
+    presetCycle.current = S.cycle;
+    const missing = mineActive.filter((h) => !h.tempo);
+    void (async () => {
+      for (const h of missing) await act({ t: 'combat', cmd: { t: 'tempo', figureId: h.id, tempo: lastTempo.current[h.id] ?? 'tatico' } });
+    })();
+    setTempoHero(null);
+  }, [S.phase, S.cycle, S.pending?.id]);
+  useEffect(() => {
+    for (const h of heroes) if (h.tempo) lastTempo.current[h.id] = h.tempo;
+  }, [heroes.map((h) => h.tempo).join()]);
+  // big "your turn / enemies' turn" call-outs when the band changes
+  useEffect(() => {
+    if (S.phase === 'tempo' || S.phase === 'deploy' || S.result) return;
+    const b = BAND_INFO.find((x) => x.b === S.band);
+    if (!b) return;
+    if (b.side === 'h' && heroes.some((h) => h.tempo === b.tempo && h.status === 'active' && s.controls(h.id))) setCallout({ text: 'Sua vez!', kind: 'hero', key: Date.now() });
+    else if (b.side === 'e' && S.typeOrder.some((t) => intentFor(S, t)?.tempo === b.tempo && S.figures.some((f) => f.typeId === t && f.side === 'E' && f.status === 'active'))) setCallout({ text: 'Vez dos inimigos', kind: 'enemy', key: Date.now() });
+  }, [S.band, S.cycle]);
+  useEffect(() => {
+    if (!callout) return;
+    const t = setTimeout(() => setCallout(null), 1300);
+    return () => clearTimeout(t);
+  }, [callout?.key]);
 
   const choose = (def: ActionDef, option?: string) => {
     if (!heroActive) return;
@@ -250,8 +334,9 @@ export function GameHUD() {
     if (S.phase === 'deploy') return deploySel ? 'Toque num lugar brilhando' : 'Toque num herói para trocá-lo de lugar';
     if (S.phase === 'tempo') return null;
     if (S.phase === 'heroBand') return heroes.some((h) => h.tempo === band?.tempo && !h.acted && s.controls(h.id)) ? 'Toque no herói que vai agir' : 'Outro jogador escolhe…';
-    if (S.phase === 'enemyBand') return 'Vez dos inimigos';
+    if (S.phase === 'enemyBand') return null;
     if (heroActive && !canAct) return `${heroActive.name} está agindo…`;
+    if (heroActive && canAct && !sel && !forecast) return stuck ? `${heroActive.name} terminou` : 'Toque num inimigo brilhando para atacar';
     return null;
   })();
 
@@ -267,6 +352,7 @@ export function GameHUD() {
         </div>
       )}
 
+      {showThreats && diorama && <ThreatLines threats={threats} diorama={diorama} />}
       <div className="g-bottom">
         {S.phase === 'deploy' && !S.pending && (
           <button className="g-cta" onClick={() => void act({ t: 'combat', cmd: { t: 'start' } }).then((e) => !e && audio.play('cycle_start', { volume: 0.6 }))}>
@@ -274,10 +360,17 @@ export function GameHUD() {
           </button>
         )}
         {S.phase === 'tempo' && !S.pending && <TempoPicker S={S} heroId={tempoHero} setHero={setTempoHero} />}
-        {heroActive && canAct && !S.pending && <ActionWheel f={heroActive} S={S} sel={sel} pre={pre} setPre={setPre} onPick={choose} onEnd={() => void act({ t: 'combat', cmd: { t: 'end', figureId: heroActive.id } })} />}
-        <Dock S={S} heroes={heroes} tempoHero={tempoHero} onTap={(id) => handlers.current.fig(id)} />
+        {heroActive && canAct && !S.pending && !forecast && <ActionWheel f={heroActive} S={S} sel={sel} pre={pre} setPre={setPre} onPick={choose} onEnd={() => void act({ t: 'combat', cmd: { t: 'end', figureId: heroActive.id } })} />}
+        <Dock S={S} heroes={heroes} tempoHero={tempoHero} incoming={showThreats ? incomingDamage(threats) : {}} onTap={(id) => handlers.current.fig(id)} />
       </div>
 
+      {forecast && heroActive && !S.pending && !sel && <Forecast S={S} hero={heroActive} targetId={forecast.targetId} defId={forecast.defId} pre={pre} onPick={(defId) => setForecast({ ...forecast, defId })} onConfirm={() => attackNow(forecast.defId, forecast.targetId)} onCancel={() => setForecast(null)} />}
+      {callout && (
+        <div key={callout.key} className={`g-callout ${callout.kind}`}>
+          {callout.text}
+        </div>
+      )}
+      {S.phase === 'enemyBand' && active && active.side === 'E' && !S.pending && <EnemyActing S={S} f={active} />}
       {sel && heroActive && <TargetBar sel={sel} f={heroActive} S={S} areaFirst={areaFirst} onOption={(o) => setSel({ ...sel, option: o })} onCancel={() => setSel(null)} onFire={() => fire({})} />}
       {S.pending && <PendingPrompt S={S} />}
       {roll && <DiceBurst key={roll.key} ev={roll} />}
@@ -290,6 +383,214 @@ export function GameHUD() {
       {log && <LogSheet S={S} onClose={() => setLog(false)} />}
       {pause && <PauseMenu onClose={() => setPause(false)} />}
     </div>
+  );
+}
+
+// ------------------------------------------------------------------ attack forecast (tap an enemy → see the odds → confirm)
+type Ctx = ReturnType<typeof ctxOf>;
+/** Attacks the hero can use on that enemy right now, best first (weapon attack, then techniques, then spells). */
+function attacksOn(c: Ctx, hero: Figure, targetId: string): ActionDef[] {
+  const order = (d: ActionDef) => (d.kind === 'attack' ? 0 : d.kind === 'spell' ? 1 : 2);
+  return actionAvailability(c, hero)
+    .filter((a) => !a.reason && (a.def.kind === 'attack' || a.def.kind === 'spell') && a.def.targeting.type === 'enemy')
+    .filter((a) => {
+      try {
+        return actionTargets(c, hero, a.def).figures.includes(targetId);
+      } catch {
+        return false;
+      }
+    })
+    .map((a) => a.def)
+    .sort((a, b) => order(a) - order(b));
+}
+
+/** Chance to hit (≥1 success) and the likely damage after armour, from the dice the attack rolls. */
+function odds(c: Ctx, hero: Figure, def: ActionDef, target: Figure, pre: string[]) {
+  const pv = def.preview?.(c, hero);
+  const attrs = pv?.dice ?? [];
+  const grades = attrs.map((a) => ((hero.attrs as unknown as Record<string, number>)?.[a] ?? 6) as Grade);
+  if (pre.includes('pesado') && hero.tempo === 'pesado' && grades.length) {
+    const i = grades.indexOf(Math.min(...grades) as Grade);
+    grades[i] = Math.min(12, grades[i] + 2) as Grade;
+  }
+  if (target.conditions.exposto && grades.length) {
+    const i = grades.indexOf(Math.min(...grades) as Grade);
+    grades[i] = Math.min(12, grades[i] + 2) as Grade;
+  }
+  if (!grades.length) return null;
+  const hit = probAtLeastOneSuccess(grades);
+  const exp = expectedSuccesses(grades);
+  const armor = target.conditions.quebrado ? 0 : target.armor + (target.conditions.armaduraExtra ?? 0);
+  const base = pv?.dano ?? 1;
+  const succIfHit = hit > 0 ? exp / hit : 0;
+  const dmg = Math.max(0, Math.round(base + Math.max(0, succIfHit - 1) - armor));
+  return { hit, dmg, armor, kills: dmg >= target.hp };
+}
+
+function Forecast({ S, hero, targetId, defId, pre, onPick, onConfirm, onCancel }: { S: CombatState; hero: Figure; targetId: string; defId: string; pre: string[]; onPick(id: string): void; onConfirm(): void; onCancel(): void }) {
+  const c = ctxOf(S);
+  const target = S.figures.find((f) => f.id === targetId);
+  const options = target ? attacksOn(c, hero, targetId) : [];
+  const def = options.find((d) => d.id === defId) ?? options[0];
+  if (!target || !def) return null;
+  const o = odds(c, hero, def, target, pre);
+  const cost = actionAvailability(c, hero).find((a) => a.def.id === def.id)?.cost ?? 0;
+  const name = reg().enemies[target.typeId]?.name ?? target.name;
+  const pct = o ? Math.round(o.hit * 100) : null;
+  return (
+    <div className="g-forecast" role="dialog" aria-label={`Atacar ${name}`}>
+      <div className="g-fc-head">
+        <span className="who">{name}</span>
+        <span className="hp">
+          <i style={{ width: `${Math.max(0, (target.hp / target.maxHp) * 100)}%` }} />
+          {o && o.dmg > 0 && <i className="loss" style={{ left: `${Math.max(0, ((target.hp - o.dmg) / target.maxHp) * 100)}%`, width: `${(Math.min(o.dmg, target.hp) / target.maxHp) * 100}%` }} />}
+        </span>
+        <span className="hpn">
+          {target.hp}/{target.maxHp}
+        </span>
+        <button className="g-x" aria-label="Cancelar" onClick={onCancel}>
+          <Icon id="close" />
+        </button>
+      </div>
+      <div className="g-fc-stats">
+        <div className={`st ${pct !== null && pct >= 70 ? 'good' : pct !== null && pct < 45 ? 'bad' : ''}`}>
+          <b>{pct !== null ? `${pct}%` : '—'}</b>
+          <small>acerto</small>
+        </div>
+        <div className="st">
+          <b>{o ? (o.kills ? `${o.dmg} ☠` : o.dmg) : '—'}</b>
+          <small>{o?.kills ? 'derruba' : 'dano provável'}</small>
+        </div>
+        <div className="st">
+          <b>{cost}</b>
+          <small>AP</small>
+        </div>
+      </div>
+      {options.length > 1 && (
+        <div className="g-fc-alts">
+          {options.slice(0, 5).map((d) => (
+            <button key={d.id} className={`g-pill ${d.id === def.id ? 'gold' : ''}`} onClick={() => onPick(d.id)}>
+              {d.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <button className="g-cta g-fc-go" autoFocus onClick={onConfirm}>
+        Atacar
+      </button>
+    </div>
+  );
+}
+
+function EnemyActing({ S, f }: { S: CombatState; f: Figure }) {
+  const intent = intentFor(S, f.typeId);
+  const name = reg().enemies[f.typeId]?.name ?? f.name;
+  return (
+    <div className="g-enemy-turn" key={f.id}>
+      <span className="who">{name}</span>
+      {intent && (
+        <span className="what">
+          <Icon id={`tempo_${intent.tempo}`} /> {intent.name}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ threat preview (who each enemy will hit this Cycle)
+interface Threat {
+  from: string;
+  to: string[];
+  dano: Record<string, number>;
+  tempo: Tempo;
+  name: string;
+}
+/** Runs each revealed Intention's plan on a copy of the state to learn its targets (the real state is untouched). */
+function predictThreats(S: CombatState): Threat[] {
+  const out: Threat[] = [];
+  if (S.phase === 'deploy' || S.result) return out;
+  for (const f of S.figures) {
+    if (f.side !== 'E' || f.status !== 'active') continue;
+    const intent = intentFor(S, f.typeId);
+    if (!intent || !['melee', 'ranged', 'area', 'control'].includes(intent.kind)) continue;
+    try {
+      const copy = structuredClone(S);
+      copy.queue = [];
+      copy.pending = null;
+      copy.settings = { ...copy.settings, autoTieBreak: true };
+      const c2 = ctxOf(copy);
+      const self = copy.figures.find((x) => x.id === f.id)!;
+      intent.plan(c2, self);
+      for (const op of copy.queue) {
+        if (op.op !== 'eAttack') continue;
+        const to = op.spec.targetIds.filter((id) => S.figures.some((h) => h.id === id && h.side === 'H' && h.status === 'active'));
+        if (!to.length) continue;
+        const dano: Record<string, number> = {};
+        for (const id of to) dano[id] = op.spec.dano + (op.spec.perTargetBonus[id] ?? 0);
+        out.push({ from: f.id, to, dano, tempo: intent.tempo, name: intent.name });
+      }
+    } catch {
+      /* a plan that needs a decision (tie) is simply not previewed */
+    }
+  }
+  return out;
+}
+function incomingDamage(threats: Threat[]): Record<string, number> {
+  const sum: Record<string, number> = {};
+  for (const t of threats) for (const id of t.to) sum[id] = (sum[id] ?? 0) + (t.dano[id] ?? 0);
+  return sum;
+}
+
+/** Red dashed arcs from each enemy to the hero it will attack, following the 3D figures every frame. */
+function ThreatLines({ threats, diorama }: { threats: Threat[]; diorama: NonNullable<ReturnType<typeof useApp>['diorama']> }) {
+  const ref = useRef<SVGSVGElement>(null);
+  useEffect(() => {
+    let raf = 0;
+    const draw = () => {
+      raf = requestAnimationFrame(draw);
+      const svg = ref.current;
+      if (!svg) return;
+      let i = 0;
+      for (const t of threats) {
+        const a = diorama.screenOf(t.from);
+        for (const to of t.to) {
+          const b = diorama.screenOf(to);
+          const path = svg.children[i++] as SVGGElement | undefined;
+          if (!path) continue;
+          if (!a || !b) {
+            path.style.display = 'none';
+            continue;
+          }
+          path.style.display = '';
+          const ay = a.y + 30;
+          const by = b.y + 20;
+          const mx = (a.x + b.x) / 2;
+          const my = Math.min(ay, by) - 40 - Math.abs(a.x - b.x) * 0.15;
+          (path.children[0] as SVGPathElement).setAttribute('d', `M${a.x},${ay} Q${mx},${my} ${b.x},${by}`);
+          const badge = path.children[1] as SVGGElement;
+          badge.setAttribute('transform', `translate(${b.x},${by - 6})`);
+        }
+      }
+    };
+    draw();
+    return () => cancelAnimationFrame(raf);
+  }, [threats, diorama]);
+  return (
+    <svg ref={ref} className="g-threats" aria-hidden>
+      {threats.flatMap((t) =>
+        t.to.map((to) => (
+          <g key={t.from + to} className={`th t-${t.tempo}`}>
+            <path />
+            <g>
+              <circle r="11" />
+              <text y="4" textAnchor="middle">
+                {t.dano[to]}
+              </text>
+            </g>
+          </g>
+        )),
+      )}
+    </svg>
   );
 }
 
@@ -346,7 +647,7 @@ function BossGauge({ S }: { S: CombatState }) {
 }
 
 // ------------------------------------------------------------------ hero dock (portraits)
-function Dock({ S, heroes, tempoHero, onTap }: { S: CombatState; heroes: Figure[]; tempoHero: string | null; onTap(id: string): void }) {
+function Dock({ S, heroes, tempoHero, incoming, onTap }: { S: CombatState; heroes: Figure[]; tempoHero: string | null; incoming: Record<string, number>; onTap(id: string): void }) {
   const s = useSession();
   const band = BAND_INFO.find((b) => b.b === S.band);
   return (
@@ -378,6 +679,11 @@ function Dock({ S, heroes, tempoHero, onTap }: { S: CombatState; heroes: Figure[
             )}
             {bad.length > 0 && <span className="bad" title={bad.map((k) => COND_NAME[k]).join(', ')} />}
             <span className="hpnum">{down ? (h.status === 'caido' ? 'Caído' : '✕') : h.hp}</span>
+            {!down && incoming[h.id] > 0 && (
+              <span className="threat" title={`Ameaçado: até ${incoming[h.id]} de dano neste ciclo`}>
+                −{incoming[h.id]}
+              </span>
+            )}
             <span className="nm">{h.name}</span>
             {S.activeId === h.id && (
               <span className="ap">
@@ -427,6 +733,17 @@ function TempoPicker({ S, heroId, setHero }: { S: CombatState; heroId: string | 
           </div>
         </>
       ) : null}
+      {all && !heroId && mine.length > 0 && (
+        <div className="g-tempo-sum">
+          {mine.map((x) => (
+            <button key={x.id} className={`chip-t t-${x.tempo}`} style={{ ['--acc' as string]: CLASS_COLOR[x.typeId] }} onClick={() => setHero(x.id)} aria-label={`${x.name}: ${TEMPO_NAME[x.tempo as Tempo]}. Mudar`}>
+              <Icon id={`class_${x.typeId}`} className="cls" />
+              <Icon id={`tempo_${x.tempo}`} className="tmp" />
+            </button>
+          ))}
+          <span className="lbl">Toque para mudar o ritmo</span>
+        </div>
+      )}
       {all ? (
         <button className="g-cta" onClick={() => void act({ t: 'combat', cmd: { t: 'confirmTempo' } }).then((e) => !e && audio.play('cycle_start', { volume: 0.5 }))}>
           Lutar!

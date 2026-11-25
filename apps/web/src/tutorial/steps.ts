@@ -1,0 +1,200 @@
+/**
+ * Tutorial content: short lines, one action at a time, the game waits for the player to actually do it.
+ * A step targets a DOM element (CSS selector) or a 3D figure; `done` advances; `skipIf` jumps over a step that
+ * no longer applies (e.g. the game already did it automatically). Tips are one-shot, non-blocking hints that show
+ * the first time a mechanic appears anywhere in the campaign.
+ */
+import type { CampaignState, CombatState } from '@mosteiro/core';
+
+export interface TutCtx {
+  st: CampaignState | null;
+  S: CombatState | null;
+  /** true if a selector currently matches a visible element */
+  has(sel: string): boolean;
+  /** first enemy the active hero could attack (glowing), if any */
+  attackableEnemy(): string | null;
+}
+
+export type Target = { dom: string } | { figure: (t: TutCtx) => string | null } | null;
+
+export interface Step {
+  id: string;
+  say: string;
+  target: Target;
+  /** Block every tap except on the target (true for "do exactly this" steps). */
+  block?: boolean;
+  /** The step can start (otherwise the engine waits). */
+  when?: (t: TutCtx) => boolean;
+  /** The player did it: go on. */
+  done: (t: TutCtx) => boolean;
+  /** Not relevant anymore: jump to the next step. */
+  skipIf?: (t: TutCtx) => boolean;
+  /** Info-only steps auto-advance after this many ms (or on tap). */
+  autoMs?: number;
+}
+
+export interface Chapter {
+  id: string;
+  /** Starts when this is true (checked continuously). */
+  start: (t: TutCtx) => boolean;
+  steps: Step[];
+}
+
+const inCombat = (t: TutCtx) => !!t.S && t.st?.phase === 'combat';
+const phase = (t: TutCtx) => t.S?.phase;
+const pending = (t: TutCtx) => t.S?.pending?.kind ?? null;
+
+/** The first battle teaches the whole loop by doing it. */
+export const FIRST_BATTLE: Chapter = {
+  id: 'first-battle',
+  start: (t) => inCombat(t) && (phase(t) === 'deploy' || phase(t) === 'tempo') && (t.S?.cycle ?? 0) <= 1,
+  steps: [
+    {
+      id: 'deploy',
+      say: 'Seus heróis já estão em posição. Toque em Começar.',
+      target: { dom: '.g-bottom .g-cta' },
+      block: true,
+      when: (t) => phase(t) === 'deploy',
+      done: (t) => phase(t) !== 'deploy',
+      skipIf: (t) => phase(t) !== 'deploy',
+    },
+    {
+      id: 'choice-start',
+      say: 'Antes da luta, uma escolha rápida. Toque numa opção.',
+      target: { dom: '.prompt .opt' },
+      block: true,
+      when: (t) => pending(t) === 'choice',
+      done: (t) => pending(t) !== 'choice',
+      skipIf: (t) => phase(t) === 'tempo' && !pending(t) && t.has('.g-tempo-sum, .g-tempo-btn'),
+    },
+    {
+      id: 'threats',
+      say: 'As linhas vermelhas mostram quem cada inimigo vai atacar.',
+      target: { dom: '.g-threats' },
+      when: (t) => phase(t) === 'tempo' && !pending(t) && t.has('.g-threats .th'),
+      done: () => false,
+      skipIf: (t) => phase(t) !== 'tempo' || !t.has('.g-threats .th'),
+      autoMs: 3800,
+    },
+    {
+      id: 'tempo',
+      say: 'Cada herói tem um ritmo. Agora estão todos prontos: toque em Lutar!',
+      target: { dom: '.g-tempo .g-cta' },
+      block: true,
+      when: (t) => phase(t) === 'tempo' && !pending(t) && t.has('.g-tempo .g-cta'),
+      done: (t) => phase(t) !== 'tempo',
+      skipIf: (t) => phase(t) !== 'tempo',
+    },
+    {
+      id: 'pick-hero',
+      say: 'Sua vez! Toque no herói que está brilhando.',
+      target: { dom: '.g-port.can' },
+      block: true,
+      when: (t) => phase(t) === 'heroBand' && t.has('.g-port.can'),
+      done: (t) => phase(t) === 'heroActing',
+      skipIf: (t) => phase(t) === 'heroActing' || phase(t) === 'enemyBand',
+    },
+    {
+      id: 'tap-enemy',
+      say: 'Toque num inimigo brilhando para mirar.',
+      target: { figure: (t) => t.attackableEnemy() },
+      block: true,
+      when: (t) => phase(t) === 'heroActing' && !pending(t) && !!t.attackableEnemy(),
+      done: (t) => t.has('.g-forecast') || !!pending(t),
+      skipIf: (t) => phase(t) !== 'heroActing',
+    },
+    {
+      id: 'forecast',
+      say: 'Chance de acertar e dano provável. Toque em Atacar!',
+      target: { dom: '.g-fc-go' },
+      block: true,
+      when: (t) => t.has('.g-forecast'),
+      done: (t) => !t.has('.g-forecast'),
+      skipIf: (t) => !t.has('.g-forecast') && phase(t) !== 'heroActing',
+    },
+    {
+      id: 'dice',
+      say: 'Os dados decidem: números altos são acertos. Toque em Continuar.',
+      target: { dom: '.prompt .btn.primary' },
+      block: true,
+      when: (t) => pending(t) === 'attackPost',
+      done: (t) => pending(t) !== 'attackPost',
+      skipIf: (t) => phase(t) !== 'heroActing' && pending(t) !== 'attackPost',
+    },
+    {
+      id: 'ap',
+      say: 'As bolinhas douradas são seus pontos de ação. Ataque de novo ou toque em Encerrar.',
+      target: { dom: '.g-act.end' },
+      when: (t) => phase(t) === 'heroActing' && !pending(t) && t.has('.g-act.end'),
+      done: (t) => phase(t) !== 'heroActing',
+      skipIf: (t) => phase(t) !== 'heroActing',
+      autoMs: 5000,
+    },
+    {
+      id: 'defend',
+      say: 'Um inimigo ataca! Mais dados, mais chance de bloquear. Toque em Defender.',
+      target: { dom: '.prompt .btn.primary' },
+      block: true,
+      when: (t) => pending(t) === 'defense',
+      done: (t) => pending(t) !== 'defense',
+    },
+  ],
+};
+
+/** One-shot tips: the first time a mechanic shows up. */
+export interface Tip {
+  id: string;
+  say: string;
+  target: Target;
+  when: (t: TutCtx) => boolean;
+}
+export const TIPS: Tip[] = [
+  {
+    id: 'tempo-change',
+    say: 'Rápido age antes dos inimigos. Pesado age por último, mas bate mais forte. Toque num retrato para mudar.',
+    target: { dom: '.g-tempo-sum' },
+    when: (t) => phase(t) === 'tempo' && (t.S?.cycle ?? 0) >= 2 && !pending(t) && t.has('.g-tempo-sum'),
+  },
+  {
+    id: 'impulse',
+    say: 'Impulsos! Gaste-os em efeitos extras antes de continuar.',
+    target: { dom: '.prompt .opts' },
+    when: (t) => pending(t) === 'attackPost' && (t.S?.pending?.kind === 'attackPost' ? t.S.pending.roll.impulsos > 0 && t.S.pending.options.length > 0 : false),
+  },
+  {
+    id: 'other-actions',
+    say: 'Além de atacar, cada herói tem técnicas e movimentos aqui embaixo.',
+    target: { dom: '.g-act-row' },
+    when: (t) => phase(t) === 'heroActing' && !pending(t) && (t.S?.cycle ?? 0) >= 2 && t.has('.g-act-row'),
+  },
+  {
+    id: 'step',
+    say: 'Você pode se mover: toque num lugar brilhando.',
+    target: null,
+    when: (t) => pending(t) === 'step',
+  },
+  {
+    id: 'fallen',
+    say: 'Um herói caiu! Ele não morreu: um aliado pode levantá-lo.',
+    target: { dom: '.g-port.down' },
+    when: (t) => inCombat(t) && !!t.S?.figures.some((f) => f.side === 'H' && f.status === 'caido'),
+  },
+  {
+    id: 'boss',
+    say: 'Chefe! Fique de olho no medidor do sino lá em cima.',
+    target: { dom: '.g-gauge' },
+    when: (t) => inCombat(t) && t.has('.g-gauge'),
+  },
+  {
+    id: 'reaction-class',
+    say: 'Escolha se gasta a Reação de um herói. Cada herói tem 1 Reação por ciclo.',
+    target: { dom: '.prompt' },
+    when: (t) => pending(t) === 'egide' || pending(t) === 'conditionResponse',
+  },
+  {
+    id: 'tie',
+    say: 'Empate: vocês escolhem quem o inimigo vai atacar.',
+    target: { dom: '.prompt' },
+    when: (t) => pending(t) === 'tieBreak',
+  },
+];

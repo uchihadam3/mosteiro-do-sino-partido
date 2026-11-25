@@ -8,6 +8,8 @@ export async function prepare(page: Page) {
   await page.addInitScript(() => {
     try {
       localStorage.setItem('mosteiro.settings.v1', JSON.stringify({ muted: true, quality: 'low', animSpeed: 3, reducedMotion: true, autoTieBreak: true }));
+      // the interactive tutorial blocks taps outside its spotlight: tests drive the game directly
+      localStorage.setItem('mosteiro.tutorial.v1', JSON.stringify({ off: true, chapters: [], tips: [] }));
     } catch {
       /* ignore */
     }
@@ -55,7 +57,7 @@ export async function chooseTempos(page: Page) {
 /** Answer start-of-cycle prompts (e.g. Paladino's free Julgar) until the Tempo choice shows. */
 export async function reachTempoPanel(page: Page) {
   for (let i = 0; i < 20; i++) {
-    if (await page.locator('.g-tempo-btn').count()) return;
+    if (await page.locator('.g-tempo-btn, .g-tempo-sum').count()) return;
     const st = await probe(page);
     if (st?.pending) {
       const prim = page.locator('.prompt .btn.primary').first();
@@ -64,5 +66,5 @@ export async function reachTempoPanel(page: Page) {
     }
     await page.waitForTimeout(500);
   }
-  await expect(page.locator('.g-tempo-btn').first()).toBeVisible();
+  await expect(page.locator('.g-tempo-btn, .g-tempo-sum').first()).toBeVisible();
 }

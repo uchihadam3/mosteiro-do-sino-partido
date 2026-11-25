@@ -20,7 +20,7 @@ async function playEncounter(page: Page, untilCycle: number) {
       continue;
     }
     if (st.phase === 'tempo') {
-      if (await page.locator('.g-tempo-btn').count()) await chooseTempos(page);
+      if (await page.locator('.g-tempo-btn, .g-tempo-sum').count()) await chooseTempos(page);
       await page.waitForTimeout(500);
       continue;
     }
@@ -32,9 +32,24 @@ async function playEncounter(page: Page, untilCycle: number) {
     }
     if (st.phase === 'heroActing') {
       seen.add('heroActing');
-      const atk = page.locator('.g-act.k-attack:not(.off)').first();
       let acted = false;
-      if (await atk.count()) {
+      // new flow: tap a glowing enemy → forecast card → "Atacar"
+      const enemyIds: string[] = await page.evaluate(() => (window as any).__session.state.combat.figures.filter((f: any) => f.side === 'E' && f.status === 'active').map((f: any) => f.id));
+      for (const id of enemyIds) {
+        const p = await page.evaluate((i) => (window as any).__diorama.screenOf(i), id);
+        if (!p) continue;
+        await page.mouse.click(p.x, p.y + 25);
+        await page.waitForTimeout(500);
+        if (await page.locator('.g-forecast').count()) {
+          seen.add('forecast');
+          await page.locator('.g-fc-go').click();
+          await page.waitForTimeout(500);
+          acted = true;
+          break;
+        }
+      }
+      const atk = page.locator('.g-act.k-attack:not(.off)').first();
+      if (!acted && (await atk.count())) {
         await atk.click();
         const ids: string[] = await page.evaluate(() => (window as any).__session.state.combat.figures.filter((f: any) => f.side === 'E' && f.status === 'active').map((f: any) => f.id));
         for (const id of ids) {

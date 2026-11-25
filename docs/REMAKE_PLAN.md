@@ -26,7 +26,12 @@ Lembrete horário ativo (trigger `trig_01BYrF6qvn9TEHjvW8Z8HQJG`, minuto :17): c
 | F4 | **História e cinema** (`apps/web/src/cinema`): splash da produtora, logo do jogo (SVG), abertura cinematográfica (câmera + legendas + música), cutscenes de chefes (Cantor, Vigia, Severin), final; roteiro em `docs/STORY.md`; elenco (mentor, Abade Severin) | agente Cinema | ⏳ |
 | F5 | **Pesquisa** de jogos parecidos → `docs/RESEARCH.md` com padrões concretos aplicados | agente Pesquisa | ⏳ |
 | F6 | **Beleza/juice**: hit-stop, câmera lenta no crítico, números de dano, partículas, transições, luzes; som em todas as interações | líder + agentes | ⏳ |
+| F8 | **Arte e animação**: cenários refeitos com o kit KayKit Dungeon Remastered (CC0, mesmo estilo dos personagens), luz/pós-processamento, coreografia de combate (avanço, hit-stop, câmera, crítico em câmera lenta, mortes), vida no idle; cenas por dungeon | agente Arte | ⏳ |
 | F7 | **QA e publicação**: E2E novos (tutorial, mundo, cinema), celular em pé/deitado (384×832, 832×384), PC; publicar; prints | líder | ⏳ |
+
+## Escopo do jogo
+- O jogo completo tem **6 dungeons**. O remake foca na Dungeon 1, mas tudo (cenários, mundo, cutscenes, tutorial, conteúdo,
+  equipamentos e inimigos novos) é estruturado por dungeon para as próximas entrarem sem retrabalho.
 
 ## Decisões de design
 - Batalha continua **tática por turnos** (motor de regras testado), mas a interface esconde a complexidade:
@@ -35,7 +40,7 @@ Lembrete horário ativo (trigger `trig_01BYrF6qvn9TEHjvW8Z8HQJG`, minuto :17): c
 - Exploração vira **tempo real**; as escolhas de caminho do motor de campanha viram portas físicas no cenário
   (o motor não muda: entrar numa porta envia o mesmo comando `explore`).
 - Mesmo cenário para explorar e lutar: ao encostar nos inimigos o tabuleiro **surge** no chão da sala.
-- Nome da produtora: provisório **"Campanário Productions"** (constante única `STUDIO` em `apps/web/src/cinema/brand.ts`) — perguntar ao dono o nome real.
+- Produtora: **Uchihadam Production** (nome dado pelo dono; constante `STUDIO` em `apps/web/src/cinema/brand.ts`).
 
 ## Registro
-- 2026-11-25 — F0 feito; agentes World, Cinema e Pesquisa disparados; líder em F1/F2.
+- 2026-11-25 — F0 feito; agentes World, Cinema, Pesquisa e Arte disparados; líder em F1/F2. Produtora: Uchihadam Production.
