@@ -266,7 +266,7 @@ export function Dice3D({ ev, onSettled }: { ev: RollEvent; onSettled?(): void })
     const dur = (1.15 / Math.min(speed, 2)) * slow;
     const dice = ev.roll.dice.slice(0, 3);
     const n = dice.length;
-    const spacing = n > 1 ? 2.3 : 0;
+    const spacing = n > 1 ? 1.45 : 0;
     const group = new THREE.Group();
     scene.add(group);
     const items = dice.map((d, i) => {
@@ -277,7 +277,7 @@ export function Dice3D({ ev, onSettled }: { ev: RollEvent; onSettled?(): void })
       const mat = new THREE.MeshStandardMaterial({ map: m.tex, roughness: 0.38, metalness: 0.05, emissive: new THREE.Color(0x000000), emissiveIntensity: 0 });
       const mesh = new THREE.Mesh(m.geo, mat);
       mesh.castShadow = true;
-      const scale = d.grade === 4 ? 0.95 : d.grade === 12 ? 0.92 : 0.88;
+      const scale = (d.grade === 4 ? 0.95 : d.grade === 12 ? 0.92 : 0.88) * 0.6;
       mesh.scale.setScalar(scale);
       group.add(mesh);
       const endX = (i - (n - 1) / 2) * spacing + (Math.random() - 0.5) * 0.3;
@@ -308,7 +308,7 @@ export function Dice3D({ ev, onSettled }: { ev: RollEvent; onSettled?(): void })
         it.mesh.position.x = it.startX + (it.endX - it.startX) * kx;
         it.mesh.position.z = it.startZ + (it.endZ - it.startZ) * kx;
         // drop from above and bounce on the table
-        it.mesh.position.y = it.restY + (1 - easeOutBounce(k)) * 2.4;
+        it.mesh.position.y = it.restY + (1 - easeOutBounce(k)) * 1.8;
         // tumble, then settle onto the rolled face
         const spin = it.spinTurns * Math.PI * 2 * (1 - Math.pow(1 - k, 2));
         tmpQ.setFromAxisAngle(it.spinAxis, spin).multiply(it.start);
