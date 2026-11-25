@@ -261,7 +261,9 @@ export function Dice3D({ ev, onSettled }: { ev: RollEvent; onSettled?(): void })
     camera.updateProjectionMatrix();
 
     const speed = Math.max(1, getSettings().animSpeed || 1);
-    const dur = 1.15 / Math.min(speed, 2);
+    // dev/test only: window.__diceSlow = 4 plays the roll 4× slower so it can be inspected
+    const slow = (window as unknown as { __diceSlow?: number }).__diceSlow ?? 1;
+    const dur = (1.15 / Math.min(speed, 2)) * slow;
     const dice = ev.roll.dice.slice(0, 3);
     const n = dice.length;
     const spacing = n > 1 ? 2.3 : 0;
@@ -280,8 +282,9 @@ export function Dice3D({ ev, onSettled }: { ev: RollEvent; onSettled?(): void })
       group.add(mesh);
       const endX = (i - (n - 1) / 2) * spacing + (Math.random() - 0.5) * 0.3;
       const endZ = 0.6 + (Math.random() - 0.5) * 0.4;
-      const startX = endX + (Math.random() < 0.5 ? -1 : 1) * (2.5 + Math.random() * 1.5);
-      const startZ = endZ - 3.2;
+      // tossed from the far side of the table toward the player
+      const startX = endX + (Math.random() < 0.5 ? -1 : 1) * (1.2 + Math.random() * 1.2);
+      const startZ = endZ - 5.2;
       const restY = scale * (d.grade === 4 ? 0.38 : d.grade === 6 ? 0.65 : d.grade === 8 ? 0.62 : d.grade === 10 ? 0.6 : 0.82);
       const final = restingQuat(face, (Math.random() - 0.5) * 0.5);
       const spinAxis = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
@@ -305,7 +308,7 @@ export function Dice3D({ ev, onSettled }: { ev: RollEvent; onSettled?(): void })
         it.mesh.position.x = it.startX + (it.endX - it.startX) * kx;
         it.mesh.position.z = it.startZ + (it.endZ - it.startZ) * kx;
         // drop from above and bounce on the table
-        it.mesh.position.y = it.restY + (1 - easeOutBounce(k)) * 4.2;
+        it.mesh.position.y = it.restY + (1 - easeOutBounce(k)) * 2.4;
         // tumble, then settle onto the rolled face
         const spin = it.spinTurns * Math.PI * 2 * (1 - Math.pow(1 - k, 2));
         tmpQ.setFromAxisAngle(it.spinAxis, spin).multiply(it.start);
@@ -324,7 +327,7 @@ export function Dice3D({ ev, onSettled }: { ev: RollEvent; onSettled?(): void })
         onSettled?.();
       }
       // keep the settled dice on screen a moment, then stop rendering
-      if (allDone && t > dur + 1.4) cancelAnimationFrame(raf);
+      if (allDone && t > dur + 1.4 * slow) cancelAnimationFrame(raf);
     };
     frame();
     return () => {

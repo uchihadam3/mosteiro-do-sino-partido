@@ -865,14 +865,15 @@ function TargetBar({ sel, f, S, areaFirst, onOption, onCancel, onFire }: { sel: 
 function DiceBurst({ ev }: { ev: Extract<DomainEvent, { type: 'roll' }> }) {
   const [settled, setSettled] = useState(false);
   const [gone, setGone] = useState(false);
+  const slow = (window as unknown as { __diceSlow?: number }).__diceSlow ?? 1;
   useEffect(() => {
     if (!settled) return;
-    const t = setTimeout(() => setGone(true), 1250);
+    const t = setTimeout(() => setGone(true), 1250 * slow);
     return () => clearTimeout(t);
   }, [settled]);
   useEffect(() => {
     // safety: never keep the dice up for long
-    const t = setTimeout(() => setGone(true), 4000);
+    const t = setTimeout(() => setGone(true), 4000 * slow);
     return () => clearTimeout(t);
   }, []);
   if (gone) return null;
