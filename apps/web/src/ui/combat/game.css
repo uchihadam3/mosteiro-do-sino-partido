@@ -2618,3 +2618,144 @@
   padding: 5px 14px;
   animation: gPop 0.25s ease both;
 }
+
+/* ------------------------------------------------------------------ costs and effects, spelled out */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 3px;
+}
+.tags em,
+em.pa {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 6px 1px 4px;
+  border-radius: 999px;
+  font-style: normal;
+  font-size: 10px;
+  line-height: 1.5;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.tags em .ico {
+  width: 11px;
+  height: 11px;
+}
+em.pa {
+  padding: 1px 6px;
+  background: rgba(232, 197, 106, 0.18);
+  color: #f3d27a;
+  font-weight: 700;
+}
+.tg.dmg {
+  background: rgba(224, 87, 74, 0.2);
+  color: #ffb0a2;
+}
+.tg.heal,
+.tg.good {
+  background: rgba(120, 190, 100, 0.2);
+  color: #bff0a8;
+}
+.tg.bad {
+  background: rgba(160, 90, 200, 0.2);
+  color: #e0c2ff;
+}
+.tg.move {
+  background: rgba(110, 170, 230, 0.2);
+  color: #cfe5ff;
+}
+.g-menu .g-act.g-card {
+  min-height: 78px;
+}
+.g-menu .g-act.g-card small {
+  -webkit-line-clamp: 1;
+}
+.g-menu .g-act.g-card .cost {
+  display: none;
+}
+/* attack preview rows */
+.g-fc-alt {
+  grid-template-columns: 14px 1fr;
+  align-items: start;
+}
+.g-fc-alt .dot {
+  margin-top: 3px;
+}
+.g-fc-alt .body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.g-fc-alt .nm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.g-fc-alt small {
+  white-space: normal;
+}
+.g-fc-alt.extra {
+  border-style: dashed;
+}
+.g-fc-alts .t {
+  letter-spacing: 0.08em;
+  text-transform: none;
+  font-family: var(--font-ui);
+  font-size: 11px;
+}
+/* who the chosen skill can be used on */
+.g-tmarks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+.g-tmarks .tm {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  animation: gTm 1s ease-in-out infinite;
+}
+.g-tmarks .tm .ico {
+  width: 22px;
+  height: 22px;
+}
+.g-tmarks .tm.ally {
+  background: radial-gradient(circle, rgba(60, 140, 60, 0.85), rgba(20, 60, 20, 0.85));
+  border: 2px solid #9be08a;
+  color: #e6ffd9;
+  box-shadow: 0 0 18px rgba(155, 224, 138, 0.8);
+}
+.g-tmarks .tm.foe {
+  background: radial-gradient(circle, rgba(150, 30, 20, 0.85), rgba(60, 8, 6, 0.85));
+  border: 2px solid #ff8a72;
+  color: #ffe1d8;
+  box-shadow: 0 0 18px rgba(255, 100, 80, 0.8);
+}
+@keyframes gTm {
+  0%,
+  100% {
+    scale: 1;
+  }
+  50% {
+    scale: 1.15;
+  }
+}
+.g-target .who-can {
+  display: block;
+  font-style: normal;
+  font-size: 11.5px;
+  color: #bff0a8;
+}
+.g-order:not(:has(.o)) {
+  display: none;
+}

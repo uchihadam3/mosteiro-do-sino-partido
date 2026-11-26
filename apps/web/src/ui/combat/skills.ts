@@ -78,3 +78,55 @@ export function skillLine(def: ActionDef, dano?: number): string {
 }
 
 export const KIND_LABEL: Record<string, string> = { attack: 'Ataque', spell: 'Magia', control: 'Controle', move: 'Movimento', support: 'Apoio', utility: 'Preparo' };
+
+/** What an action CAUSES, as small icon tags read from its rules text (damage, heal, conditions, movement, area…). */
+export interface SkillTag {
+  icon: string;
+  label: string;
+  tone: 'dmg' | 'heal' | 'bad' | 'good' | 'move' | 'info';
+}
+const TAG_RULES: [RegExp, SkillTag][] = [
+  [/\bcur[ae]/i, { icon: 'act_heal', label: 'Cura', tone: 'heal' }],
+  [/Sangramento/i, { icon: 'cond_sangramento', label: 'Sangra', tone: 'bad' }],
+  [/Veneno/i, { icon: 'cond_veneno', label: 'Veneno', tone: 'bad' }],
+  [/Queimando/i, { icon: 'cond_queimando', label: 'Fogo', tone: 'bad' }],
+  [/Imobiliz/i, { icon: 'cond_imobilizado', label: 'Prende', tone: 'bad' }],
+  [/Exposto|Expor/i, { icon: 'cond_exposto', label: 'Expõe', tone: 'bad' }],
+  [/Quebrado/i, { icon: 'cond_quebrado', label: 'Quebra armadura', tone: 'bad' }],
+  [/Ignora 1 Armadura|ignore 1 Armadura/i, { icon: 'armor', label: 'Fura armadura', tone: 'dmg' }],
+  [/Guardado/i, { icon: 'cond_guardado', label: 'Protege', tone: 'good' }],
+  [/Empurrar/i, { icon: 'act_push', label: 'Empurra', tone: 'move' }],
+  [/\bpuxa/i, { icon: 'act_pull', label: 'Puxa', tone: 'move' }],
+  [/Passo|teleporte|Mova/i, { icon: 'act_passo', label: 'Move', tone: 'move' }],
+  [/Furtivo/i, { icon: 'cond_furtivo', label: 'Esconde', tone: 'good' }],
+  [/Brecha/i, { icon: 'cond_brecha', label: 'Brecha', tone: 'bad' }],
+  [/Área/i, { icon: 'act_area', label: 'Área', tone: 'info' }],
+];
+export function skillTags(def: ActionDef, dano?: number): SkillTag[] {
+  const out: SkillTag[] = [];
+  if ((def.kind === 'attack' || def.kind === 'spell') && dano !== undefined) out.push({ icon: 'act_attack_melee', label: `Dano ${dano}`, tone: 'dmg' });
+  if (/Distância/i.test(def.text)) out.push({ icon: 'act_attack_distancia', label: 'De longe', tone: 'info' });
+  else if (/Corpo a Corpo/i.test(def.text)) out.push({ icon: 'act_attack_melee', label: 'Corpo a corpo', tone: 'info' });
+  for (const [re, tag] of TAG_RULES) if (re.test(def.text) && !out.some((t) => t.label === tag.label)) out.push(tag);
+  return out.slice(0, 5);
+}
+/** Who an action can be used on, in words. */
+export function targetWords(def: ActionDef): string {
+  switch (def.targeting.type) {
+    case 'enemy':
+      return 'Num inimigo';
+    case 'ally':
+      return 'Em você ou num aliado';
+    case 'none':
+      return 'Em você mesmo';
+    case 'move':
+    case 'sector':
+      return 'Num lugar do campo';
+    case 'area2':
+      return 'Em 2 casas vizinhas';
+    case 'sectors2':
+      return 'Em 2 casas';
+    default:
+      return '';
+  }
+}

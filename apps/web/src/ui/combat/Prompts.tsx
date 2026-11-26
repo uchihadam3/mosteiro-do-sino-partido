@@ -279,7 +279,7 @@ function Defense({ p, S }: { p: Extract<Pending, { kind: 'defense' }>; S: Combat
   const grades = [...p.d.dice.map((d) => d.grade), ...chosen.filter((c) => p.options.find((o) => o.heroId === c.heroId && o.kind === c.kind)?.addDie).map(() => 4)].slice(0, 3) as Grade[];
   const pBlock = Math.round(probAtLeastOneSuccess(grades) * 100);
   const expBlock = expectedSuccesses(grades);
-  const label = (o: (typeof p.options)[number]) => (o.kind === 'ajuda' ? (o.heroId === t.id ? 'Esforço extra · +1 dado' : `Ajuda de ${S.figures.find((f) => f.id === o.heroId)?.name ?? ''} · +1 dado`) : o.label);
+  const label = (o: (typeof p.options)[number]) => (o.kind === 'ajuda' ? (o.heroId === t.id ? 'Esforço extra · +1 dado · gasta sua Reação' : `Ajuda de ${S.figures.find((f) => f.id === o.heroId)?.name ?? ''} · +1 dado · gasta a Reação dele`) : `${o.label} · gasta Reação`);
   const extra = [...p.d.attack.onZero.map((e) => (e.kind === 'cond' ? condName(e.cond) : e.kind)), ...p.d.attack.onDamage.map((e) => (e.kind === 'cond' ? condName(e.cond) : e.kind === 'push' ? 'Empurrar' : e.kind === 'pull' ? 'Puxar' : ''))].filter(Boolean);
   return (
     <Sheet label="Defesa">
@@ -303,7 +303,7 @@ function Defense({ p, S }: { p: Extract<Pending, { kind: 'defense' }>; S: Combat
       </div>
       {p.options.length > 0 && (
         <>
-          <div className="sub">Gastar a Reação para rolar mais dados ({dice}/3)</div>
+          <div className="sub">Opcional: gaste a <b>Reação</b> (1 por ciclo, por herói) para rolar +1 dado ({dice}/3)</div>
           <div className="opts">
             {p.options.map((o) => {
               const on = chosen.some((c) => c.heroId === o.heroId && c.kind === o.kind);
@@ -320,7 +320,7 @@ function Defense({ p, S }: { p: Extract<Pending, { kind: 'defense' }>; S: Combat
       )}
       <div className="acts">
         <button className="btn primary" autoFocus onClick={() => void act({ t: 'combat', cmd: { t: 'answer', pendingId: p.id, answer: { kind: 'defense', reactions: chosen } } })}>
-          Defender
+          Defender {chosen.length ? `· gasta ${chosen.length} Reação${chosen.length > 1 ? 'ões' : ''}` : '· grátis'}
         </button>
       </div>
     </Sheet>

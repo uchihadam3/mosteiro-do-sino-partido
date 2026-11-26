@@ -18,7 +18,7 @@ import { PendingPrompt } from './Prompts';
 import { PauseMenu } from '../Pause';
 import { DiceBurst } from './Dice3D';
 import { forecastLater, type ActionCommand, type AttackForecast } from './forecast';
-import { CLASS_ROLE, KIND_LABEL, skillLine } from './skills';
+import { CLASS_ROLE, KIND_LABEL, skillLine, skillTags, targetWords } from './skills';
 import { predictThreats, incomingDamage, type Threat } from './threats';
 import { HP_SIGNAL, type Highlight } from '../../three/Diorama';
 import './game.css';
@@ -126,6 +126,17 @@ export function GameHUD() {
     if (undo && (S.logSeq !== undo.seq || S.activeId !== heroActive?.id)) setUndo(null);
   }, [S.logSeq, S.activeId]);
 
+  /** "Atacar": straight to the preview, aimed at the enemy most worth hitting (switch by tapping another one). */
+  const openAttack = (): boolean => {
+    if (!heroActive) return false;
+    const cands = S.figures.filter((e) => e.side === 'E' && e.status === 'active' && attacksOn(c, heroActive, e.id).length);
+    if (!cands.length) return false;
+    const best = [...cands].sort((a, b) => a.hp - b.hp || (a.isBoss ? -1 : 0))[0];
+    setSel(null);
+    setForecast({ targetId: best.id, defId: attacksOn(c, heroActive, best.id)[0].id });
+    audio.play('ui_click', { volume: 0.45 });
+    return true;
+  };
   const attackNow = (defId: string, targetId: string) => {
     if (!heroActive) return;
     const def = actionAvailability(c, heroActive).find((a) => a.def.id === defId && !a.reason)?.def;
@@ -180,7 +191,8 @@ export function GameHUD() {
       const options = attacksOn(c, heroActive, id);
       if (options.length) {
         audio.play('ui_click', { volume: 0.45 });
-        setForecast(forecast?.targetId === id ? null : { targetId: id, defId: options[0].id });
+        const keep = forecast && options.some((d) => d.id === forecast.defId) ? forecast.defId : options[0].id;
+        setForecast(forecast?.targetId === id ? null : { targetId: id, defId: keep });
         return;
       }
       // first tap: say why; a second tap on the same enemy shortly after opens its details
@@ -431,8 +443,8 @@ export function GameHUD() {
     <div className="g-hud">
       <TopBar S={S} heroes={heroes} onLog={() => setLog(true)} onMenu={() => setPause(true)} onSkip={() => diorama?.skip()} onPick={(id) => (S.figures.find((f) => f.id === id)?.side === 'H' ? setKit(id) : setInspect(id))} />
       <BossGauge S={S} />
-      <ObjectivePill S={S} />
 
+      {sel && targets && targets.figures.length > 0 && diorama && !S.pending && <TargetMarks S={S} ids={targets.figures} def={sel.def} diorama={diorama} />}
       {heroActive && canAct && !S.pending && !sel && !forecast && diorama && <LethalMarks S={S} hero={heroActive} pre={pre} diorama={diorama} />}
       <div className="g-bottom">
         {hint && (
@@ -458,11 +470,11 @@ export function GameHUD() {
             <Icon id="back" /> Desfazer {undo.label.toLowerCase()}
           </button>
         )}
-        {heroActive && canAct && !S.pending && !forecast && <ActionWheel f={heroActive} S={S} sel={sel} pre={pre} setPre={setPre} onPick={choose} onEnd={() => void act({ t: 'combat', cmd: { t: 'end', figureId: heroActive.id } })} onKit={() => setKit(heroActive.id)} />}
+        {heroActive && canAct && !S.pending && !forecast && <ActionWheel f={heroActive} S={S} sel={sel} pre={pre} setPre={setPre} onPick={choose} onEnd={() => void act({ t: 'combat', cmd: { t: 'end', figureId: heroActive.id } })} onKit={() => setKit(heroActive.id)} onAttack={openAttack} />}
         <Dock S={S} heroes={heroes} tempoHero={tempoHero} incoming={showThreats ? incomingDamage(threats) : {}} onTap={(id) => handlers.current.fig(id)} />
       </div>
 
-      {forecast && heroActive && !S.pending && !sel && <Forecast S={S} hero={heroActive} targetId={forecast.targetId} defId={forecast.defId} pre={pre} onPick={(defId) => setForecast({ ...forecast, defId })} onConfirm={() => attackNow(forecast.defId, forecast.targetId)} onCancel={() => setForecast(null)} onInfo={() => { setInspect(forecast.targetId); setForecast(null); }} />}
+      {forecast && heroActive && !S.pending && !sel && <Forecast S={S} hero={heroActive} targetId={forecast.targetId} defId={forecast.defId} pre={pre} onPick={(defId) => setForecast({ ...forecast, defId })} onConfirm={() => attackNow(forecast.defId, forecast.targetId)} onCancel={() => setForecast(null)} onInfo={() => { setInspect(forecast.targetId); setForecast(null); }} onExtra={(d) => { setForecast(null); choose(d); }} />}
       {callout && (
         <div key={callout.key} className={`g-callout ${callout.kind}`}>
           {callout.text}
@@ -534,8 +546,10 @@ function attackCommand(c: Ctx, hero: Figure, def: ActionDef, targetId: string, p
   return { t: 'action', actionId: def.id, figureId: hero.id, pre: [...pre], targetIds: [targetId] };
 }
 
-function Forecast({ S, hero, targetId, defId, pre, onPick, onConfirm, onCancel, onInfo }: { S: CombatState; hero: Figure; targetId: string; defId: string; pre: string[]; onPick(id: string): void; onConfirm(): void; onCancel(): void; onInfo(): void }) {
+function Forecast({ S, hero, targetId, defId, pre, onPick, onConfirm, onCancel, onInfo, onExtra }: { S: CombatState; hero: Figure; targetId: string; defId: string; pre: string[]; onPick(id: string): void; onConfirm(): void; onCancel(): void; onInfo(): void; onExtra(d: ActionDef): void }) {
   const c = ctxOf(S);
+  // blows that do not aim at one enemy (areas, traps, control on a Sector) are offered here too
+  const extras = actionAvailability(c, hero).filter((a) => !a.reason && MENU_OF(a.def) === 'attack' && a.def.targeting.type !== 'enemy');
   const target = S.figures.find((f) => f.id === targetId);
   const options = target ? attacksOn(c, hero, targetId) : [];
   const def = options.find((d) => d.id === defId) ?? options[0];
@@ -617,21 +631,87 @@ function Forecast({ S, hero, targetId, defId, pre, onPick, onConfirm, onCancel, 
           <Icon id="armor" /> {reg().enemies[interceptor.typeId]?.name ?? interceptor.name} vai se colocar na frente
         </div>
       )}
-      {options.length > 1 && (
-        <div className="g-fc-alts" role="radiogroup" aria-label="Escolha o golpe">
-          <div className="t">Escolha o golpe</div>
-          {options.slice(0, 5).map((d) => (
+      <div className="g-fc-alts" role="radiogroup" aria-label="Escolha o golpe">
+        <div className="t">{options.length > 1 ? 'Escolha o golpe' : 'Golpe'} · toque em outro inimigo para trocar o alvo</div>
+        {options.slice(0, 5).map((d) => {
+          const dn = d.preview?.(c, hero)?.dano;
+          const cst = actionAvailability(c, hero).find((a) => a.def.id === d.id)?.cost ?? 0;
+          return (
             <button key={d.id} role="radio" aria-checked={d.id === def.id} className={`g-fc-alt ${d.id === def.id ? 'on' : ''}`} onClick={() => onPick(d.id)}>
               <i className="dot" />
-              <span className="nm">{d.name}</span>
-              <small>{skillLine(d, d.preview?.(c, hero)?.dano)}</small>
+              <span className="body">
+                <span className="nm">
+                  {d.name} <em className="pa">{cst} PA</em>
+                </span>
+                <small>{skillLine(d, dn)}</small>
+                <span className="tags">
+                  {skillTags(d, dn).map((t) => (
+                    <em key={t.label} className={`tg ${t.tone}`}>
+                      <Icon id={t.icon} />
+                      {t.label}
+                    </em>
+                  ))}
+                </span>
+              </span>
             </button>
-          ))}
-        </div>
-      )}
+          );
+        })}
+        {extras.map(({ def: d, cost: cst }) => (
+          <button key={d.id} className="g-fc-alt extra" onClick={() => onExtra(d)}>
+            <i className="dot" />
+            <span className="body">
+              <span className="nm">
+                {d.name} <em className="pa">{cst} PA</em>
+              </span>
+              <small>
+                {skillLine(d, d.preview?.(c, hero)?.dano)} · {targetWords(d)}
+              </small>
+            </span>
+          </button>
+        ))}
+      </div>
       <button className="g-cta g-fc-go" autoFocus onClick={onConfirm}>
         Atacar
       </button>
+    </div>
+  );
+}
+
+/** While a skill is chosen: a clear mark over every figure it can be used on (green for allies, red for enemies). */
+function TargetMarks({ S, ids, def, diorama }: { S: CombatState; ids: string[]; def: ActionDef; diorama: NonNullable<ReturnType<typeof useApp>['diorama']> }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let raf = 0;
+    const draw = () => {
+      raf = requestAnimationFrame(draw);
+      const box = ref.current;
+      if (!box) return;
+      ids.forEach((id, i) => {
+        const el = box.children[i] as HTMLElement | undefined;
+        const b = diorama.screenBoxOf(id);
+        if (!el) return;
+        if (!b) {
+          el.style.display = 'none';
+          return;
+        }
+        el.style.display = '';
+        el.style.transform = `translate(${b.x}px, ${(b.top + b.bottom) / 2}px) translate(-50%, -50%)`;
+      });
+    };
+    draw();
+    return () => cancelAnimationFrame(raf);
+  }, [ids.join(), diorama]);
+  return (
+    <div ref={ref} className="g-tmarks" aria-hidden>
+      {ids.map((id) => {
+        const f = S.figures.find((x) => x.id === id);
+        const ally = f?.side === 'H';
+        return (
+          <span key={id} className={`tm ${ally ? 'ally' : 'foe'}`}>
+            <Icon id={ally ? (def.kind === 'move' ? 'act_passo' : def.icon ?? 'act_heal') : 'act_attack_melee'} />
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -1086,7 +1166,7 @@ function TempoPicker({ S, heroId, setHero }: { S: CombatState; heroId: string | 
  */
 type Menu = 'attack' | 'move' | 'support' | null;
 const MENU_OF = (d: ActionDef): Exclude<Menu, null> => (d.kind === 'attack' || d.kind === 'spell' || d.kind === 'control' ? 'attack' : d.kind === 'move' ? 'move' : 'support');
-function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre, onKit }: { f: Figure; S: CombatState; sel: Sel | null; onPick(d: ActionDef, o?: string): void; onEnd(): void; pre: string[]; setPre(p: string[]): void; onKit(): void }) {
+function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre, onKit, onAttack }: { f: Figure; S: CombatState; sel: Sel | null; onPick(d: ActionDef, o?: string): void; onEnd(): void; pre: string[]; setPre(p: string[]): void; onKit(): void; onAttack(): boolean }) {
   const c = ctxOf(S);
   const list = actionAvailability(c, f);
   const useful = (a: (typeof list)[number]) => !a.reason && !(a.def.id === 'cantil' && f.hp >= f.maxHp);
@@ -1135,6 +1215,15 @@ function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre, onKit }: { f: Figu
                 <span className="ctx">
                   <b className="an">{def.name}</b>
                   <small>{skillLine(def, dano)}</small>
+                  <span className="tags">
+                    <em className="pa">{cost} PA</em>
+                    {skillTags(def, dano).slice(0, 3).map((t) => (
+                      <em key={t.label} className={`tg ${t.tone}`}>
+                        <Icon id={t.icon} />
+                        {t.label}
+                      </em>
+                    ))}
+                  </span>
                 </span>
                 <span className="cost" aria-label={`${cost} PA`}>
                   {Array.from({ length: Math.max(0, cost) }).map((_, k) => (
@@ -1151,7 +1240,7 @@ function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre, onKit }: { f: Figu
           const n = items(g.m).length;
           if (!n) return null;
           return (
-            <button key={g.m} className={`g-cmd c-${g.m} ${menu === g.m ? 'on' : ''}`} onClick={() => setMenu(menu === g.m ? null : g.m)} aria-expanded={menu === g.m}>
+            <button key={g.m} className={`g-cmd c-${g.m} ${menu === g.m ? 'on' : ''}`} onClick={() => (g.m === 'attack' && menu !== 'attack' && onAttack() ? setMenu(null) : setMenu(menu === g.m ? null : g.m))} aria-expanded={menu === g.m}>
               <span className="disc">
                 <Icon id={g.icon} />
               </span>
@@ -1237,6 +1326,13 @@ function KitSheet({ S, f, onClose }: { S: CombatState; f: Figure; onClose(): voi
 
 function TargetBar({ sel, f, S, areaFirst, onOption, onCancel, onFire }: { sel: Sel; f: Figure; S: CombatState; areaFirst: SectorKey | null; onOption(o: string): void; onCancel(): void; onFire(): void }) {
   const opts = sel.def.options?.(ctxOf(S), f) ?? [];
+  let tg: string[] = [];
+  try {
+    tg = actionTargets(ctxOf(S), f, sel.def).figures;
+  } catch {
+    tg = [];
+  }
+  const names = tg.length ? tg.map((id) => (id === f.id ? 'você' : S.figures.find((x) => x.id === id)?.name ?? '')).join(', ') : '';
   const T = sel.def.targeting.type;
   const needsOption = opts.length > 0 && !sel.option && !opts.every((o) => o.id.startsWith('sobrecarga'));
   const msg = needsOption
@@ -1263,7 +1359,11 @@ function TargetBar({ sel, f, S, areaFirst, onOption, onCancel, onFire }: { sel: 
           <b>{sel.def.name}</b>
           <small>{skillLine(sel.def, sel.def.preview?.(ctxOf(S), f)?.dano)}</small>
         </span>
-        <span className="msg">{msg}</span>
+        <span className="msg">
+          {msg}
+          {names && <em className="who-can">Pode usar em: {names}</em>}
+          {T === 'none' && <em className="who-can">{targetWords(sel.def)}</em>}
+        </span>
         {T === 'none' && !needsOption && (
           <button className="g-pill gold" onClick={onFire}>
             Usar

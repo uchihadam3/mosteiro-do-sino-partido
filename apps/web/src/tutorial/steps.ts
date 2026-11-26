@@ -364,12 +364,6 @@ export const TIPS: Tip[] = [
     when: (t) => pending(t) === 'egide' || pending(t) === 'conditionResponse',
   },
   {
-    id: 'objective',
-    say: 'Esta luta tem um objetivo extra. Toque aqui para ver como.',
-    target: { dom: '.g-obj' },
-    when: (t) => inCombat(t) && t.has('.g-obj'),
-  },
-  {
     id: 'tie',
     say: 'Empate: vocês escolhem quem o inimigo vai atacar.',
     target: { dom: '.prompt' },
