@@ -318,5 +318,7 @@ export function autoplayCampaign(start: CampaignState, strat: Strategy): RunRepo
 function pickOption(ids: string[], strat: Strategy): string | null {
   const pref = strat.optionals ? ['go_gal', 'go_cap', strat.route === 'leste' ? 'go_scr' : 'go_can', 'go_car', 'go_rel', 'go_rare', 'go_cri', 'go_sal', 'go_cam'] : ['go_gal', strat.route === 'leste' ? 'go_scr' : 'go_can', 'go_car', 'go_sal', 'go_cam'];
   for (const p of pref) if (ids.includes(p)) return p;
-  return ids.find((i) => !i.startsWith('go_')) ?? null;
+  // the Sete Linhas are read while exploring the Scriptorium, only when the strategy wants to decipher them
+  if (strat.decipher && ids.includes('read_lines')) return 'read_lines';
+  return ids.find((i) => !i.startsWith('go_') && i !== 'read_lines') ?? null;
 }

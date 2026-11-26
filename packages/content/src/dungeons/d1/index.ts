@@ -64,7 +64,8 @@ const ENC: EncounterDef[] = [
     compositions: [[BES, P], [BES, ESC], [BES, ESC, P], [BES, BES, ESC, P], [BES, BES, ESC, ESC, P]],
     reinforcements: [[], [], w(2, BES), w(2, ESC), w(2, ACO)],
     cover: k('H:R2', 'H:R4', 'E:R2', 'E:R4'), entries: k('E:R5'),
-    objectives: ['setelinhas'],
+    // the Sete Linhas are deciphered while EXPLORING the Scriptorium after the fight (no objective inside the battle)
+    objectives: [],
     rewards: { comum: 1, consumivel: 1, gold: [2, 3, 4, 5, 6] },
     intro: 'Na parede do fundo, sete linhas gravadas na pedra convergem para um único traço vertical.',
     outro: 'O arquivo silencia. Tinta velha escorre das estantes tombadas.',
@@ -214,6 +215,10 @@ export const D1: DungeonDef = {
     const node = s.node;
     if (node === 'POR') o.push({ id: 'go_gal', label: 'Abrir a Porta do Mosteiro', detail: 'A porta abre com um gemido longo.', kind: 'combat', locationId: 'GAL', encounterId: 'GAL-E01', icon: 'loc_galeria' });
     if (node === 'CAN') o.push({ id: 'go_car', label: 'Descer aos Cárceres do Contrapeso', detail: 'Rota Oeste · parte 2', kind: 'combat', locationId: 'CAR', encounterId: 'CAR-E01', icon: 'loc_carceres' });
+    if (node === 'SCR') {
+      if (!f(s, 'relRevealed')) o.push({ id: 'read_lines', label: 'Decifrar as Sete Linhas', detail: 'Sete riscos na parede do fundo… um segredo?', kind: 'narrative', icon: 'sete_linhas', secret: true });
+      o.push({ id: 'back_cla', label: 'Voltar ao Claustro', detail: 'Seguir viagem', kind: 'travel', locationId: 'CLA', icon: 'loc_claustro' });
+    }
     if (node === 'SAL') o.push({ id: 'go_cam', label: 'Subir ao Campanário Partido', detail: 'Confronto final', kind: 'combat', locationId: 'CAM', encounterId: 'CAM-E01', icon: 'loc_campanario' });
     if (node === 'CLA') {
       const salaoOpen = !f(s, 'salaoStarted');
@@ -257,6 +262,14 @@ export const D1: DungeonDef = {
         s.flags['route'] = 'leste';
         visit('SCR');
         return { encounterId: 'SCR-E01' };
+      case 'read_lines':
+        s.flags['state:seteLinhas'] = true;
+        s.flags['relRevealed'] = true;
+        if (!s.revealed.includes('REL')) s.revealed.push('REL');
+        return { narrative: 'Os sete riscos convergem para um traço que aponta uma pedra solta. Atrás dela, uma passagem estreita desce para o escuro: o Primeiro Caminho.', archive: 'B-SCR-01' };
+      case 'back_cla':
+        s.node = 'CLA';
+        return;
       case 'go_can':
         s.flags['route'] = 'oeste';
         visit('CAN');
@@ -313,7 +326,8 @@ export const D1: DungeonDef = {
       case 'SCR-E01':
         s.flags['routeDone'] = true;
         s.flags['rareOffered'] = true;
-        s.node = 'CLA';
+        // stay in the Scriptorium: the Sete Linhas are on the wall, waiting to be read
+        s.node = 'SCR';
         break;
       case 'CAN-E01':
         s.node = 'CAN';

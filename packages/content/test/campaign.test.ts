@@ -32,7 +32,7 @@ describe('Segredos do Básico §61 (aceites 04, 05, 06, 15)', () => {
     const noDecipher = autoplayCampaign(camp(3, 'rel-a'), { route: 'leste', optionals: true, decipher: false, maxCommands: 30000 });
     expect(noDecipher.state.flags['relRevealed']).toBeFalsy();
     for (const opts of noDecipher.seenOptions) expect(opts).not.toContain('go_rel');
-    // with decipher: arcanista/arqueiro try every Cycle
+    // with decipher: the party reads the Sete Linhas while exploring the Scriptorium after the fight
     let revealed = false;
     for (const seed of ['rel-b', 'rel-c', 'rel-d', 'rel-e']) {
       const r = autoplayCampaign(camp(3, seed), { route: 'leste', optionals: true, decipher: true });
