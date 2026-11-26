@@ -186,7 +186,7 @@ function AttackPostGate({ p, S }: { p: Extract<Pending, { kind: 'attackPost' }>;
     const tick = () => {
       if (gone) return;
       // wait for the dice to land and shine (the animation queue holds while they do), then resolve
-      if (d?.busy && Date.now() - t0 < 6000) return void setTimeout(tick, 120);
+      if ((d?.busy || Date.now() - t0 < 900) && Date.now() - t0 < 6500) return void setTimeout(tick, 120);
       const choices = autoSpend(p);
       const names = choices.map((id) => p.options.find((o) => o.id === id)?.label).filter(Boolean) as string[];
       if (names.length) toast(`✦ ${names.map((n) => n.replace(/^.*?:\s*/, '').replace(/^Impulso\s*→\s*/i, '')).join(' · ')}`, 'info');
