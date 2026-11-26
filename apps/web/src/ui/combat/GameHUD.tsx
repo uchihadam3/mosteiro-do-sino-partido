@@ -1060,34 +1060,6 @@ function TempoPicker({ S, heroId, setHero }: { S: CombatState; heroId: string | 
   }));
   return (
     <div className="g-tempo">
-      <div className="g-timeline" aria-label="Ordem do ciclo">
-        {timeline.map((col, i) => (
-          <div key={col.t} className={`col t-${col.t}`}>
-            <div className="hd">
-              <Icon id={`tempo_${col.t}`} />
-              {i + 1}º {TEMPO_NAME[col.t]}
-            </div>
-            <div className="who">
-              {col.heroes.map((x) => (
-                <button key={x.id} className={`av h ${x.id === heroId ? 'sel' : ''}`} style={{ ['--acc' as string]: CLASS_COLOR[x.typeId] }} onClick={() => s.controls(x.id) && setHero(x.id)} aria-label={x.name}>
-                  <Icon id={`class_${x.typeId}`} />
-                </button>
-              ))}
-              {col.heroes.length > 0 && col.enemies.length > 0 && <span className="then">›</span>}
-              {col.enemies.map((ty) => {
-                const n = S.figures.filter((f) => f.typeId === ty && f.status === 'active').length;
-                return (
-                  <span key={ty} className="av e" title={reg().enemies[ty]?.name}>
-                    <Icon id="act_attack_melee" />
-                    {n > 1 && <b>×{n}</b>}
-                  </span>
-                );
-              })}
-              {col.heroes.length === 0 && col.enemies.length === 0 && <span className="none">—</span>}
-            </div>
-          </div>
-        ))}
-      </div>
       {h && (!all || heroId) ? (
         <>
           <div className="g-ctx-title" style={{ color: CLASS_COLOR[h.typeId] }}>
@@ -1123,7 +1095,7 @@ function TempoPicker({ S, heroId, setHero }: { S: CombatState; heroId: string | 
               <Icon id={`tempo_${x.tempo}`} className="tmp" />
             </button>
           ))}
-          <span className="lbl">Toque para mudar o ritmo</span>
+          <span className="lbl">A ordem está no topo · toque num herói para mudar o ritmo</span>
         </div>
       )}
       {all ? (

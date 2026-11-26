@@ -100,8 +100,17 @@ export const FIRST_BATTLE: Chapter = {
       autoMs: 5500,
     },
     {
+      id: 'order',
+      say: 'No topo está a ordem deste ciclo: quem age primeiro fica à esquerda. O destacado é quem age agora.',
+      target: { dom: '.g-order' },
+      when: (t) => phase(t) === 'tempo' && !pending(t) && t.has('.g-order'),
+      done: () => false,
+      skipIf: (t) => cycle(t) > 1,
+      autoMs: 6000,
+    },
+    {
       id: 'tempo',
-      say: 'Aqui você escolhe QUANDO cada herói age. Rápido age antes dos inimigos. Por agora, toque em Lutar!',
+      say: 'Mudar o ritmo de um herói muda a ordem (Rápido age antes dos inimigos). Por agora, toque em Lutar!',
       target: { dom: '.g-tempo .g-cta' },
       block: true,
       when: (t) => phase(t) === 'tempo' && !pending(t) && t.has('.g-tempo .g-cta'),
