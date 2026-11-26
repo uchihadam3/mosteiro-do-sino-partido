@@ -155,7 +155,7 @@ const ARCHIVE = {
   'B-SCR-01': {
     code: 'B-SCR-01',
     title: 'Arquivo Oculto · B-SCR-01',
-    text: 'As sete linhas não formam uma frase. Formam uma dobradiça.\n\nSe o encontro do Scriptorium ainda estiver em andamento, registre Passagem Decifrada. Quando o encontro terminar, uma estante inteira gira para dentro da parede: revele o Relicário do Primeiro Caminho como encontro secreto opcional, disponível antes de entrar no Salão.',
+    text: 'As sete linhas não formam uma frase. Formam uma dobradiça.\n\nVocês empurram o traço vertical e uma estante inteira gira para dentro da parede. Atrás dela, uma passagem estreita: o Relicário do Primeiro Caminho. É um encontro secreto opcional — dá para ir pelo Claustro, antes de entrar no Salão.',
     source: '§61.1',
   },
   'B-VIG-01': {
