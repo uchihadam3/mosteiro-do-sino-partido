@@ -271,8 +271,7 @@ export function GameHUD() {
       rollKey.current++;
       setRoll({ ...ev, key: rollKey.current });
       audio.play('dice_roll', { volume: 0.7 });
-      const best = ev.roll.critico ? 'dice_critical' : ev.roll.impulsos ? 'dice_impulse' : ev.roll.successes ? 'dice_success' : 'dice_fail';
-      audio.play(best, { volume: 0.6, delay: 0.35 });
+      // the outcome sound plays from the dice overlay, on the reveal
     };
     return () => {
       diorama.cb.onFigureClick = undefined;
@@ -457,7 +456,7 @@ export function GameHUD() {
         <Dock S={S} heroes={heroes} tempoHero={tempoHero} incoming={showThreats ? incomingDamage(threats) : {}} onTap={(id) => handlers.current.fig(id)} />
       </div>
 
-      {forecast && heroActive && !S.pending && !sel && <Forecast S={S} hero={heroActive} targetId={forecast.targetId} defId={forecast.defId} pre={pre} onPick={(defId) => setForecast({ ...forecast, defId })} onConfirm={() => attackNow(forecast.defId, forecast.targetId)} onCancel={() => setForecast(null)} />}
+      {forecast && heroActive && !S.pending && !sel && <Forecast S={S} hero={heroActive} targetId={forecast.targetId} defId={forecast.defId} pre={pre} onPick={(defId) => setForecast({ ...forecast, defId })} onConfirm={() => attackNow(forecast.defId, forecast.targetId)} onCancel={() => setForecast(null)} onInfo={() => { setInspect(forecast.targetId); setForecast(null); }} />}
       {callout && (
         <div key={callout.key} className={`g-callout ${callout.kind}`}>
           {callout.text}
@@ -529,7 +528,7 @@ function attackCommand(c: Ctx, hero: Figure, def: ActionDef, targetId: string, p
   return { t: 'action', actionId: def.id, figureId: hero.id, pre: [...pre], targetIds: [targetId] };
 }
 
-function Forecast({ S, hero, targetId, defId, pre, onPick, onConfirm, onCancel }: { S: CombatState; hero: Figure; targetId: string; defId: string; pre: string[]; onPick(id: string): void; onConfirm(): void; onCancel(): void }) {
+function Forecast({ S, hero, targetId, defId, pre, onPick, onConfirm, onCancel, onInfo }: { S: CombatState; hero: Figure; targetId: string; defId: string; pre: string[]; onPick(id: string): void; onConfirm(): void; onCancel(): void; onInfo(): void }) {
   const c = ctxOf(S);
   const target = S.figures.find((f) => f.id === targetId);
   const options = target ? attacksOn(c, hero, targetId) : [];
@@ -556,7 +555,9 @@ function Forecast({ S, hero, targetId, defId, pre, onPick, onConfirm, onCancel }
   return (
     <div className="g-forecast" role="dialog" aria-label={`Atacar ${name}`}>
       <div className="g-fc-head">
-        <span className="who">{name}</span>
+        <button className="who g-fc-info" onClick={onInfo} aria-label={`Ver ${name}`}>
+          {name} <Icon id="info" />
+        </button>
         <span className="hp">
           <i style={{ width: `${Math.max(0, (target.hp / target.maxHp) * 100)}%` }} />
           {loss > 0 && <i className={`loss ${kill >= 0.5 ? 'lethal' : ''}`} style={{ left: `${Math.max(0, ((target.hp - loss) / target.maxHp) * 100)}%`, width: `${(loss / target.maxHp) * 100}%` }} />}
@@ -1280,6 +1281,17 @@ function Inspect({ S, f, onClose }: { S: CombatState; f: Figure; onClose(): void
           </span>
           {!!f.conditions.brechas && <span>Brechas {f.conditions.brechas}</span>}
         </div>
+        {!isHero &&
+          (() => {
+            const th = predictThreats(S).find((x) => x.from === f.id);
+            if (!th || !th.to.length) return null;
+            const names = th.to.map((id) => `${S.figures.find((x) => x.id === id)?.name ?? '?'} (−${th.dano[id] ?? 0})`).join(', ');
+            return (
+              <div className="g-insp-plan">
+                Neste ciclo vai atacar <b>{names}</b> no ritmo <b>{TEMPO_NAME[th.tempo]}</b>.
+              </div>
+            );
+          })()}
         {intent && (
           <div className="g-insp-intent">
             <Icon id={`tempo_${intent.tempo}`} />

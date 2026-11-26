@@ -2396,3 +2396,31 @@
     display: block;
   }
 }
+
+/* enemy details: what it will do this cycle, in words */
+.g-insp-plan {
+  margin: 8px 0 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(194, 70, 58, 0.16);
+  border: 1px solid rgba(255, 122, 102, 0.35);
+  font-size: 13px;
+  color: #ffd8cf;
+}
+.g-fc-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+}
+.g-fc-info .ico {
+  width: 15px;
+  height: 15px;
+  color: var(--gold-2);
+}
