@@ -401,9 +401,15 @@ export function GameHUD() {
     return () => window.removeEventListener('keydown', k, true);
   }, [sel, inspect, diorama]);
 
-  // ---- one short line telling the player what to do now
+  // ---- one short line telling the player what to do now (not while the board is still playing the last action)
+  const [animBusy, setAnimBusy] = useState(false);
+  useEffect(() => {
+    if (!diorama) return;
+    const id = setInterval(() => setAnimBusy(diorama.busy), 200);
+    return () => clearInterval(id);
+  }, [diorama]);
   const hint = (() => {
-    if (S.pending) return null;
+    if (S.pending || animBusy) return null;
     if (S.phase === 'deploy') return deploySel ? 'Toque num lugar brilhando' : 'Toque num herói para trocá-lo de lugar';
     if (S.phase === 'tempo') return null;
     if (S.phase === 'heroBand') return heroes.some((h) => h.tempo === band?.tempo && !h.acted && s.controls(h.id)) ? 'Toque no herói que vai agir' : 'Outro jogador escolhe…';

@@ -434,6 +434,7 @@
   position: relative;
   display: flex;
   height: 20px;
+  margin: 0 12px;
   border-radius: 6px;
   overflow: visible;
   gap: 2px;
