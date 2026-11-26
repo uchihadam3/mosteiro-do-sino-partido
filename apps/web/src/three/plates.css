@@ -1,0 +1,427 @@
+/* ==========================================================================
+   Figure plates over the 3D board (three/plates.ts) and the board's floating numbers.
+   Small, iconic, light: an intent bubble + HP pips over enemies, a slim bar over heroes.
+   Sizes are in em so one font-size scales a plate per screen.
+   ========================================================================== */
+.fplate {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.18em;
+  font-size: 11px;
+  line-height: 1;
+  pointer-events: none;
+  will-change: transform;
+  white-space: nowrap;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.85));
+}
+.fplate svg {
+  display: block;
+  fill: currentColor;
+}
+
+/* ---- intent bubble: what this enemy will do this Cycle, to whom, for how much */
+.fp-intent {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.22em;
+  height: 1.62em;
+  padding: 0 0.3em 0 0.26em;
+  margin-bottom: 0.3em;
+  border-radius: 0.81em;
+  background: linear-gradient(180deg, #4a1712, #250907);
+  border: 1px solid rgba(255, 128, 100, 0.6);
+  color: #ffb4a2;
+  box-shadow: inset 0 1px 0 rgba(255, 200, 180, 0.15);
+}
+.fp-intent::after {
+  /* the bubble's tail, pointing at the figure */
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -0.36em;
+  width: 0.5em;
+  height: 0.5em;
+  margin-left: -0.25em;
+  background: #250907;
+  border-right: 1px solid rgba(255, 128, 100, 0.6);
+  border-bottom: 1px solid rgba(255, 128, 100, 0.6);
+  transform: rotate(45deg);
+}
+.fp-act {
+  width: 1.42em;
+  height: 1.42em;
+}
+.fp-dmg {
+  font-family: var(--font-display, serif);
+  font-weight: 700;
+  font-size: 1.18em;
+  color: #fff1ea;
+  min-width: 0.6em;
+  text-align: center;
+}
+.fp-arrow {
+  width: 0;
+  height: 0;
+  border-top: 0.26em solid transparent;
+  border-bottom: 0.26em solid transparent;
+  border-left: 0.34em solid rgba(255, 180, 160, 0.85);
+  margin: 0 0.04em 0 0.06em;
+}
+.fp-to {
+  display: flex;
+  align-items: center;
+}
+.fp-face {
+  display: grid;
+  place-items: center;
+  width: 1.32em;
+  height: 1.32em;
+  border-radius: 50%;
+  background: var(--hc, #ddd);
+  color: #1a0f0a;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.75), inset 0 -0.12em 0 rgba(0, 0, 0, 0.25);
+}
+.fp-face + .fp-face {
+  margin-left: -0.38em;
+}
+.fp-face svg {
+  width: 0.98em;
+  height: 0.98em;
+}
+/* not an attack: a calm bubble (move, buff, summon, heal) */
+.fp-intent.k-move,
+.fp-intent.k-buff,
+.fp-intent.k-summon,
+.fp-intent.k-heal,
+.fp-intent.k-defend {
+  background: linear-gradient(180deg, #2a2a34, #15141b);
+  border-color: rgba(190, 200, 230, 0.45);
+  color: #cfd8ee;
+  padding: 0 0.28em;
+}
+.fp-intent.k-move::after,
+.fp-intent.k-buff::after,
+.fp-intent.k-summon::after,
+.fp-intent.k-heal::after,
+.fp-intent.k-defend::after {
+  background: #15141b;
+  border-color: rgba(190, 200, 230, 0.45);
+}
+.fp-intent.k-control {
+  color: #d8b8ff;
+}
+/* acting now: gold and pulsing */
+.fp-intent.now {
+  border-color: #ffd27a;
+  color: #ffe2a0;
+  animation: fpNow 0.9s ease-in-out infinite;
+}
+.fp-intent.now::after {
+  border-color: #ffd27a;
+}
+@keyframes fpNow {
+  50% {
+    box-shadow: 0 0 0.9em rgba(255, 190, 90, 0.85);
+  }
+}
+
+/* ---- HP: number + pips/bar, armour badge */
+.fp-main {
+  display: flex;
+  align-items: center;
+  gap: 0.22em;
+}
+.fp-num {
+  font-family: var(--font-display, serif);
+  font-weight: 700;
+  font-size: 1.05em;
+  color: #ffe6dc;
+  min-width: 0.7em;
+  text-align: right;
+  text-shadow: 0 0 2px #000, 0 1px 0 #000;
+}
+.fp-num.pop {
+  animation: fpPop 0.45s ease-out;
+}
+@keyframes fpPop {
+  30% {
+    transform: scale(1.45);
+    color: #fff;
+  }
+}
+.fp-bar {
+  position: relative;
+  width: 3.6em;
+  height: 0.55em;
+  border-radius: 0.18em;
+  background: #2b0d0a;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+}
+.fp-bar > i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  display: block;
+  width: 100%;
+}
+.fp-fill {
+  background: linear-gradient(180deg, #ff7a62, #c8302a 60%, #9c2220);
+  transition: width 0.35s ease-out;
+}
+.fp-ghost {
+  background: #fff4e4;
+  transition: width 0.42s cubic-bezier(0.45, 0, 0.6, 1) 0.3s;
+}
+.fp-bar.pips::after {
+  /* segment separators: one pip per HP */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent calc(100% - 1px), rgba(12, 4, 3, 0.95) calc(100% - 1px)) 0 0 / calc(100% / var(--n, 4)) 100% repeat-x;
+}
+.fp-bar.low .fp-fill {
+  background: linear-gradient(180deg, #ff9a52, #e04a1e 60%, #b02c14);
+}
+.fp-e .fp-bar:not(.pips) {
+  width: 4.6em;
+}
+.fplate.fp-hit .fp-bar {
+  animation: fpHit 0.34s ease-out;
+}
+@keyframes fpHit {
+  0% {
+    transform: translateX(0);
+    box-shadow: 0 0 0 1px #fff, 0 0 0.6em #fff;
+  }
+  25% {
+    transform: translateX(-0.15em);
+  }
+  50% {
+    transform: translateX(0.15em);
+  }
+}
+.fplate.fp-heal .fp-bar {
+  animation: fpHeal 0.6s ease-out;
+}
+@keyframes fpHeal {
+  0% {
+    box-shadow: 0 0 0 1px #c8ffb0, 0 0 0.7em #8fe07a;
+  }
+}
+.fp-arm {
+  display: flex;
+  align-items: center;
+  gap: 0.05em;
+  color: #b9c8d6;
+}
+.fp-arm svg {
+  width: 1em;
+  height: 1em;
+}
+.fp-arm b {
+  font-family: var(--font-display, serif);
+  font-size: 0.92em;
+  font-weight: 700;
+  color: #d8e4ee;
+}
+
+/* ---- conditions: tiny icons only */
+.fp-conds {
+  display: flex;
+  gap: 0.12em;
+}
+.fp-conds svg {
+  width: 1.05em;
+  height: 1.05em;
+  color: #e8dcc0;
+}
+.fp-conds .c-guardado {
+  color: #9fd0ff;
+}
+.fp-conds .c-exposto,
+.fp-conds .c-julgado {
+  color: #ffd27a;
+}
+.fp-conds .c-quebrado {
+  color: #e0b090;
+}
+.fp-conds .c-queimando {
+  color: #ff8a40;
+}
+.fp-conds .c-sangramento {
+  color: #ff6a5a;
+}
+.fp-conds .c-veneno {
+  color: #9fd060;
+}
+.fp-conds .c-imobilizado,
+.fp-conds .c-atordoado {
+  color: #c8b8ff;
+}
+.fp-conds .c-brecha {
+  color: #4fd0c4;
+}
+
+/* ---- heroes: a slim green bar, nothing else but conditions */
+.fp-h .fp-intent,
+.fp-h .fp-num,
+.fp-h .fp-arm {
+  display: none !important;
+}
+.fp-h .fp-bar {
+  width: 3em;
+  height: 0.36em;
+  border-radius: 0.2em;
+  background: #0f1a0c;
+}
+.fp-h .fp-fill {
+  background: linear-gradient(180deg, #a4ec84, #5fb04a);
+}
+.fp-h .fp-bar.low .fp-fill {
+  background: linear-gradient(180deg, #ffd270, #e0902e);
+}
+.fp-h .fp-bar.pips::after {
+  background: linear-gradient(90deg, transparent calc(100% - 1px), rgba(6, 10, 4, 0.9) calc(100% - 1px)) 0 0 / calc(100% / var(--n, 4)) 100% repeat-x;
+}
+
+/* screen sizes: phone sideways is tiny, desktop a bit bigger */
+@media (max-height: 500px) {
+  .fplate {
+    font-size: 10px;
+  }
+}
+@media (min-width: 1000px) and (min-height: 640px) {
+  .fplate {
+    font-size: 12.5px;
+  }
+}
+:root[data-motion='reduced'] .fplate .fp-intent.now,
+:root[data-motion='reduced'] .fplate.fp-hit .fp-bar {
+  animation: none;
+}
+
+/* ==========================================================================
+   Floating numbers and icons over the board (Diorama.floatText): numbers, not sentences.
+   ========================================================================== */
+.fx-pop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  font-family: var(--font-display, serif);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  z-index: 8;
+  -webkit-text-stroke: 1.5px rgba(30, 6, 4, 0.9);
+  paint-order: stroke fill;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.55);
+  will-change: transform, opacity;
+}
+.fx-pop svg {
+  display: inline-block;
+  vertical-align: -0.12em;
+  width: 0.9em;
+  height: 0.9em;
+  fill: currentColor;
+  filter: drop-shadow(0 1px 0 #000) drop-shadow(0 0 3px rgba(0, 0, 0, 0.8));
+}
+.fx-dmg,
+.fx-direct,
+.fx-burn,
+.fx-poison,
+.fx-bleed {
+  font-size: clamp(28px, 8vw, 40px);
+  color: #ff6a52;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.55), 0 0 16px rgba(255, 70, 40, 0.7);
+}
+.fx-burn {
+  color: #ffa060;
+}
+.fx-poison {
+  color: #a8e070;
+}
+.fx-bleed {
+  color: #ff7060;
+}
+.fx-direct {
+  color: #e8b0ff;
+}
+.fx-crit {
+  font-size: clamp(38px, 11vw, 58px);
+  color: #ffe070;
+  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.6), 0 0 24px rgba(255, 190, 60, 0.95);
+}
+.fx-crit small {
+  display: block;
+  font-size: 0.3em;
+  letter-spacing: 0.16em;
+  text-align: center;
+  -webkit-text-stroke: 0.8px rgba(30, 6, 4, 0.9);
+}
+.fx-heal {
+  font-size: clamp(24px, 7vw, 34px);
+  color: #8ff08a;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.5), 0 0 16px rgba(110, 230, 110, 0.7);
+}
+.fx-block {
+  font-size: clamp(20px, 6vw, 28px);
+  color: #cfe5ff;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.5), 0 0 12px rgba(120, 180, 255, 0.8);
+}
+.fx-miss {
+  font-size: clamp(16px, 4.6vw, 22px);
+  color: #d9d1c4;
+  letter-spacing: 0.08em;
+  -webkit-text-stroke: 1px rgba(20, 16, 12, 0.9);
+}
+.fx-cond {
+  font-size: clamp(22px, 6vw, 30px);
+  -webkit-text-stroke: 0;
+}
+.fx-cond svg {
+  width: 1em;
+  height: 1em;
+}
+.fplate.fp-gone {
+  animation: fpGone 0.7s ease-in 0.35s forwards;
+}
+@keyframes fpGone {
+  to {
+    opacity: 0;
+  }
+}
+.fx-cond.c-veneno {
+  color: #9fd060;
+}
+.fx-cond.c-sangramento {
+  color: #ff6a5a;
+}
+.fx-cond.c-queimando {
+  color: #ff8a40;
+}
+.fx-cond.c-quebrado {
+  color: #e0b090;
+}
+.fx-cond.c-exposto,
+.fx-cond.c-julgado,
+.fx-cond.c-bencao {
+  color: #ffd27a;
+}
+.fx-cond.c-imobilizado,
+.fx-cond.c-atordoado {
+  color: #c8b8ff;
+}
+.fx-cond.c-guardado {
+  color: #9fd0ff;
+}
+.fx-cond.c-furtivo {
+  color: #4fd0c4;
+}

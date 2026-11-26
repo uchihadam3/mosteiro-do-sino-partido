@@ -15,7 +15,9 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
-import { intentFor, type CombatState, type DomainEvent, type Figure, type SectorKey } from '@mosteiro/core';
+import { type CombatState, type DomainEvent, type Figure, type SectorKey } from '@mosteiro/core';
+import { predictThreats, type Threat } from '../ui/combat/threats';
+import { FigPlate, conditionIcons, intentView, layoutPlates, type Box, type PlateBox } from './plates';
 import { buildEnemy, buildHero, CLASS_ACCENT, type Rig } from './characters';
 import { buildEnemySkinned, buildHeroSkinned, hasSkinnedEnemy, projectileModel } from './skinned';
 import { buildScene, roomPalette, type BuiltScene } from './scenes';
@@ -102,7 +104,10 @@ interface FigView {
   dead: boolean;
   deathT: number;
   flash: number;
-  plate?: HTMLElement;
+  /** the small plate over the figure (HP, intent, conditions) */
+  plate?: FigPlate;
+  /** HP shown on the board: lags the rules until the blow that changes it is animated (-1 = not set yet) */
+  hpShown: number;
   hidden: boolean;
   phase: number;
   weaponIcon?: string;
@@ -142,6 +147,8 @@ interface Task {
   releaseDice?: { targetId: string; arrive: number };
 }
 
+/** Board → HUD: the HP displayed on the board changed (detail `{ id, hp, maxHp, lagging }`). */
+export const HP_SIGNAL = 'mosteiro:hp';
 /** Dice ⇄ board handshake (window events; see ui/combat/Dice3D.tsx). */
 const DICE_SIGNAL = 'mosteiro:dice';
 const DICE_RELEASE = 'mosteiro:dice-release';
@@ -468,7 +475,7 @@ export class Diorama {
     this.boardGroup.visible = mode === 'combat';
     if (mode !== 'combat') {
       for (const [id, f] of this.figs) if (f.side === 'E') this.removeFig(id);
-      for (const f of this.figs.values()) if (f.plate) f.plate.style.display = 'none';
+      for (const f of this.figs.values()) f.plate?.show(false);
       this.punch.want = 0;
     }
     // the world and cinema modules stage their own figures
@@ -581,6 +588,7 @@ export class Diorama {
       dead: false,
       deathT: 0,
       flash: 0,
+      hpShown: -1,
       hidden: false,
       phase: Math.random() * 10,
       weaponIcon,
@@ -595,11 +603,9 @@ export class Diorama {
       idleT: 5 + Math.random() * 7,
     };
     if (this.mode === 'world' || this.mode === 'cinema') rig.root.visible = this.figuresForced;
-    // nameplate
-    const plate = document.createElement('div');
-    plate.className = `nameplate ${f.side === 'E' ? 'enemy' : 'hero'}`;
-    this.labels.appendChild(plate);
-    v.plate = plate;
+    // plate over the head (HP, intent, conditions)
+    v.plate = new FigPlate(this.labels, f.side);
+    v.plate.show(false);
     this.figs.set(f.id, v);
     return v;
   }
@@ -639,6 +645,7 @@ export class Diorama {
     this.lastState = S;
     const slots = this.slotPositions(S);
     const present = new Set<string>();
+    let threats: Threat[] | null = null;
     // build all prefabs in parallel (first sync of an encounter)
     await Promise.all(S.figures.filter((f) => f.status !== 'reserve' && f.status !== 'dead').map((f) => this.ensureFig(f, weapons[f.id] ?? this.figs.get(f.id)?.weaponIcon)));
     for (const f of S.figures) {
@@ -657,7 +664,12 @@ export class Diorama {
         v.sector = f.sector;
       }
       if (!v.tween && !this.queue.length) v.fallen = f.status === 'active' ? 0 : 1;
-      this.updatePlate(v, f, S);
+      // while the animation queue plays, the plate keeps showing the board as it was: HP, falls and deaths
+      // change when their blow is animated; once idle, everything snaps to the rules state
+      if (!this.queue.length || v.hpShown < 0) {
+        threats ??= safeThreats(S);
+        this.updatePlate(v, f, S, threats);
+      }
     }
     for (const id of [...this.figs.keys()]) if (!present.has(id) && !this.figs.get(id)!.dead && !this.queue.length) this.removeFig(id);
     this.updateMarkers(S);
@@ -674,43 +686,59 @@ export class Diorama {
       const v = await this.ensureFig({ id: p.id, side: 'H', typeId: p.classId, name: p.name, sector: p.sector, status: p.down ? 'caido' : 'active' } as Figure, p.weaponIcon);
       v.pos.copy(slots.get(p.id)!);
       v.fallen = p.down ? 1 : 0;
-      if (v.plate) v.plate.style.display = 'none';
+      v.plate?.show(false);
     }
     this.exploreParty = party;
     this.engageLines.clear();
     this.markers.clear();
   }
 
-  private updatePlate(v: FigView, f: Figure, S?: CombatState) {
+  private updatePlate(v: FigView, f: Figure, S: CombatState, threats: Threat[]) {
+    const p = v.plate;
+    if (!p) return;
+    const up = f.status === 'active' && !v.dead;
+    p.show(up);
+    p.setData({
+      side: f.side,
+      maxHp: f.maxHp,
+      armor: f.side === 'E' ? f.armor + (f.conditions.armaduraExtra ?? 0) : 0,
+      conds: conditionIcons(f),
+      intent: f.side === 'E' ? intentView(S, f, threats) : null,
+    });
+    this.setShownHp(v, f.hp, v.hpShown >= 0);
+  }
+
+  // ---------------------------------------------------------------- displayed HP (lags the rules until the blow lands)
+  /**
+   * Called whenever the HP displayed on the board changes: `hp` is the HP shown now for figure `id`; `lagging`
+   * is true while it still differs from the rules state (the blow has not been animated yet). The same news is
+   * sent as a window event `mosteiro:hp` with detail `{ id, hp, maxHp, lagging }`.
+   */
+  onDisplayChange: ((id: string, hp: number, lagging: boolean) => void) | null = null;
+  /** HP currently displayed on the board for figure `id`, or undefined when it matches the rules state. */
+  displayHp(id: string): number | undefined {
+    const v = this.figs.get(id);
+    const f = this.lastState?.figures.find((x) => x.id === id);
+    if (!v || !f || v.hpShown < 0 || v.hpShown === f.hp) return undefined;
+    return v.hpShown;
+  }
+  private setShownHp(v: FigView, hp: number, animate = true) {
     if (!v.plate) return;
-    const pct = Math.max(0, f.hp / f.maxHp) * 100;
-    if (f.side === 'H') {
-      // heroes: a slim life bar only (details live in the portrait dock)
-      if (f.status !== 'active') {
-        v.plate.style.display = 'none';
-        return;
-      }
-      v.plate.style.display = '';
-      v.plate.innerHTML = `<div class="np-bar"><i style="width:${pct}%"></i></div>`;
-      return;
-    }
-    const conds: string[] = [];
-    const C = f.conditions;
-    if (C.guardado) conds.push('guardado');
-    if (C.exposto) conds.push('exposto');
-    if (C.quebrado) conds.push('quebrado');
-    if (C.imobilizado) conds.push('imobilizado');
-    if (C.queimando) conds.push('queimando');
-    if (C.sangramento) conds.push('sangramento');
-    if (C.veneno) conds.push('veneno');
-    if (C.julgadoPor) conds.push('julgado');
-    const br = C.brechas ? `<span class="np-brecha">${'◆'.repeat(C.brechas)}</span>` : '';
-    // the Intention this enemy will carry out, right above its head
-    const it = S && f.status === 'active' ? intentFor(S, f.typeId) : null;
-    const bandTempo: Record<string, string> = { ER: 'rapido', ET: 'tatico', EP: 'pesado' };
-    const now = it && S && S.phase === 'enemyBand' && bandTempo[S.band] === it.tempo;
-    const intent = it ? `<div class="np-intent ${now ? 'now' : ''}" title="${it.name}"><svg><use href="#tempo_${it.tempo}"/></svg>${it.dano !== undefined ? it.dano : ''}</div>` : '';
-    v.plate.innerHTML = `${intent}<div class="np-bar"><i style="width:${pct}%"></i></div><div class="np-row"><span class="np-hp">${f.hp}</span>${f.armor ? `<span class="np-arm">${f.armor}</span>` : ''}${conds.map((c) => `<svg class="np-c c-${c}"><use href="#cond_${c}"/></svg>`).join('')}${br}</div>`;
+    const max = v.plate.maxHp;
+    const val = Math.max(0, Math.min(Math.max(max, hp), Math.round(hp)));
+    if (val === v.hpShown) return;
+    v.hpShown = val;
+    v.plate.setHp(val, animate && !this.skipping && !reducedMotion());
+    const f = this.lastState?.figures.find((x) => x.id === v.id);
+    const lagging = !!f && f.hp !== val;
+    this.onDisplayChange?.(v.id, val, lagging);
+    window.dispatchEvent(new CustomEvent(HP_SIGNAL, { detail: { id: v.id, hp: val, maxHp: max, lagging } }));
+  }
+  /** a blow / damage over time / heal reaches the figure now */
+  private shiftHp(id: string, delta: number) {
+    const v = this.figs.get(id);
+    if (!v || v.hpShown < 0 || !delta) return;
+    this.setShownHp(v, v.hpShown + delta);
   }
 
   private updateMarkers(S: CombatState) {
@@ -1087,12 +1115,14 @@ export class Diorama {
         this.enqueueStrike(ev);
         break;
       case 'damage': {
-        if (!ev.direct) break; // attack damage is already shown by the 'hit' event
+        // attack damage lands with its 'hit' event (the impact shows it and drains the HP)
+        if (!ev.direct && this.batch.some((e) => e.type === 'hit' && e.targetId === ev.targetId)) break;
         this.task({
           dur: 0.4,
           start: () => {
             const v = this.figs.get(ev.targetId);
             if (!v) return;
+            this.shiftHp(ev.targetId, -ev.amount);
             const at = this.chestPos(ev.targetId);
             this.vfx.impact(at, ev.school, 0.6);
             v.flash = 1;
@@ -1109,6 +1139,7 @@ export class Diorama {
           start: () => {
             const v = this.figs.get(ev.targetId);
             const at = this.chestPos(ev.targetId);
+            this.shiftHp(ev.targetId, ev.amount);
             this.vfx.heal(v ? this.figPos(v) : at);
             if (v) v.glow = { color: new THREE.Color(0xb8ff9a), t: 0, dur: 0.9 };
             this.floatText(at, `+${ev.amount}`, 'heal');
@@ -1130,7 +1161,7 @@ export class Diorama {
               this.vfx.shield(this.chestPos(ev.targetId), v.rig.height * 0.62);
             }
             if (v && (ev.condition === 'bencao' || ev.condition === 'julgado')) v.glow = { color: new THREE.Color(0xffe2a0), t: 0, dur: 0.8 };
-            this.floatText(at.clone().add(new THREE.Vector3(0, 0.25, 0)), CONDITION_LABEL[ev.condition] ?? ev.condition, 'cond');
+            if (COND_ICON[ev.condition]) this.floatText(at.clone().add(new THREE.Vector3(0, 0.25, 0)), `#${COND_ICON[ev.condition]}`, `cond c-${ev.condition}`);
             const s: Record<string, string> = { guardado: 'guard_gain', veneno: 'cond_poison', sangramento: 'cond_bleed', queimando: 'cond_burn', atordoado: 'cond_stun', imobilizado: 'cond_immobilize', exposto: 'cond_exposed', quebrado: 'cond_broken', bencao: 'bless', julgado: 'holy_impact', furtivo: 'dash' };
             snd(s[ev.condition] ?? 'ui_click', { volume: 0.55 });
           },
@@ -1183,6 +1214,7 @@ export class Diorama {
             const v = this.figs.get(ev.figureId);
             if (v) v.anim = { kind: 'fall', t: 0, dur: 0.6 };
             if (v) this.vfx.dust(v.pos.clone().setY(0.15), 1);
+            v?.plate?.show(false);
             snd('body_fall', { volume: 0.9 });
           },
           end: () => {
@@ -1204,6 +1236,11 @@ export class Diorama {
           end: () => {
             const v = this.figs.get(ev.figureId);
             if (v) v.fallen = 0;
+            const f = this.lastState?.figures.find((x) => x.id === ev.figureId);
+            if (v && f) {
+              v.plate?.show(true);
+              this.setShownHp(v, f.hp);
+            }
           },
         });
         break;
@@ -1219,7 +1256,7 @@ export class Diorama {
             v.faceYaw = null;
             v.rig.anim?.play('death', { hold: true, speed: 1.05 });
             if (!v.rig.anim) v.anim = { kind: 'fall', t: 0, dur: 0.6 };
-            if (v.plate) v.plate.style.display = 'none';
+            v.plate?.fade();
             this.shake = Math.max(this.shake, v.typeId === 'severin' || v.typeId === 'cavaleiro' || v.typeId === 'cantor' || v.typeId === 'vigia' ? 0.5 : 0.18);
             if (v.rig.height > 2.2) {
               this.slowMo = 0.6;
@@ -1430,6 +1467,8 @@ export class Diorama {
           return;
         }
         if (dmg > 0) {
+          // the HP on the board drops now, with the blow (not when the rules resolved it)
+          this.shiftHp(tgt.id, -dmg);
           // weight: everything scales with the damage; criticals and killing blows on top
           const d = Math.min(5, dmg);
           const heavy = dmg >= 3 || crit || lethal;
@@ -1472,7 +1511,7 @@ export class Diorama {
           if (ev.blocked > 0) {
             // part of the blow was stopped (defence dice / armour)
             this.vfx.shield(at, tgt.rig.height * 0.55);
-            this.floatText(at.clone().add(new THREE.Vector3(0.5, 0.35, 0)), `bloqueou ${ev.blocked}`, 'block', 0.7);
+            this.floatText(at.clone().add(new THREE.Vector3(0.5, 0.35, 0)), `#attr_guarda|${ev.blocked}`, 'block', 0.7);
           }
         } else {
           tgt.anim = { kind: 'block', t: 0, dur: 0.4 };
@@ -1482,7 +1521,7 @@ export class Diorama {
           this.offsetTo(tgt, dir.clone().multiplyScalar(0.14), 0.06, easeOutCubic, () => this.offsetTo(tgt, new THREE.Vector3(), 0.3, easeInOut));
           hs(0.07);
           this.shake = Math.max(this.shake, calm ? 0.05 : 0.14);
-          this.floatText(at, 'Bloqueado', 'block');
+          this.floatText(at, '#attr_guarda|0', 'block');
           snd(ev.blocked > 0 ? 'block_shield' : 'armor_absorb', { volume: 0.85 });
         }
       },
@@ -1559,10 +1598,19 @@ export class Diorama {
     this.queue.push(task);
   }
 
+  /**
+   * A number (or icon) that pops over the board: −3 damage, +2 heal, a shield for a block, a condition's icon.
+   * `text` may be '#icon_id' (an icon) or '#icon_id|label'.
+   */
   private floatText(at: THREE.Vector3, text: string, kind: string, scale = 1) {
     const el = document.createElement('div');
-    el.className = `float-text ft-${kind}`;
-    el.textContent = text;
+    el.className = `fx-pop fx-${kind}`;
+    const [icon, label] = text.startsWith('#') ? text.slice(1).split('|') : [null, text];
+    const minus = kind === 'dmg' || kind === 'crit' || kind === 'direct' || kind === 'burn' || kind === 'poison' || kind === 'bleed';
+    el.innerHTML =
+      (icon ? `<svg aria-hidden="true"><use href="#${icon}"/></svg>` : '') +
+      (label ? `${minus ? '−' : ''}${label.replace(/[<>&]/g, '')}` : '') +
+      (kind === 'crit' ? '<small>CRÍTICO</small>' : '');
     this.labels.appendChild(el);
     const p = at.clone().project(this.camera);
     const w = this.renderer.domElement.clientWidth;
@@ -2055,14 +2103,34 @@ export class Diorama {
     this.camera.lookAt(look);
   }
 
+  /** Plates follow their figures and get out of each other's way (see plates.ts layoutPlates). */
   private updateLabels() {
     const w = this.renderer.domElement.clientWidth;
     const h = this.renderer.domElement.clientHeight;
+    const on = this.mode === 'combat';
+    const items: PlateBox[] = [];
+    const boxes: Box[] = [];
+    const tmp = new THREE.Vector3();
+    const sx = (x: number) => ((x + 1) / 2) * w;
+    const sy = (y: number) => ((1 - y) / 2) * h;
     for (const v of this.figs.values()) {
-      if (!v.plate || v.plate.style.display === 'none' || this.mode !== 'combat') continue;
-      const p = v.rig.root.position.clone().setY(v.rig.height + 0.25).project(this.camera);
-      v.plate.style.transform = `translate(${((p.x + 1) / 2) * w}px, ${((1 - p.y) / 2) * h}px) translate(-50%, -100%)`;
+      if (!v.plate) continue;
+      v.plate.setLayerOn(on);
+      if (!on || v.hidden || !v.rig.root.visible) continue;
+      const root = v.rig.root.position;
+      const head = tmp.copy(root).setY(v.rig.height * (1 - 0.1 * v.fallen) + 0.08).project(this.camera);
+      if (head.z > 1) continue;
+      const hx = sx(head.x);
+      const hy = sy(head.y);
+      const feet = tmp.copy(root).setY(0).project(this.camera);
+      const fy = sy(feet.y);
+      const half = Math.max(12, (fy - hy) * 0.28);
+      const box = { x0: hx - half, y0: hy, x1: hx + half, y1: fy };
+      if (!v.dead) boxes.push(box);
+      if (!v.plate.visible) continue;
+      items.push({ plate: v.plate, ax: hx, ay: hy, own: box, depth: this.camera.position.distanceToSquared(root) });
     }
+    if (items.length) layoutPlates(items, boxes, w, h, 0.35);
   }
 
   // ---------------------------------------------------------------- equipment showcase
@@ -2157,20 +2225,28 @@ const ENEMY_RIM = 0xa8b8ff;
 const FLASH = new THREE.Color(0xffe0c8);
 const TMP_COLOR = new THREE.Color();
 
-const CONDITION_LABEL: Record<string, string> = {
-  veneno: 'Veneno',
-  sangramento: 'Sangramento',
-  queimando: 'Queimando',
-  quebrado: 'Quebrado',
-  exposto: 'Exposto',
-  imobilizado: 'Imobilizado',
-  atordoado: 'Atordoado',
-  guardado: 'Guardado',
-  furtivo: 'Furtivo',
-  julgado: 'Julgado',
-  bencao: 'Bênção',
-  semReacoes: 'Sem Reações',
+/** Condition → icon popped over the figure when it is applied (no words over the board). */
+const COND_ICON: Record<string, string> = {
+  veneno: 'cond_veneno',
+  sangramento: 'cond_sangramento',
+  queimando: 'cond_queimando',
+  quebrado: 'cond_quebrado',
+  exposto: 'cond_exposto',
+  imobilizado: 'cond_imobilizado',
+  atordoado: 'cond_atordoado',
+  guardado: 'cond_guardado',
+  furtivo: 'cond_furtivo',
+  julgado: 'cond_julgado',
+  bencao: 'act_buff',
 };
+
+function safeThreats(S: CombatState): Threat[] {
+  try {
+    return predictThreats(S);
+  } catch {
+    return [];
+  }
+}
 
 function schoolColor(school: string): number {
   switch (school) {

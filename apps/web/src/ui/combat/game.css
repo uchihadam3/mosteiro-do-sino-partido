@@ -2608,3 +2608,13 @@
     display: none;
   }
 }
+
+/* the "what to do now" line sits with the controls, never over the field */
+.g-bottom > .g-hint {
+  position: static;
+  transform: none;
+  margin: 0 auto -2px;
+  font-size: 12.5px;
+  padding: 5px 14px;
+  animation: gPop 0.25s ease both;
+}

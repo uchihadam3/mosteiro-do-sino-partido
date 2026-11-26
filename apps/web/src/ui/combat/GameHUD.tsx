@@ -20,7 +20,7 @@ import { DiceBurst } from './Dice3D';
 import { forecastLater, type ActionCommand, type AttackForecast } from './forecast';
 import { CLASS_ROLE, KIND_LABEL, skillLine } from './skills';
 import { predictThreats, incomingDamage, type Threat } from './threats';
-import type { Highlight } from '../../three/Diorama';
+import { HP_SIGNAL, type Highlight } from '../../three/Diorama';
 import './game.css';
 
 export const BAND_INFO: { b: Band; side: 'h' | 'e'; tempo: Tempo }[] = [
@@ -432,15 +432,14 @@ export function GameHUD() {
       <TopBar S={S} heroes={heroes} onLog={() => setLog(true)} onMenu={() => setPause(true)} onSkip={() => diorama?.skip()} onPick={(id) => (S.figures.find((f) => f.id === id)?.side === 'H' ? setKit(id) : setInspect(id))} />
       <BossGauge S={S} />
       <ObjectivePill S={S} />
-      {hint && (
-        <div className="g-hint" key={hint}>
-          {hint}
-        </div>
-      )}
 
-      {showThreats && diorama && <ThreatLines threats={threats} diorama={diorama} />}
       {heroActive && canAct && !S.pending && !sel && !forecast && diorama && <LethalMarks S={S} hero={heroActive} pre={pre} diorama={diorama} />}
       <div className="g-bottom">
+        {hint && (
+          <div className="g-hint" key={hint}>
+            {hint}
+          </div>
+        )}
         {S.phase === 'deploy' && !S.pending && (
           <button className="g-cta" onClick={() => void act({ t: 'combat', cmd: { t: 'start' } }).then((e) => !e && audio.play('cycle_start', { volume: 0.6 }))}>
             Começar combate
@@ -933,7 +932,16 @@ function ObjectivePill({ S }: { S: CombatState }) {
 // ------------------------------------------------------------------ hero dock (portraits)
 function Dock({ S, heroes, tempoHero, incoming, onTap }: { S: CombatState; heroes: Figure[]; tempoHero: string | null; incoming: Record<string, number>; onTap(id: string): void }) {
   const s = useSession();
+  const { diorama } = useApp();
   const band = BAND_INFO.find((b) => b.b === S.band);
+  // the portraits lose life when the blow lands on the board, not before
+  const [, bump] = useState(0);
+  useEffect(() => {
+    const on = () => bump((n) => n + 1);
+    window.addEventListener(HP_SIGNAL, on);
+    return () => window.removeEventListener(HP_SIGNAL, on);
+  }, []);
+  const shownHp = (h: Figure) => diorama?.displayHp(h.id) ?? h.hp;
   return (
     <div className={`g-dock n${heroes.length}`}>
       {heroes.map((h) => {
@@ -941,7 +949,8 @@ function Dock({ S, heroes, tempoHero, incoming, onTap }: { S: CombatState; heroe
         const down = h.status !== 'active';
         const can = S.phase === 'heroBand' && h.tempo === band?.tempo && !h.acted && !down && mine;
         const isActive = S.activeId === h.id || (S.phase === 'tempo' && tempoHero === h.id);
-        const pct = Math.max(0, h.hp / h.maxHp);
+        const hp = shownHp(h);
+        const pct = Math.max(0, hp / h.maxHp);
         const C = h.conditions;
         const bad = ['veneno', 'sangramento', 'queimando', 'quebrado', 'imobilizado', 'atordoado', 'exposto'].filter((k) => (C as unknown as Record<string, unknown>)[k]);
         return (
@@ -962,7 +971,7 @@ function Dock({ S, heroes, tempoHero, incoming, onTap }: { S: CombatState; heroe
               </span>
             )}
             {bad.length > 0 && <span className="bad" title={bad.map((k) => COND_NAME[k]).join(', ')} />}
-            <span className="hpnum">{down ? (h.status === 'caido' ? 'Caído' : '✕') : h.hp}</span>
+            <span className="hpnum">{down ? (h.status === 'caido' ? 'Caído' : '✕') : hp}</span>
             {!down && incoming[h.id] > 0 && (
               <span className="threat" title={`Ameaçado: até ${incoming[h.id]} de dano neste ciclo`}>
                 −{incoming[h.id]}
