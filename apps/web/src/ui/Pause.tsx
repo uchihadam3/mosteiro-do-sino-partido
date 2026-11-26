@@ -9,18 +9,17 @@ import { toast } from './Toasts';
 import { RulesModal } from './Rules';
 import { resetTutorial } from '../tutorial';
 import './menus.css';
+import './settings.css';
 
-function Row({ icon, label, sub, onClick, danger }: { icon: string; label: string; sub?: string; onClick(): void; danger?: boolean }) {
+/** A big square menu tile: icon medallion, label, one-line hint. */
+function Tile({ icon, label, sub, onClick, danger }: { icon: string; label: string; sub?: string; onClick(): void; danger?: boolean }) {
   return (
-    <button className={`m-rowbtn ${danger ? 'danger' : ''}`} onClick={onClick}>
-      <span className="m-ico-disc">
+    <button className={`pz-tile ${danger ? 'danger' : ''}`} onClick={onClick}>
+      <span className="pz-ic">
         <Icon id={icon} />
       </span>
-      <span className="lbl">
-        {label}
-        {sub && <span className="sub">{sub}</span>}
-      </span>
-      <span className="chev" aria-hidden />
+      <span className="pz-l">{label}</span>
+      {sub && <span className="pz-s">{sub}</span>}
     </button>
   );
 }
@@ -42,44 +41,65 @@ export function PauseMenu({ onClose }: { onClose(): void }) {
   if (view === 'save')
     return (
       <Sheet kicker="Pausa" title="Salvar em slot" onClose={() => setView('main')}>
-        <div className="m-rows">
+        <div className="pz-slots">
           {MANUAL_SLOTS.map((slot, i) => {
             const info = slots.find((x) => x.slot === slot);
             return (
-              <Row
+              <button
                 key={slot}
-                icon="save"
-                label={`Slot ${i + 1}`}
-                sub={info ? `${info.summary} · ${new Date(info.savedAt).toLocaleString('pt-BR')}` : 'Vazio'}
+                className={`pz-slot ${info ? 'full' : ''}`}
                 onClick={async () => {
                   await saveSlot(slot, s.state!, `Slot ${i + 1}`);
                   toast(`Salvo no Slot ${i + 1}.`);
                   setView('main');
                 }}
-              />
+              >
+                <span className="pz-slot-n">{i + 1}</span>
+                <Icon id="save" />
+                <span className="pz-slot-s">{info ? info.summary : 'Vazio'}</span>
+                {info && (
+                  <small>
+                    {new Date(info.savedAt).toLocaleString('pt-BR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </small>
+                )}
+              </button>
             );
           })}
         </div>
       </Sheet>
     );
   return (
-    <Sheet kicker="Mosteiro do Sino Partido" title="Pausa" onClose={onClose} foot={<button className="k-cta" onClick={onClose}>Retomar</button>}>
-      <div className="m-rows">
-        {s.role !== 'client' && <Row icon="save" label="Salvar" sub="Guardar num dos 3 slots" onClick={() => setView('save')} />}
-        <Row icon="info" label="Regras" sub="Referência rápida" onClick={() => setView('rules')} />
-        <Row
+    <Sheet
+      kicker="Mosteiro do Sino Partido"
+      title="Pausa"
+      onClose={onClose}
+      foot={
+        <button className="k-cta" onClick={onClose}>
+          Retomar
+        </button>
+      }
+    >
+      <div className="pz-grid">
+        {s.role !== 'client' && <Tile icon="save" label="Salvar" sub="3 espaços" onClick={() => setView('save')} />}
+        <Tile icon="info" label="Regras" sub="Consulta rápida" onClick={() => setView('rules')} />
+        <Tile
           icon="tempo_rapido"
           label="Rever tutorial"
-          sub="O mentor ensina de novo, passo a passo"
+          sub="O mentor volta"
           onClick={() => {
             resetTutorial();
             toast('O tutorial volta na próxima batalha.', 'info');
             onClose();
           }}
         />
-        <Row icon="settings" label="Configurações" sub="Som, imagem e acessibilidade" onClick={() => setView('settings')} />
-        {s.state && <Row icon="load" label="Exportar save" sub="Baixar arquivo .json" onClick={() => exportSave(s.state!)} />}
-        <Row icon="back" label="Sair para o menu" sub="Seu progresso fica salvo" danger onClick={() => void quit()} />
+        <Tile icon="settings" label="Opções" sub="Som e imagem" onClick={() => setView('settings')} />
+        {s.state && <Tile icon="load" label="Exportar" sub="Arquivo .json" onClick={() => exportSave(s.state!)} />}
+        <Tile icon="back" label="Sair" sub="Progresso salvo" danger onClick={() => void quit()} />
       </div>
     </Sheet>
   );

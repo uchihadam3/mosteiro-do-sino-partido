@@ -1,0 +1,94 @@
+/* Exploration sheets (Caminhos, Mapa, Sobre este lugar): fixed-size cards that page instead of scrolling. */
+.k-sheet.x-paths-sheet,
+.k-sheet.x-about-sheet,
+.k-sheet.x-map-sheet {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.k-sheet.x-paths-sheet > *,
+.k-sheet.x-about-sheet > *,
+.k-sheet.x-map-sheet > * {
+  flex: none;
+}
+.k-sheet.x-paths-sheet {
+  width: min(620px, 100vw);
+  max-height: 82vh;
+}
+.x-choices.gx-choices {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-auto-rows: 74px;
+  align-content: start;
+  gap: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.gx-choices .x-choice {
+  height: 74px;
+  min-height: 0;
+  border-width: 1.5px;
+}
+.gx-choices .x-choice .det {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.gx-choices .x-choice.fight {
+  border-color: rgba(239, 139, 124, 0.45);
+  background: radial-gradient(80% 120% at 0% 50%, rgba(155, 43, 37, 0.25), transparent 60%), linear-gradient(160deg, rgba(38, 31, 28, 0.9), rgba(14, 11, 11, 0.92));
+}
+.gx-choices .x-choice .ic {
+  width: 50px;
+  height: 50px;
+  border-width: 2px;
+  box-shadow: 0 0 12px rgba(230, 190, 110, 0.2);
+}
+.k-sheet.x-about-sheet {
+  max-height: 80vh;
+}
+.x-prose.gx-about {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.k-sheet.x-map-sheet .x-map svg {
+  width: min(100%, 58vh, 480px);
+  height: auto;
+  aspect-ratio: 1;
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .k-sheet.x-paths-sheet {
+    width: min(780px, 100vw);
+    max-height: 94vh;
+    padding-top: 6px;
+  }
+  .k-sheet.x-paths-sheet .grab,
+  .k-sheet.x-map-sheet .grab,
+  .k-sheet.x-about-sheet .grab {
+    display: none;
+  }
+  .k-sheet.x-about-sheet {
+    width: min(760px, 100vw);
+    max-height: 92vh;
+  }
+  .k-sheet.x-map-sheet {
+    width: min(760px, 100vw);
+    max-height: 96vh;
+  }
+  .k-sheet.x-map-sheet .x-map {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 12px;
+    align-items: start;
+  }
+  .k-sheet.x-map-sheet .x-map .map-head {
+    grid-column: 1 / -1;
+  }
+  .k-sheet.x-map-sheet .x-map svg {
+    width: min(100%, 74vh);
+  }
+}

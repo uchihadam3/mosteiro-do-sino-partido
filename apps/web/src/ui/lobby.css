@@ -1,0 +1,121 @@
+/* Online lobby: the party as five round slots (like Novo Jogo) so the room fits without scrolling. */
+.lb-party {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.lb-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  animation: lbPop 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.lb-slot.empty {
+  animation: none;
+}
+.lb-face {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--acc, var(--ink-4));
+  background: radial-gradient(circle at 40% 30%, #3a302a, #120e0d 75%);
+  border: 2px solid var(--acc, rgba(230, 207, 143, 0.2));
+  box-shadow:
+    0 0 14px color-mix(in srgb, var(--acc, transparent) 40%, transparent),
+    0 6px 12px rgba(0, 0, 0, 0.5);
+  font-size: 22px;
+}
+.lb-slot.empty .lb-face {
+  border-style: dashed;
+  box-shadow: none;
+  background: rgba(0, 0, 0, 0.3);
+}
+.lb-face .ico {
+  width: 60%;
+  height: 60%;
+}
+.lb-nm {
+  max-width: 100%;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lb-seat {
+  max-width: 100%;
+  min-height: 28px;
+  padding: 0 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(230, 207, 143, 0.25);
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 11.5px;
+  display: grid;
+  place-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lb-x {
+  position: absolute;
+  top: -4px;
+  right: calc(50% - 34px);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(194, 70, 58, 0.6);
+  background: #2a1210;
+  color: #ffb5a6;
+  cursor: pointer;
+}
+.lb-x .ico {
+  width: 13px;
+  height: 13px;
+}
+@keyframes lbPop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+html[data-motion='reduced'] .lb-slot {
+  animation: none;
+}
+
+/* phone held sideways: create on the left, join on the right */
+@media (max-height: 500px) and (orientation: landscape) {
+  .m-lobby .m-pre.k-stack {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: 'name join' 'host join' 'host adv' 'hint hint';
+    gap: 8px 14px !important;
+    align-items: start;
+  }
+  .m-lobby .m-pre .m-namecard {
+    grid-area: name;
+  }
+  .m-lobby .m-pre .m-choice.host {
+    grid-area: host;
+  }
+  .m-lobby .m-pre .m-or {
+    display: none;
+  }
+  .m-lobby .m-pre .m-join {
+    grid-area: join;
+  }
+  .m-lobby .m-pre .m-adv {
+    grid-area: adv;
+  }
+  .m-lobby .m-pre .m-hint {
+    grid-area: hint;
+  }
+}

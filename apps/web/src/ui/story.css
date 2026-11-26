@@ -1,0 +1,107 @@
+/* Story moments as illuminated cards: the text shrinks to fit, the one button is always in reach. */
+.story.gx-story {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: 84vh;
+  overflow: hidden;
+  border-top: 2px solid rgba(230, 207, 143, 0.45);
+  box-shadow:
+    0 -16px 50px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 235, 190, 0.08);
+}
+.story.gx-story::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 60%;
+  height: 120px;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(230, 190, 110, 0.14), transparent);
+  pointer-events: none;
+}
+.story.gx-story > * {
+  position: relative;
+  flex: none;
+}
+.story.gx-story .story-text {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  margin: 6px 0 14px;
+}
+.story.gx-story .story-text::-webkit-scrollbar {
+  display: none;
+}
+.story.gx-story .story-text.center {
+  text-align: center;
+}
+.story.gx-story .story-text::first-letter {
+  font-family: var(--font-display);
+  font-size: 2.1em;
+  line-height: 0.9;
+  float: left;
+  margin: 4px 6px 0 0;
+  color: var(--gold-2);
+}
+.story.gx-story.gameover .story-text::first-letter {
+  float: none;
+  font-size: 1em;
+  margin: 0;
+  color: inherit;
+}
+.story.archive-sheet.gx-story .story-text::first-letter {
+  color: #7b2f22;
+}
+.story-orn {
+  width: 44px;
+  height: 44px;
+  margin: -4px auto 4px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--gold-2);
+  background: radial-gradient(circle at 40% 30%, #4a3a2a, #140f0c 75%);
+  border: 2px solid rgba(240, 200, 110, 0.55);
+  box-shadow: 0 0 18px rgba(230, 190, 110, 0.3);
+}
+.story-orn .ico {
+  width: 24px;
+  height: 24px;
+}
+.story.gx-story.gameover {
+  border-top-color: rgba(194, 70, 58, 0.7);
+}
+.story.gx-story.gameover::before {
+  background: radial-gradient(closest-side, rgba(194, 70, 58, 0.2), transparent);
+}
+.story.gx-story.epilogue::before {
+  height: 180px;
+  background: radial-gradient(closest-side, rgba(240, 210, 140, 0.22), transparent);
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .story.gx-story {
+    width: min(760px, 100vw);
+    max-height: 94vh;
+    padding-top: 12px;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  }
+  .story.gx-story h2 {
+    margin: 0 0 4px;
+    font-size: 22px;
+  }
+  .story-orn {
+    display: none;
+  }
+  .story.gx-story .story-text {
+    margin: 4px 0 8px;
+  }
+  .story.gx-story .k-cta {
+    min-height: 44px;
+  }
+  .story.gx-story .k-stack {
+    grid-template-columns: 1fr 1fr;
+  }
+}

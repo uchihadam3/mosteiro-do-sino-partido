@@ -7,6 +7,10 @@ import { ATTR_NAME, ATTR_ORDER, CLASS_COLOR, CLASS_IDS } from './data';
 import { audio } from '../audio/AudioDirector';
 import { toast } from './Toasts';
 import { Sheet } from './party/Sheet';
+import { CLASS_ROLE } from './combat/skills';
+import { StatBadge } from './gamekit';
+import './gamify.css';
+import './newgame.css';
 import './party.css';
 
 export interface PartyEntry {
@@ -36,7 +40,10 @@ export function NewGame() {
   const [players, setPlayers] = useState<string[]>(['Jogador 1']);
   const [sheet, setSheet] = useState<NgSheet>(null);
   const [pop, setPop] = useState<string | null>(null);
-  const hold = useRef<{ t: number | null; fired: boolean }>({ t: null, fired: false });
+  const hold = useRef<{ t: number | null; fired: boolean }>({
+    t: null,
+    fired: false,
+  });
 
   const add = (classId: string) => {
     if (party.length >= MAX) return toast('A party tem no máximo 5 heróis.', 'error');
@@ -56,7 +63,17 @@ export function NewGame() {
   };
   const start = () => {
     const seats = players.map((name, i) => ({ id: `p${i}`, name }));
-    const s = newCampaign({ seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, dungeonId: 'd1', heroes: party.map((p) => ({ classId: p.classId, name: p.name, seat: p.seat })), seats, now: Date.now() });
+    const s = newCampaign({
+      seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      dungeonId: 'd1',
+      heroes: party.map((p) => ({
+        classId: p.classId,
+        name: p.name,
+        seat: p.seat,
+      })),
+      seats,
+      now: Date.now(),
+    });
     session.startLocal(s);
     go('game');
   };
@@ -75,11 +92,16 @@ export function NewGame() {
     hold.current.t = null;
   };
 
-  const note = party.length === 1 ? 'Herói solo: 2 Últimos Fôlegos e Mochila de 7.' : party.length ? `${party.length} heróis · Mochila de ${party.length === 2 ? 5 : 4} espaços cada.` : 'Toque nas classes para recrutar de 1 a 5 heróis.';
+  const note =
+    party.length === 1
+      ? 'Herói solo: 2 Últimos Fôlegos e Mochila de 7.'
+      : party.length
+        ? `${party.length} heróis · Mochila de ${party.length === 2 ? 5 : 4} espaços cada.`
+        : 'Toque nas classes para recrutar de 1 a 5 heróis.';
   const multi = players.length > 1;
 
   return (
-    <div className="k-screen pt-ng">
+    <div className="k-screen pt-ng ng">
       <div className="k-head">
         <button className="k-round" onClick={() => go('title')} aria-label="Voltar">
           <Icon id="back" />
@@ -128,15 +150,16 @@ export function NewGame() {
                   </span>
                   {n > 0 && <span className="pt-count">×{n}</span>}
                   <span className="pt-cname">{c.name}</span>
-                  <span className="pt-cep">{c.epithet}</span>
-                  <span className="pt-cstats">
-                    <span className="k-chip red" title="Vida">
-                      <Icon id="hp" /> {c.hp}
-                    </span>
-                    <span className="k-chip" title="Armadura">
-                      <Icon id="armor" /> {c.armor}
-                    </span>
+                  <span className="pt-cep ng-role">{CLASS_ROLE[id]?.role ?? c.epithet}</span>
+                  <span className="pt-cstats ng-stats">
+                    <StatBadge icon="hp" v={c.hp} tone="red" />
+                    <StatBadge icon="armor" v={c.armor} tone="blue" />
                   </span>
+                  {n === 0 && party.length < MAX && (
+                    <span className="ng-plus" aria-hidden>
+                      +
+                    </span>
+                  )}
                 </button>
                 <button className="pt-info" onClick={() => setSheet({ k: 'class', id })} aria-label={`Detalhes: ${c.name}`}>
                   <Icon id="info" />
@@ -311,10 +334,30 @@ function HeroEditSheet({ p, players, onChange, onRemove, onClass, onClose }: { p
   );
 }
 
-/** Class sheet content: identity, stats, attribute bars, abilities (tap to expand). */
+/** Class sheet content: identity, role, attribute dice, abilities as icons (tap one to read it). */
 export function ClassDetail({ c, compact }: { c: ClassDef; compact?: boolean }) {
+  const abilities = [
+    ...c.passives.map((p) => ({
+      k: `p:${p.name}`,
+      name: p.name,
+      text: p.text,
+      icon: 'act_buff',
+      tag: 'Passiva',
+    })),
+    ...c.actions
+      .filter((a) => !a.hidden?.({} as never, {} as never))
+      .map((a) => ({
+        k: a.id,
+        name: a.name,
+        text: a.text,
+        icon: a.icon ?? 'act_attack_melee',
+        tag: a.ap ? `${a.ap} AP` : 'Grátis',
+      })),
+  ];
+  const [sel, setSel] = useState(abilities[0]?.k ?? '');
+  const cur = abilities.find((a) => a.k === sel);
   return (
-    <div className="pt-cd" style={{ ['--acc' as string]: CLASS_COLOR[c.id] }}>
+    <div className="pt-cd ng-cd" style={{ ['--acc' as string]: CLASS_COLOR[c.id] }}>
       <div className="pt-cd-head">
         <span className="k-emblem lg">
           <Icon id={`class_${c.id}`} />
@@ -322,56 +365,43 @@ export function ClassDetail({ c, compact }: { c: ClassDef; compact?: boolean }) 
         <div className="grow">
           <div className="k-kicker">{c.epithet}</div>
           <div className="pt-cd-name">{c.name}</div>
+          <div className="ng-cd-role">{CLASS_ROLE[c.id]?.role}</div>
           <div className="pt-cd-chips">
-            <span className="k-chip red">
-              <Icon id="hp" /> {c.hp} HP
-            </span>
-            <span className="k-chip">
-              <Icon id="armor" /> Armadura {c.armor}
-            </span>
-            <span className="k-chip gold">{c.resourceName}</span>
+            <StatBadge icon="hp" v={c.hp} l="Vida" tone="red" />
+            <StatBadge icon="armor" v={c.armor} l="Armadura" tone="blue" />
           </div>
         </div>
       </div>
-      <p className="pt-cd-desc">{c.description}</p>
-      <div className="pt-attrs">
+      {CLASS_ROLE[c.id]?.how && <p className="ng-cd-how">{CLASS_ROLE[c.id].how}</p>}
+      <div className="ng-dice">
         {ATTR_ORDER.map((a) => (
-          <div key={a} className="pt-attr">
-            <Icon id={`attr_${a}`} />
-            <span className="an">{ATTR_NAME[a]}</span>
-            <span className="bar">
-              <i style={{ width: `${(c.attrs[a] / 12) * 100}%` }} />
+          <div key={a} className={`ng-die ${c.attrs[a] >= 8 ? 'hi' : ''}`} title={ATTR_NAME[a]}>
+            <span className="ng-die-face">
+              <Icon id={`dice_d${Math.min(12, Math.max(4, c.attrs[a]))}`} />
+              <b>D{c.attrs[a]}</b>
             </span>
-            <span className="die">D{c.attrs[a]}</span>
+            <span className="ng-die-n">{ATTR_NAME[a]}</span>
           </div>
         ))}
       </div>
-      {!compact && (
+      {!compact && abilities.length > 0 && (
         <>
-          <div className="k-section">Habilidades</div>
-          <div className="pt-abs">
-            {c.passives.map((p) => (
-              <details key={p.name} className="pt-ab">
-                <summary>
-                  <b>{p.name}</b>
-                  <span className="k-chip">Passiva</span>
-                </summary>
-                <p>{p.text}</p>
-              </details>
+          <div className="ng-abs" role="tablist" aria-label="Habilidades">
+            {abilities.map((a) => (
+              <button key={a.k} role="tab" aria-selected={sel === a.k} className={sel === a.k ? 'on' : ''} onClick={() => setSel(a.k)} aria-label={a.name} title={a.name}>
+                <Icon id={a.icon} />
+              </button>
             ))}
-            {c.actions
-              .filter((a) => !a.hidden?.({} as never, {} as never))
-              .map((a) => (
-                <details key={a.id} className="pt-ab">
-                  <summary>
-                    {a.icon && <Icon id={a.icon} />}
-                    <b>{a.name}</b>
-                    <span className="k-chip gold">{a.ap ? `${a.ap} AP` : 'Grátis'}</span>
-                  </summary>
-                  <p>{a.text}</p>
-                </details>
-              ))}
           </div>
+          {cur && (
+            <div className="ng-ab">
+              <div className="ng-ab-h">
+                <b>{cur.name}</b>
+                <span className="gk-tag">{cur.tag}</span>
+              </div>
+              <p>{cur.text}</p>
+            </div>
+          )}
         </>
       )}
     </div>

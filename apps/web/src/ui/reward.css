@@ -1,0 +1,441 @@
+/* ==========================================================================
+   Victory loot: cards flip in, tap a hero face on a card to hand it over.
+   ========================================================================== */
+.k-screen.m-reward.rw {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.rw .k-head.rw-head {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+.rw-titles {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+.rw .m-reward-title {
+  font-size: clamp(26px, 8vw, 48px);
+}
+.rw-outro.m-outro {
+  -webkit-line-clamp: 1;
+  margin-top: 2px;
+  font-size: 14.5px;
+}
+.rw-outro.m-outro.open {
+  -webkit-line-clamp: 4;
+}
+.rw-spoils {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+.rw-gold {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 16px 0 5px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(44, 32, 16, 0.95), rgba(16, 12, 8, 0.95));
+  border: 1px solid rgba(240, 200, 110, 0.6);
+  box-shadow: 0 0 26px rgba(230, 180, 90, 0.3);
+  animation: rwPop 0.55s 0.3s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.rw-coin.gk-coin {
+  width: 36px;
+  height: 36px;
+  animation: rwSpin 0.9s 0.3s ease-out both;
+}
+.rw-coin.gk-coin .ico {
+  width: 22px;
+  height: 22px;
+}
+.rw-gold b {
+  font-family: var(--font-display);
+  font-size: 24px;
+  color: #ffe7a6;
+}
+.rw-gold small {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.rw-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(165, 140, 255, 0.55);
+  background: rgba(30, 22, 44, 0.85);
+  color: #d9ccff;
+  font-family: var(--font-display);
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 0 16px rgba(140, 110, 240, 0.25);
+  animation: rwPop 0.5s 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.rw-state .ico {
+  width: 18px;
+  height: 18px;
+}
+
+.rw .k-body.rw-body {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 2px;
+}
+.rw-hint {
+  flex: none;
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.rw-hint b {
+  color: var(--gold-2);
+  font-weight: 600;
+}
+.rw-cards {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, 162px);
+  grid-auto-rows: 250px;
+  gap: 10px;
+  justify-content: center;
+  align-content: center;
+  overflow: hidden;
+  perspective: 900px;
+  padding-top: 6px;
+}
+.rw-card.m-lootcard {
+  position: relative;
+  width: 162px;
+  height: 244px;
+  animation: rwFlip 0.75s cubic-bezier(0.3, 1.25, 0.5, 1) both;
+  transform-style: preserve-3d;
+}
+.rw-in {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 8px 10px;
+  border-radius: 18px;
+  border: 2px solid color-mix(in srgb, var(--rc) 70%, #000);
+  background: radial-gradient(120% 55% at 50% 0%, color-mix(in srgb, var(--rc) 26%, transparent), transparent 70%), linear-gradient(180deg, rgba(38, 30, 26, 0.97), rgba(14, 11, 11, 0.98));
+  box-shadow:
+    0 0 24px color-mix(in srgb, var(--rc) 25%, transparent),
+    0 14px 26px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  transition:
+    border-color 0.25s,
+    box-shadow 0.25s;
+}
+.rw-card.raro .rw-in,
+.rw-card.epico .rw-in {
+  box-shadow:
+    0 0 34px color-mix(in srgb, var(--rc) 45%, transparent),
+    0 14px 26px rgba(0, 0, 0, 0.55);
+}
+.rw-card.got .rw-in {
+  border-color: var(--acc, var(--gold-2));
+  box-shadow:
+    0 0 0 1px var(--acc, var(--gold-2)),
+    0 0 26px color-mix(in srgb, var(--acc, #e6cf8f) 45%, transparent),
+    0 14px 26px rgba(0, 0, 0, 0.55);
+}
+.rw-art {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.rw-art .gk-art {
+  --sz: 76px;
+}
+.rw-i {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 8, 8, 0.9);
+  border: 1px solid rgba(230, 207, 143, 0.35);
+  color: var(--ink-2);
+}
+.rw-i .ico {
+  width: 14px;
+  height: 14px;
+}
+.rw-in .gk-ribbon {
+  font-size: 9.5px;
+  padding: 1px 8px;
+}
+.rw-nm {
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.1;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.rw-in .gk-stat {
+  height: 24px;
+}
+.rw-in .gk-stat b {
+  font-size: 15px;
+}
+.rw-who {
+  margin-top: auto;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+}
+.rw-who b {
+  color: var(--acc, var(--gold-2));
+}
+.rw-takers.m-takers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.rw .m-taker {
+  position: relative;
+  width: var(--tk, 42px);
+  height: var(--tk, 42px);
+  padding: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 40% 30%, #3a302a, #120e0d 75%);
+  border: 2px solid color-mix(in srgb, var(--acc) 70%, #000);
+  color: var(--acc);
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.55);
+  transition:
+    transform 0.12s,
+    box-shadow 0.2s;
+}
+.rw .m-taker .ico {
+  width: 58%;
+  height: 58%;
+}
+.rw .m-taker .cnt {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 4px;
+  border-radius: 5px;
+  font-size: 9.5px;
+  line-height: 13px;
+  color: var(--ink-2);
+  background: rgba(8, 6, 6, 0.92);
+  white-space: nowrap;
+}
+.rw .m-taker.on {
+  background: radial-gradient(circle at 40% 30%, color-mix(in srgb, var(--acc) 55%, #fff), var(--acc) 70%);
+  color: #120d0a;
+  border-color: #fff3cc;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--acc) 70%, transparent);
+  transform: scale(1.08);
+}
+.rw .m-taker.full {
+  opacity: 0.35;
+  cursor: default;
+}
+.rw .m-taker:not(:disabled):active {
+  transform: scale(0.9);
+}
+@media (hover: hover) {
+  .rw .m-taker:not(:disabled):hover {
+    box-shadow: 0 0 16px color-mix(in srgb, var(--acc) 60%, transparent);
+  }
+}
+.rw-stamp {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 40% 30%, #d4ffb8, #6fbf4a);
+  box-shadow:
+    0 0 14px rgba(150, 230, 110, 0.7),
+    0 3px 6px rgba(0, 0, 0, 0.5);
+  color: #10240a;
+  animation: rwStamp 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+  z-index: 2;
+}
+.rw-stamp .ico {
+  width: 18px;
+  height: 18px;
+}
+.rw-sc {
+  margin: 0 0 10px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+.rw-sc.secret {
+  font-style: italic;
+  color: #cbbcff;
+}
+
+@media (min-width: 900px) and (min-height: 560px) {
+  .rw-cards {
+    grid-template-columns: repeat(auto-fit, 196px);
+    grid-auto-rows: 300px;
+    gap: 16px;
+  }
+  .rw-card.m-lootcard {
+    width: 196px;
+    height: 294px;
+  }
+  .rw-art .gk-art {
+    --sz: 96px;
+  }
+  .rw-nm {
+    font-size: 17px;
+  }
+  .rw .m-taker {
+    width: calc(var(--tk, 42px) + 6px);
+    height: calc(var(--tk, 42px) + 6px);
+  }
+  .rw-hint {
+    font-size: 14px;
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .rw .k-head.rw-head {
+    flex-direction: row;
+    justify-content: center;
+    gap: 18px;
+    padding-bottom: 2px;
+  }
+  .rw .m-reward-title {
+    font-size: 24px;
+  }
+  .rw-outro.m-outro {
+    display: none;
+  }
+  .rw-gold {
+    height: 38px;
+  }
+  .rw-coin.gk-coin {
+    width: 30px;
+    height: 30px;
+  }
+  .rw-gold b {
+    font-size: 19px;
+  }
+  .rw-hint {
+    font-size: 12px;
+  }
+  .rw-cards {
+    grid-template-columns: repeat(auto-fit, 160px);
+    grid-auto-rows: 214px;
+    align-content: start;
+  }
+  .rw-card.m-lootcard {
+    width: 160px;
+    height: 210px;
+  }
+  .rw-in {
+    gap: 3px;
+    padding: 8px 6px 8px;
+  }
+  .rw-art .gk-art {
+    --sz: 56px;
+  }
+  .rw-nm {
+    font-size: 13.5px;
+    -webkit-line-clamp: 1;
+    flex: none;
+  }
+  .rw .m-taker {
+    width: calc(var(--tk, 42px) - 8px);
+    height: calc(var(--tk, 42px) - 8px);
+  }
+  .rw-takers.m-takers {
+    flex-wrap: nowrap;
+    gap: 3px;
+  }
+  .rw .k-foot {
+    flex-direction: row;
+    justify-content: center;
+    padding-top: 2px;
+  }
+  .rw .k-foot .k-cta {
+    min-height: 44px;
+    width: 340px;
+  }
+}
+
+@keyframes rwFlip {
+  0% {
+    opacity: 0;
+    transform: rotateY(-180deg) translateY(30px) scale(0.7);
+  }
+  60% {
+    opacity: 1;
+    transform: rotateY(12deg) translateY(-4px) scale(1.04);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes rwPop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+@keyframes rwSpin {
+  from {
+    transform: rotateY(720deg);
+  }
+}
+@keyframes rwStamp {
+  from {
+    opacity: 0;
+    transform: scale(2) rotate(-20deg);
+  }
+}
+html[data-motion='reduced'] .rw-card,
+html[data-motion='reduced'] .rw-gold,
+html[data-motion='reduced'] .rw-coin,
+html[data-motion='reduced'] .rw-state,
+html[data-motion='reduced'] .rw-stamp {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rw-card,
+  .rw-gold,
+  .rw-coin,
+  .rw-state,
+  .rw-stamp {
+    animation: none !important;
+  }
+}

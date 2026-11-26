@@ -9,6 +9,8 @@ import { audio } from '../audio/AudioDirector';
 import { useWorldUi, worldActions, worldUi } from '../world/store';
 import { useEscape } from './party/Sheet';
 import './explore.css';
+import './explore-sheets.css';
+import { Pager, useFit, usePages, useShrinkToFit } from './gamekit';
 
 export function VoteBar({ voteKey }: { voteKey: string }) {
   const s = useSession();
@@ -154,6 +156,40 @@ function ChoiceCard({ o, i, onChoose }: { o: ExploreOption; i: number; onChoose(
   );
 }
 
+/** The "Caminhos" cards, paged so the sheet never scrolls. */
+function PathCards({ opts, onChoose }: { opts: ExploreOption[]; onChoose(o: ExploreOption): void }) {
+  const fit = useFit(250, 74, 8);
+  const [vh, setVh] = useState(() => (typeof innerHeight === 'number' ? innerHeight : 800));
+  useEffect(() => {
+    const f = () => setVh(innerHeight);
+    window.addEventListener('resize', f);
+    return () => window.removeEventListener('resize', f);
+  }, []);
+  // the sheet grows with its cards up to ~80% of the screen, then pages
+  const rows = Math.max(1, Math.floor((vh * (vh < 500 ? 0.94 : 0.82) - 130) / 82));
+  const pg = usePages(opts, fit.cols * rows);
+  return (
+    <>
+      <div className="x-choices gx-choices" ref={fit.ref}>
+        {pg.items.map((o, i) => (
+          <ChoiceCard key={o.id} o={o} i={i} onChoose={onChoose} />
+        ))}
+        {!opts.length && <p className="x-prose k-muted">Nenhum caminho aberto daqui.</p>}
+      </div>
+      <Pager page={pg.page} pages={pg.pages} setPage={pg.setPage} label="Mais caminhos" />
+    </>
+  );
+}
+
+function AboutProse({ text }: { text: string }) {
+  const ref = useShrinkToFit<HTMLParagraphElement>(17, 12.5, [text]);
+  return (
+    <p ref={ref} className="x-prose gx-about">
+      {text}
+    </p>
+  );
+}
+
 /** Exploration HUD over the real-time world: where am I, what can I do right here, who is with me. */
 export function Explore() {
   const s = useSession();
@@ -281,12 +317,12 @@ export function Explore() {
 
       {about && (
         <div className="k-sheet-back" onClick={() => setAbout(false)}>
-          <div className="k-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={loc.name}>
+          <div className="k-sheet x-about-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={loc.name}>
             <div className="grab" />
             <EscClose onClose={() => setAbout(false)} />
             <div className="k-kicker">Sobre este lugar</div>
             <div className="k-h1">{loc.name}</div>
-            <p className="x-prose">{arrival}</p>
+            <AboutProse text={arrival} />
             <div className="k-row k-small k-muted" style={{ gap: 16 }}>
               <span>
                 <Icon id="gold" /> {st.gold} ouro
@@ -298,7 +334,7 @@ export function Explore() {
       )}
       {map && (
         <div className="k-sheet-back" onClick={() => setMap(false)}>
-          <div className="k-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Mapa">
+          <div className="k-sheet x-map-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Mapa">
             <div className="grab" />
             <EscClose onClose={() => setMap(false)} />
             <MapPanel st={st} />
@@ -312,12 +348,7 @@ export function Explore() {
             <EscClose onClose={() => setPaths(false)} />
             <div className="k-kicker">{loc.name}</div>
             <div className="k-h1">Caminhos</div>
-            <div className="x-choices">
-              {opts.map((o, i) => (
-                <ChoiceCard key={o.id} o={o} i={i} onChoose={choose} />
-              ))}
-              {!opts.length && <p className="x-prose k-muted">Nenhum caminho aberto daqui.</p>}
-            </div>
+            <PathCards opts={opts} onChoose={choose} />
           </div>
         </div>
       )}

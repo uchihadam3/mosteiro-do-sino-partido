@@ -10,6 +10,7 @@ import { CLASS_COLOR, CLASS_IDS } from './data';
 import { toast } from './Toasts';
 import { defaultName } from './NewGame';
 import './menus.css';
+import './lobby.css';
 
 export function OnlineLobby() {
   const { go } = useApp();
@@ -26,7 +27,11 @@ export function OnlineLobby() {
       const room = makeRoomCode();
       const t: Transport = relayUrl ? await relay(relayUrl, room, 'host') : await hostPeer(room);
       session.attachHost(t, settings.playerName);
-      session.lobby = { started: false, heroes: [], seed: `${Date.now()}-${room}` };
+      session.lobby = {
+        started: false,
+        heroes: [],
+        seed: `${Date.now()}-${room}`,
+      };
       session.updateLobby({}, 'host');
     } catch (e) {
       toast((e as Error).message, 'error');
@@ -58,7 +63,17 @@ export function OnlineLobby() {
   const isHost = s.role === 'host';
   const addHero = (classId: string) => {
     if (lobby.heroes.length >= 5) return toast('Máximo de 5 heróis na party.', 'error');
-    const heroes = [...lobby.heroes, { classId, name: defaultName(classId, lobby.heroes.map((h) => ({ ...h }))), seat: isHost ? 'host' : mySeat }];
+    const heroes = [
+      ...lobby.heroes,
+      {
+        classId,
+        name: defaultName(
+          classId,
+          lobby.heroes.map((h) => ({ ...h })),
+        ),
+        seat: isHost ? 'host' : mySeat,
+      },
+    ];
     if (isHost) session.updateLobby({ heroes }, 'host');
     else void session.dispatch({ t: 'lobbyUpdate', lobby: { heroes } });
   };
@@ -68,8 +83,17 @@ export function OnlineLobby() {
   };
   const start = () => {
     const seats = s.seats.filter((x) => x.connected).map((x) => ({ id: x.id, name: x.name }));
-    const heroes = lobby.heroes.map((h) => ({ ...h, seat: seats.some((x) => x.id === h.seat) ? h.seat : 'host' }));
-    const st = newCampaign({ seed: lobby.seed, dungeonId: 'd1', heroes, seats, now: Date.now() });
+    const heroes = lobby.heroes.map((h) => ({
+      ...h,
+      seat: seats.some((x) => x.id === h.seat) ? h.seat : 'host',
+    }));
+    const st = newCampaign({
+      seed: lobby.seed,
+      dungeonId: 'd1',
+      heroes,
+      seats,
+      now: Date.now(),
+    });
     session.startHostedGame(st);
     go('game');
   };
@@ -83,12 +107,25 @@ export function OnlineLobby() {
     }
   };
   const canShare = typeof navigator !== 'undefined' && 'share' in navigator;
-  const share = () => void navigator.share?.({ title: 'Mosteiro do Sino Partido', text: `Entre na minha sala: ${room}` }).catch(() => undefined);
+  const share = () =>
+    void navigator
+      .share?.({
+        title: 'Mosteiro do Sino Partido',
+        text: `Entre na minha sala: ${room}`,
+      })
+      .catch(() => undefined);
 
   return (
     <div className="k-screen solid m-lobby">
       <div className="k-head">
-        <button className="k-round" onClick={() => { session.close(); go('title'); }} aria-label="Voltar">
+        <button
+          className="k-round"
+          onClick={() => {
+            session.close();
+            go('title');
+          }}
+          aria-label="Voltar"
+        >
           <Icon id="back" />
         </button>
         <div className="k-title">
@@ -103,7 +140,9 @@ export function OnlineLobby() {
             <div className="m-pre k-stack" style={{ gap: 12 }}>
               <div className="panel m-namecard">
                 <span className="k-emblem" style={{ '--acc': 'var(--gold-2)' } as React.CSSProperties}>
-                  <span className="display" style={{ fontSize: 22, fontWeight: 700 }}>{(settings.playerName || '?').slice(0, 1).toUpperCase()}</span>
+                  <span className="display" style={{ fontSize: 22, fontWeight: 700 }}>
+                    {(settings.playerName || '?').slice(0, 1).toUpperCase()}
+                  </span>
                 </span>
                 <label className="grow" style={{ minWidth: 0 }}>
                   <div className="lbl">Seu nome</div>
@@ -134,7 +173,15 @@ export function OnlineLobby() {
                   </div>
                 </div>
                 <div className="go">
-                  <input className="k-input" placeholder="CÓDIGO" value={code} maxLength={8} autoCapitalize="characters" onChange={(e) => setCode(e.target.value.toUpperCase())} onKeyDown={(e) => e.key === 'Enter' && void join()} />
+                  <input
+                    className="k-input"
+                    placeholder="CÓDIGO"
+                    value={code}
+                    maxLength={8}
+                    autoCapitalize="characters"
+                    onChange={(e) => setCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === 'Enter' && void join()}
+                  />
                   <button className="k-btn" disabled={busy || !code} onClick={join}>
                     Entrar
                   </button>
@@ -176,18 +223,23 @@ export function OnlineLobby() {
                   </div>
                 </div>
                 <div>
-                  <div className="k-section" style={{ marginTop: 4 }}>Jogadores</div>
+                  <div className="k-section" style={{ marginTop: 4 }}>
+                    Jogadores
+                  </div>
                   <div className="m-players">
                     {s.seats.map((x) => {
                       const n = lobby.heroes.filter((h) => h.seat === x.id).length;
                       return (
                         <div key={x.id} className={`m-player ${x.connected ? '' : 'off'}`}>
-                          <span className="av" aria-hidden>{x.name.slice(0, 1).toUpperCase()}</span>
+                          <span className="av" aria-hidden>
+                            {x.name.slice(0, 1).toUpperCase()}
+                          </span>
                           <span>
                             <div>{x.name}</div>
                             <div className="meta">
                               {x.isHost ? 'Anfitrião' : x.connected ? 'Conectado' : 'Saiu'}
-                              {x.id === mySeat ? ' · você' : ''} · {n} herói{n === 1 ? '' : 's'}
+                              {x.id === mySeat ? ' · você' : ''} · {n} herói
+                              {n === 1 ? '' : 's'}
                             </div>
                           </span>
                         </div>
@@ -198,7 +250,9 @@ export function OnlineLobby() {
               </div>
 
               <div>
-                <div className="k-section" style={{ marginTop: 4 }}>Recrute seus heróis</div>
+                <div className="k-section" style={{ marginTop: 4 }}>
+                  Recrute seus heróis
+                </div>
                 <div className="m-classes">
                   {CLASS_IDS.map((id) => {
                     const mineCount = lobby.heroes.filter((h) => h.classId === id).length;
@@ -215,32 +269,45 @@ export function OnlineLobby() {
                 </div>
 
                 <div className="k-section">Party ({lobby.heroes.length}/5)</div>
-                <div className="m-party">
-                  {lobby.heroes.length === 0 && <div className="m-empty">Toque numa classe para recrutar.</div>}
-                  {lobby.heroes.map((h, i) => {
+                <div className="lb-party" aria-label="Party">
+                  {Array.from({ length: 5 }).map((_, i) => {
+                    const h = lobby.heroes[i];
+                    if (!h)
+                      return (
+                        <div key={i} className="lb-slot empty" aria-hidden>
+                          <span className="lb-face">{i === lobby.heroes.length ? '+' : ''}</span>
+                        </div>
+                      );
                     const mine = h.seat === mySeat || isHost;
                     return (
-                      <div key={i} className="m-hero-row" style={{ '--acc': CLASS_COLOR[h.classId] } as React.CSSProperties}>
-                        <span className="k-emblem">
+                      <div
+                        key={i}
+                        className="lb-slot"
+                        style={
+                          {
+                            '--acc': CLASS_COLOR[h.classId],
+                          } as React.CSSProperties
+                        }
+                      >
+                        <span className="lb-face">
                           <Icon id={`class_${h.classId}`} />
                         </span>
-                        <div className="grow" style={{ minWidth: 0, flex: 1 }}>
-                          <div className="nm">{h.name}</div>
-                          <div className="cl">{reg().classes[h.classId].name}</div>
-                        </div>
+                        <span className="lb-nm">{h.name}</span>
                         {isHost ? (
-                          <select aria-label={`Jogador de ${h.name}`} value={h.seat} onChange={(e) => setHeroes(lobby.heroes.map((x, j) => (j === i ? { ...x, seat: e.target.value } : x)))}>
-                            {s.seats.filter((x) => x.connected).map((x) => (
-                              <option key={x.id} value={x.id}>
-                                {x.name}
-                              </option>
-                            ))}
+                          <select className="lb-seat" aria-label={`Jogador de ${h.name}`} value={h.seat} onChange={(e) => setHeroes(lobby.heroes.map((x, j) => (j === i ? { ...x, seat: e.target.value } : x)))}>
+                            {s.seats
+                              .filter((x) => x.connected)
+                              .map((x) => (
+                                <option key={x.id} value={x.id}>
+                                  {x.name}
+                                </option>
+                              ))}
                           </select>
                         ) : (
-                          <span className="k-chip">{s.seats.find((x) => x.id === h.seat)?.name}</span>
+                          <span className="lb-seat">{s.seats.find((x) => x.id === h.seat)?.name}</span>
                         )}
                         {mine && (
-                          <button className="k-round" style={{ width: 40, height: 40 }} aria-label={`Remover ${h.name}`} onClick={() => setHeroes(lobby.heroes.filter((_, j) => j !== i))}>
+                          <button className="lb-x" aria-label={`Remover ${h.name}`} onClick={() => setHeroes(lobby.heroes.filter((_, j) => j !== i))}>
                             <Icon id="close" />
                           </button>
                         )}
