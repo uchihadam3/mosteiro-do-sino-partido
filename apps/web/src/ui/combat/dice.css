@@ -392,3 +392,188 @@
     display: none;
   }
 }
+
+/* ------------------------------------------------------------------ the check: what you need, where each die landed */
+.g-dice .need {
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: rgba(14, 10, 10, 0.82);
+  border: 1px solid rgba(255, 224, 138, 0.35);
+  color: #ffe9b0;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.g-dice .scales {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 9px;
+  border-radius: 14px;
+  background: rgba(12, 9, 9, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+}
+.g-dice .scale {
+  display: grid;
+  grid-template-columns: 34px minmax(170px, 230px) 96px;
+  align-items: center;
+  gap: 7px;
+  opacity: 0.75;
+  transition: opacity 0.2s;
+}
+.g-dice .scale.on {
+  opacity: 1;
+}
+.g-dice .scale .dg {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--ink-2);
+  text-align: right;
+}
+.g-dice .scale .bar {
+  position: relative;
+  display: flex;
+  height: 20px;
+  border-radius: 6px;
+  overflow: visible;
+  gap: 2px;
+}
+.g-dice .scale .bar.plain {
+  align-items: center;
+  font-size: 11px;
+  color: #bff0a8;
+}
+.g-dice .zone {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 14px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  transition:
+    box-shadow 0.25s,
+    filter 0.25s;
+}
+.g-dice .zone em {
+  font-style: normal;
+  opacity: 0.85;
+}
+.g-dice .zone.f0 {
+  background: rgba(130, 120, 115, 0.35);
+  color: #d8cfc6;
+}
+.g-dice .zone.f1 {
+  background: rgba(120, 190, 100, 0.32);
+  color: #d6f5c9;
+}
+.g-dice .zone.f2 {
+  background: rgba(220, 175, 70, 0.34);
+  color: #ffe9b0;
+}
+.g-dice .zone.f3 {
+  background: rgba(240, 190, 80, 0.48);
+  color: #fff1c8;
+}
+.g-dice .zone.f4 {
+  background: linear-gradient(90deg, #f6d36b, #ffb347);
+  color: #2a1a06;
+  font-weight: 700;
+}
+.g-dice .zone.hit {
+  filter: brightness(1.6);
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.85), 0 0 14px rgba(255, 230, 160, 0.6);
+}
+.g-dice .zone.f0.hit {
+  filter: brightness(1.25);
+  box-shadow: 0 0 0 1.5px rgba(255, 150, 130, 0.9);
+}
+.g-dice .mark {
+  position: absolute;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  margin-left: -13px;
+  margin-top: -13px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  color: #1d140a;
+  background: radial-gradient(circle at 35% 30%, #fffaf0, #e6d6b8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(255, 255, 255, 0.7);
+  animation: gMarkIn 0.35s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.g-dice .mark.f0 {
+  background: radial-gradient(circle at 35% 30%, #e6e0da, #9d958e);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), 0 0 0 2px #ff9d8c;
+}
+.g-dice .mark.f4 {
+  background: radial-gradient(circle at 35% 30%, #fff6c8, #f2b640);
+  box-shadow: 0 0 14px rgba(255, 200, 80, 0.9), 0 0 0 2px #fff;
+}
+@keyframes gMarkIn {
+  from {
+    transform: translateY(-18px) scale(1.5);
+    opacity: 0;
+  }
+}
+.g-dice .scale .res {
+  font-size: 11.5px;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--ink-3);
+}
+.g-dice .scale .res.f0 {
+  color: #ff9d8c;
+}
+.g-dice .scale .res.f1 {
+  color: #bff0a8;
+}
+.g-dice .scale .res.f2,
+.g-dice .scale .res.f3 {
+  color: #f3d27a;
+}
+.g-dice .scale .res.f4 {
+  color: #ffd36b;
+  font-weight: 700;
+}
+.g-dice .meaning {
+  max-width: min(92vw, 380px);
+  padding: 5px 12px;
+  border-radius: 10px;
+  background: rgba(14, 10, 10, 0.86);
+  color: #fff1d6;
+  font-size: 13px;
+  animation: gMarkIn 0.3s ease both;
+}
+.g-dice.def .meaning {
+  color: #cfe5ff;
+}
+@media (max-width: 420px) {
+  .g-dice .scale {
+    grid-template-columns: 30px minmax(150px, 1fr) 84px;
+    gap: 5px;
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .g-dice .scales {
+    padding: 4px 7px;
+    gap: 3px;
+  }
+  .g-dice .scale .bar {
+    height: 16px;
+  }
+  .g-dice .mark {
+    width: 21px;
+    height: 21px;
+    margin-left: -10px;
+    margin-top: -10px;
+    font-size: 12px;
+  }
+  .g-dice .need,
+  .g-dice .meaning {
+    font-size: 11px;
+  }
+}

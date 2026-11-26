@@ -1432,40 +1432,74 @@ export function DiceBurst({ ev }: { ev: RollEvent }) {
             </span>
           )}
         </div>
-        <div className="faces">
+        {/* what you NEED, and where each die landed on its own scale (like a check in a tabletop RPG) */}
+        <div className="need">
+          {defense ? "Cada dado com 3 ou mais bloqueia" : "Precisa de 3 ou mais em algum dado para acertar"}
+        </div>
+        <div className="scales">
           {dice.map((d, i) => {
-            const fc = readFace(d.value);
+            const on = i < ui.revealed;
+            const zones = ZONES.filter((z) => z.from <= d.grade).map((z) => ({ ...z, to: Math.min(z.to, d.grade) }));
+            const hit = zones.find((z) => d.value >= z.from && d.value <= z.to);
             return (
-              <span
-                key={i}
-                className={`face ${fc.cls} ${i < ui.revealed ? "on" : ""}`}
-              >
-                <small>D{d.grade}</small>
-                <b>{i < ui.revealed ? d.value : "?"}</b>
-                <i>{i < ui.revealed ? fc.sym : " "}</i>
-              </span>
+              <div key={i} className={`scale ${on ? "on" : ""}`}>
+                <small className="dg">D{d.grade}</small>
+                <div className="bar">
+                  {zones.map((z) => (
+                    <span key={z.from} className={`zone ${z.cls} ${on && hit === z ? "hit" : ""}`} style={{ flexGrow: z.to - z.from + 1 }}>
+                      <em>{z.from === z.to ? z.from : `${z.from}–${z.to}`}</em>
+                    </span>
+                  ))}
+                  {on && (
+                    <span className={`mark ${hit?.cls ?? ""}`} style={{ left: `${((d.value - 0.5) / d.grade) * 100}%` }}>
+                      {d.value}
+                    </span>
+                  )}
+                </div>
+                <b className={`res ${hit?.cls ?? ""}`}>{on ? (defense && hit?.cls !== "f0" ? (hit?.cls === "f3" ? "2 bloqueios" : "bloqueia") : hit?.word) : "?"}</b>
+              </div>
             );
           })}
           {extra > 0 && (
-            <span className={`face bonus ${ui.bonus ? "on" : ""}`}>
-              <small>bônus</small>
-              <b>+{extra}</b>
-              <i>✓</i>
-            </span>
+            <div className={`scale bonus ${ui.bonus ? "on" : ""}`}>
+              <small className="dg">bônus</small>
+              <div className="bar plain">+{extra} sucesso{extra > 1 ? "s" : ""} de efeitos</div>
+              <b className="res f1">+{extra}</b>
+            </div>
           )}
         </div>
+        {final && (
+          <div className="meaning">
+            {defense
+              ? r.successes
+                ? `${r.successes} bloqueio${r.successes > 1 ? "s" : ""}: −${r.successes} de dano recebido`
+                : "Nenhum bloqueio: o golpe entra inteiro"
+              : r.critico
+                ? "Crítico! +1 de dano e ignora 1 de armadura"
+                : r.successes
+                  ? r.successes > 1
+                    ? `Acertou! ${r.successes - 1} acerto${r.successes > 2 ? "s" : ""} a mais = +${r.successes - 1} de dano`
+                    : "Acertou! Dano normal da arma"
+                  : "Errou: nenhum dado chegou a 3"}
+            {!defense && imp > 0 ? ` · ✦ Impulso = efeito extra` : ""}
+          </div>
+        )}
         {final && unlucky > 0 && (
           <div className="luck">Azar: só 1 em {unlucky} erraria</div>
-        )}
-        {final && legend && (
-          <div className="legend">
-            1–2 erra · 3–5 ✓ · 6–8 ✓✦ · 9–11 ✓✓✦ · 12 ✹
-          </div>
         )}
       </div>
     </>
   );
 }
+
+/** The universal table as zones on a die's scale (cut at the die's size). */
+const ZONES = [
+  { from: 1, to: 2, cls: "f0", word: "erra" },
+  { from: 3, to: 5, cls: "f1", word: "acerto" },
+  { from: 6, to: 8, cls: "f2", word: "acerto + impulso" },
+  { from: 9, to: 11, cls: "f3", word: "2 acertos + impulso" },
+  { from: 12, to: 12, cls: "f4", word: "crítico!" },
+];
 
 /** What a die face means (the universal table): ✗ nothing, ✓ success, ✦ impulse, ✹ critical. */
 function readFace(v: number): { sym: string; cls: string } {

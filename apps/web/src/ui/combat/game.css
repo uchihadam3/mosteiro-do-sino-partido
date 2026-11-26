@@ -2280,3 +2280,9 @@
   height: 15px;
   color: var(--gold-2);
 }
+
+.g-fc-dice .need {
+  align-self: center;
+  color: #ffe9b0;
+  font-weight: 600;
+}

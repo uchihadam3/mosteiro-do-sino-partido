@@ -593,6 +593,7 @@ function Forecast({ S, hero, targetId, defId, pre, onPick, onConfirm, onCancel, 
       </div>
       {exact && exact.dice.length > 0 && (
         <div className="g-fc-dice" aria-label="Dados do ataque">
+          <span className="need">Precisa de 3+ em</span>
           {exact.dice.map((g, i) => (
             <span key={i} className="die">
               <Icon id={`dice_d${g}`} />D{g}

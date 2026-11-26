@@ -298,7 +298,7 @@ function Defense({ p, S }: { p: Extract<Pending, { kind: 'defense' }>; S: Combat
         <div className={`v ${pBlock >= 70 ? 'good' : pBlock < 45 ? 'bad' : ''}`}>{pBlock}%</div>
         <div className="t">
           de bloquear algum dano
-          <small>cada sucesso bloqueia 1 · média {expBlock.toFixed(1)}</small>
+          <small>cada dado com 3 ou mais bloqueia 1 · média {expBlock.toFixed(1)}</small>
         </div>
       </div>
       {p.options.length > 0 && (
