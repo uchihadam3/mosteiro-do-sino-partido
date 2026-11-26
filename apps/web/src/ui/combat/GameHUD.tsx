@@ -428,7 +428,7 @@ export function GameHUD() {
 
   return (
     <div className="g-hud">
-      <TopBar S={S} heroes={heroes} onLog={() => setLog(true)} onMenu={() => setPause(true)} onSkip={() => diorama?.skip()} />
+      <TopBar S={S} heroes={heroes} onLog={() => setLog(true)} onMenu={() => setPause(true)} onSkip={() => diorama?.skip()} onPick={(id) => (S.figures.find((f) => f.id === id)?.side === 'H' ? setKit(id) : setInspect(id))} />
       <BossGauge S={S} />
       <ObjectivePill S={S} />
       {hint && (
@@ -834,25 +834,79 @@ function SpeedButton({ onSkip }: { onSkip(): void }) {
   );
 }
 
-function TopBar({ S, heroes, onLog, onMenu, onSkip }: { S: CombatState; heroes: Figure[]; onLog(): void; onMenu(): void; onSkip(): void }) {
-  const typesShown = S.typeOrder.filter((t) => S.figures.some((f) => f.typeId === t && f.side === 'E' && f.status === 'active'));
-  const idx = BAND_INFO.findIndex((x) => x.b === S.band);
+/** Everyone who acts this Cycle, in order (heroes by their chosen rhythm, enemies by their Intention). */
+interface OrderEntry {
+  key: string;
+  side: 'h' | 'e';
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  tempo: Tempo;
+  n: number;
+  dano: number;
+  state: 'done' | 'now' | 'next';
+}
+function cycleOrder(S: CombatState, heroes: Figure[]): OrderEntry[] {
+  const out: OrderEntry[] = [];
+  const started = S.phase !== 'tempo' && S.phase !== 'deploy';
+  const cur = BAND_INFO.findIndex((x) => x.b === S.band);
+  const threats = started || S.phase === 'tempo' ? predictThreats(S) : [];
+  BAND_INFO.forEach((b, i) => {
+    const bandState = !started || i > cur ? 'next' : i < cur ? 'done' : 'cur';
+    if (b.side === 'h') {
+      for (const h of heroes.filter((x) => x.status === 'active' && x.tempo === b.tempo)) {
+        const state = bandState === 'cur' ? (S.activeId === h.id ? 'now' : h.acted ? 'done' : 'next') : bandState;
+        out.push({ key: h.id, side: 'h', id: h.id, name: h.name, icon: `class_${h.typeId}`, color: CLASS_COLOR[h.typeId], tempo: b.tempo, n: 1, dano: 0, state });
+      }
+    } else {
+      for (const ty of S.typeOrder) {
+        const figs = S.figures.filter((f) => f.typeId === ty && f.side === 'E' && f.status === 'active');
+        if (!figs.length || intentFor(S, ty)?.tempo !== b.tempo) continue;
+        const active = S.figures.find((f) => f.id === S.activeId);
+        const waiting = figs.some((f) => S.enemyActQueue.includes(f.id));
+        const state = bandState === 'cur' ? (active?.typeId === ty ? 'now' : waiting || S.phase !== 'enemyBand' ? 'next' : 'done') : bandState;
+        const dano = threats.filter((t) => figs.some((f) => f.id === t.from)).reduce((n, t) => n + t.to.reduce((m, id) => m + (t.dano[id] ?? 0), 0), 0);
+        out.push({ key: ty, side: 'e', id: figs[0].id, name: reg().enemies[ty]?.name ?? ty, icon: 'act_attack_melee', color: '#e0574a', tempo: b.tempo, n: figs.length, dano, state });
+      }
+    }
+  });
+  return out;
+}
+function phaseLabel(S: CombatState): string {
+  if (S.result) return S.result === 'victory' ? 'Vitória' : 'Derrota';
+  switch (S.phase) {
+    case 'deploy':
+      return 'Posicione os heróis';
+    case 'tempo':
+      return 'Escolha o ritmo';
+    case 'heroBand':
+      return 'Vez dos heróis';
+    case 'heroActing':
+      return `Vez de ${S.figures.find((f) => f.id === S.activeId)?.name ?? 'herói'}`;
+    case 'enemyBand':
+      return 'Vez dos inimigos';
+    default:
+      return '';
+  }
+}
+
+function TopBar({ S, heroes, onLog, onMenu, onSkip, onPick }: { S: CombatState; heroes: Figure[]; onLog(): void; onMenu(): void; onSkip(): void; onPick(id: string): void }) {
+  const order = cycleOrder(S, heroes);
+  const strip = useRef<HTMLDivElement>(null);
+  // keep whoever acts now in view
+  useEffect(() => {
+    const el = strip.current?.querySelector('.o.now') as HTMLElement | null;
+    el?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+  }, [S.activeId, S.band, S.phase]);
   return (
     <div className="g-top">
       <div className="g-cycle">
         <span className="n">{S.cycle}</span>
-        <div className="g-track" aria-label="Ordem do Ciclo">
-          {BAND_INFO.map((b, i) => {
-            const has = b.side === 'h' ? heroes.some((h) => h.tempo === b.tempo && h.status === 'active') : typesShown.some((t) => intentFor(S, t)?.tempo === b.tempo);
-            const now = S.phase !== 'tempo' && S.phase !== 'deploy' && b.b === S.band;
-            const done = S.phase !== 'tempo' && S.phase !== 'deploy' && i < idx;
-            return (
-              <span key={b.b} className={`step ${b.side} ${now ? 'now' : ''} ${done ? 'done' : ''} ${has ? 'has' : ''}`} title={`${b.side === 'h' ? 'Heróis' : 'Inimigos'} ${TEMPO_NAME[b.tempo]}`}>
-                <Icon id={`tempo_${b.tempo}`} />
-              </span>
-            );
-          })}
-        </div>
+        <span className="ph">
+          <small>Ciclo {S.cycle}</small>
+          <b>{phaseLabel(S)}</b>
+        </span>
       </div>
       <div className="g-top-btns">
         <SpeedButton onSkip={onSkip} />
@@ -862,6 +916,23 @@ function TopBar({ S, heroes, onLog, onMenu, onSkip }: { S: CombatState; heroes: 
         <button className="g-round sm" aria-label="Menu" onClick={onMenu}>
           <Icon id="menu" />
         </button>
+      </div>
+      <div className="g-order" ref={strip} aria-label="Quem age neste ciclo, em ordem">
+        {order.map((e, i) => (
+          <React.Fragment key={e.key}>
+            {i > 0 && <span className={`arr ${order[i - 1].tempo !== e.tempo ? 'tempo' : ''}`}>›</span>}
+            <button className={`o ${e.side} ${e.state}`} style={{ ['--acc' as string]: e.color }} onClick={() => onPick(e.id)} aria-label={`${i + 1}º ${e.name}${e.state === 'now' ? ' (agindo)' : ''}`}>
+              <span className="face">
+                <Icon id={e.icon} />
+                {e.n > 1 && <b className="cnt">×{e.n}</b>}
+              </span>
+              <span className="tp">
+                <Icon id={`tempo_${e.tempo}`} />
+              </span>
+              {e.side === 'e' && e.dano > 0 && e.state !== 'done' && <span className="dmg">−{e.dano}</span>}
+            </button>
+          </React.Fragment>
+        ))}
       </div>
     </div>
   );
@@ -1071,7 +1142,10 @@ function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre, onKit }: { f: Figu
   const c = ctxOf(S);
   const list = actionAvailability(c, f);
   const order = (a: ActionDef) => (a.kind === 'attack' || a.kind === 'spell' ? 0 : a.kind === 'control' ? 1 : a.kind === 'support' ? 2 : a.kind === 'move' ? 3 : 4);
-  const sorted = [...list].sort((a, b) => Number(!!a.reason) - Number(!!b.reason) || order(a.def) - order(b.def));
+  // only what can be done right now (the whole kit is one tap away on the hero's name)
+  const useful = (a: (typeof list)[number]) => !a.reason && !(a.def.id === 'cantil' && f.hp >= f.maxHp);
+  const sorted = list.filter(useful).sort((a, b) => order(a.def) - order(b.def));
+  const hidden = list.length - sorted.length;
   const oil = f.backpack?.find((i) => i.itemId === 'oleo_afiacao');
   const tonic = f.backpack?.find((i) => i.itemId === 'tonico_foco');
   const toggle = (k: string) => setPre(pre.includes(k) ? pre.filter((x) => x !== k) : [...pre, k]);
@@ -1110,8 +1184,6 @@ function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre, onKit }: { f: Figu
           const dano = def.preview?.(c, f)?.dano;
           return (
             <React.Fragment key={def.id}>
-              {/* "Encerrar" sits right after what can still be done, never hidden behind the greyed-out actions */}
-              {reason && !sorted[i - 1]?.reason && endBtn}
               <button className={`g-act g-card k-${def.kind} ${reason ? 'off' : ''} ${sel?.def.id === def.id ? 'sel' : ''}`} title={`${def.name} — ${cost} PA\n${def.text}${reason ? `\n\n${reason}` : ''}`} onClick={() => (reason ? toast(reason, 'error') : onPick(def))}>
                 <span className="cic">
                   <Icon id={def.icon ?? 'act_item'} />
@@ -1129,7 +1201,15 @@ function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre, onKit }: { f: Figu
             </React.Fragment>
           );
         })}
-        {!sorted.some((a) => a.reason) && endBtn}
+        {endBtn}
+        {hidden > 0 && (
+          <button className="g-act g-card more" onClick={onKit}>
+            <span className="ctx">
+              <b className="an">+{hidden} habilidades</b>
+              <small>Não dá para usar agora · ver todas</small>
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );

@@ -130,7 +130,7 @@
 
 .g-gauge {
   position: absolute;
-  top: calc(var(--safe-t) + 58px);
+  top: calc(var(--safe-t) + 58px + var(--order-h, 0px));
   left: 50%;
   transform: translateX(-50%);
   width: max-content;
@@ -170,7 +170,7 @@
 
 .g-hint {
   position: absolute;
-  top: calc(var(--safe-t) + 60px);
+  top: calc(var(--safe-t) + 60px + var(--order-h, 0px));
   left: 50%;
   transform: translateX(-50%);
   width: max-content;
@@ -188,7 +188,7 @@
   animation: gDrop 0.3s ease both;
 }
 .g-gauge ~ .g-hint {
-  top: calc(var(--safe-t) + 92px);
+  top: calc(var(--safe-t) + 92px + var(--order-h, 0px));
 }
 
 /* ------------------------------------------------------------------ bottom stack */
@@ -575,7 +575,7 @@
 /* ------------------------------------------------------------------ choosing a target */
 .g-target {
   position: absolute;
-  top: calc(var(--safe-t) + 58px);
+  top: calc(var(--safe-t) + 58px + var(--order-h, 0px));
   left: 50%;
   transform: translateX(-50%);
   width: min(520px, calc(100vw - 20px));
@@ -1368,7 +1368,7 @@
 /* ------------------------------------------------------------------ enemy acting */
 .g-enemy-turn {
   position: absolute;
-  top: calc(var(--safe-t) + 58px);
+  top: calc(var(--safe-t) + 58px + var(--order-h, 0px));
   left: 50%;
   transform: translateX(-50%);
   width: max-content;
@@ -1777,7 +1777,7 @@
 /* special-encounter objective */
 .g-obj {
   position: absolute;
-  top: calc(var(--safe-t) + 58px);
+  top: calc(var(--safe-t) + 58px + var(--order-h, 0px));
   left: 50%;
   transform: translateX(-50%);
   width: max-content;
@@ -1811,7 +1811,7 @@
   background: rgba(16, 30, 14, 0.86);
 }
 .g-obj ~ .g-hint {
-  top: calc(var(--safe-t) + 92px);
+  top: calc(var(--safe-t) + 92px + var(--order-h, 0px));
 }
 .g-gauge .cw {
   margin-left: 4px;
@@ -2285,4 +2285,159 @@
   align-self: center;
   color: #ffe9b0;
   font-weight: 600;
+}
+
+/* ------------------------------------------------------------------ who acts this cycle, in order */
+.g-hud {
+  --order-h: 50px;
+}
+.g-top {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.g-cycle .ph {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+  padding-right: 4px;
+}
+.g-cycle .ph small {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.g-cycle .ph b {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: #ffe9b0;
+  white-space: nowrap;
+}
+.g-track {
+  display: none;
+}
+.g-order {
+  order: 3;
+  flex: 1 0 100%;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 3px 4px 6px;
+  border-radius: 999px;
+  background: var(--glass);
+}
+.g-order::-webkit-scrollbar {
+  display: none;
+}
+.g-order .arr {
+  flex: none;
+  color: var(--ink-3);
+  font-size: 14px;
+  opacity: 0.6;
+}
+.g-order .arr.tempo {
+  color: var(--gold);
+  opacity: 0.9;
+}
+.g-order .o {
+  position: relative;
+  flex: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  transition: transform 0.2s, opacity 0.2s;
+}
+.g-order .o .face {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, color-mix(in srgb, var(--acc) 30%, #2a211c), #120e0c 75%);
+  border: 2px solid color-mix(in srgb, var(--acc) 75%, #000);
+  color: var(--acc);
+}
+.g-order .o.e .face {
+  border-radius: 9px;
+}
+.g-order .o .face .ico {
+  width: 19px;
+  height: 19px;
+}
+.g-order .o .cnt {
+  position: absolute;
+  right: -5px;
+  top: -4px;
+  font-size: 9.5px;
+  padding: 0 3px;
+  border-radius: 6px;
+  background: #3a1010;
+  color: #ffd8cf;
+}
+.g-order .o .tp {
+  position: absolute;
+  left: -3px;
+  bottom: -5px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #1a1411;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.g-order .o .tp .ico {
+  width: 10px;
+  height: 10px;
+}
+.g-order .o .dmg {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 0 3px;
+  border-radius: 6px;
+  background: #b5352b;
+  color: #fff;
+}
+.g-order .o.done {
+  opacity: 0.32;
+  filter: grayscale(0.7);
+}
+.g-order .o.now {
+  transform: scale(1.18);
+  z-index: 1;
+}
+.g-order .o.now .face {
+  box-shadow: 0 0 0 2px #fff3c8, 0 0 16px color-mix(in srgb, var(--acc) 80%, transparent);
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .g-hud {
+    --order-h: 40px;
+  }
+  .g-order .o .face {
+    width: 26px;
+    height: 26px;
+  }
+  .g-order .o .face .ico {
+    width: 15px;
+    height: 15px;
+  }
+  .g-order {
+    flex: 0 1 auto;
+    max-width: 60vw;
+  }
+}
+.g-act.g-card.more {
+  width: 132px;
+  border-style: dashed;
+  border-left-width: 1px;
+  background: rgba(20, 15, 13, 0.7);
+  --k: #8d8478;
+}
+.g-act.g-card.more .an {
+  color: var(--ink-2);
 }
