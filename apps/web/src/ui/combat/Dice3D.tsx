@@ -342,3 +342,75 @@ export function Dice3D({ ev, onSettled }: { ev: RollEvent; onSettled?(): void })
   if (!ok) return null;
   return <div ref={host} className="g-dice3d" aria-hidden />;
 }
+
+// ------------------------------------------------------------------ the roll as the HUD shows it: 3D dice, then the verdict
+export function DiceBurst({ ev }: { ev: Extract<DomainEvent, { type: 'roll' }> }) {
+  const [settled, setSettled] = useState(false);
+  const [gone, setGone] = useState(false);
+  const [legend] = useState(legendLeft);
+  const slow = (window as unknown as { __diceSlow?: number }).__diceSlow ?? 1;
+  useEffect(() => {
+    if (!settled) return;
+    const t = setTimeout(() => setGone(true), 1600 * slow);
+    return () => clearTimeout(t);
+  }, [settled]);
+  useEffect(() => {
+    // safety: never keep the dice up for long
+    const t = setTimeout(() => setGone(true), 4000 * slow);
+    return () => clearTimeout(t);
+  }, []);
+  if (gone) return null;
+  const r = ev.roll;
+  // honest dice: an unlikely miss says how unlikely it was
+  const pMiss = r.dice.reduce((p, d) => p * Math.min(1, 2 / d.grade), 1);
+  const unlucky = !r.successes && pMiss <= 0.26 ? Math.round(1 / pMiss) : 0;
+  return (
+    <>
+      <Dice3D ev={ev} onSettled={() => setSettled(true)} />
+      {settled && (
+        <div className="g-dice" aria-live="polite" style={slow !== 1 ? { animationDuration: `${1.6 * slow}s` } : undefined}>
+          <div className={`verdict ${r.critico ? 'crit' : r.successes ? 'ok' : 'no'}`}>
+            {r.critico ? 'CRÍTICO!' : r.successes ? `${r.successes} sucesso${r.successes > 1 ? 's' : ''}` : 'Falhou'}
+            {r.impulsos > 0 && <span className="imp">+{r.impulsos} impulso{r.impulsos > 1 ? 's' : ''}</span>}
+          </div>
+          <div className="faces">
+            {r.dice.map((d, i) => {
+              const f = readFace(d.value);
+              return (
+                <span key={i} className={`face ${f.cls}`}>
+                  <small>D{d.grade}</small>
+                  <b>{d.value}</b>
+                  <i>{f.sym}</i>
+                </span>
+              );
+            })}
+          </div>
+          {unlucky > 0 && <div className="luck">Azar: só 1 em {unlucky} erraria</div>}
+          {legend && <div className="legend">1–2 erra · 3–5 ✓ · 6–8 ✓✦ · 9–11 ✓✓✦ · 12 ✹</div>}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** What a die face means (the universal table): ✗ nothing, ✓ success, ✦ impulse, ✹ critical. */
+function readFace(v: number): { sym: string; cls: string } {
+  if (v <= 2) return { sym: '✗', cls: 'f0' };
+  if (v <= 5) return { sym: '✓', cls: 'f1' };
+  if (v <= 8) return { sym: '✓✦', cls: 'f2' };
+  if (v <= 11) return { sym: '✓✓✦', cls: 'f3' };
+  return { sym: '✹', cls: 'f4' };
+}
+/** The face legend shows on the first rolls only (it teaches, then gets out of the way). */
+let legendShown = -1;
+function legendLeft(): boolean {
+  try {
+    if (legendShown < 0) legendShown = Number(localStorage.getItem('mosteiro.diceLegend') ?? 0);
+    if (legendShown >= 6) return false;
+    legendShown++;
+    localStorage.setItem('mosteiro.diceLegend', String(legendShown));
+    return true;
+  } catch {
+    return false;
+  }
+}
