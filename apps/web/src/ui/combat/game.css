@@ -2450,3 +2450,161 @@
   text-transform: uppercase;
   color: var(--gold);
 }
+
+/* ------------------------------------------------------------------ hero turn: few big commands, choices in a small grid */
+.g-act-row.g-cmds {
+  justify-content: center;
+  gap: 14px;
+  overflow: visible;
+  padding: 2px 0 0;
+}
+.g-cmd {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 0;
+  padding: 0;
+  --k: #e9cf8e;
+  animation: gPop 0.25s ease both;
+}
+.g-cmd.c-attack {
+  --k: #ff8a72;
+}
+.g-cmd.c-move {
+  --k: #8fcaff;
+}
+.g-cmd.c-support {
+  --k: #9be08a;
+}
+.g-cmd.end {
+  --k: #bdb3a2;
+}
+.g-cmd .disc {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--k);
+  background: radial-gradient(circle at 40% 30%, color-mix(in srgb, var(--k) 25%, #2c221d), #120e0c 75%);
+  border: 2px solid color-mix(in srgb, var(--k) 75%, #000);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.g-cmd .disc .ico {
+  width: 28px;
+  height: 28px;
+}
+.g-cmd .lb {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  text-shadow: 0 1px 4px #000;
+}
+.g-cmd.on .disc {
+  transform: translateY(-3px) scale(1.06);
+  box-shadow: 0 0 0 2px var(--k), 0 0 22px color-mix(in srgb, var(--k) 60%, transparent);
+}
+.g-cmd:active .disc {
+  transform: scale(0.94);
+}
+.g-menu {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: min(440px, calc(100vw - 16px));
+  padding: 8px;
+  border-radius: 16px;
+  background: rgba(14, 10, 10, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+  animation: gPop 0.2s ease both;
+}
+.g-menu .g-act.g-card {
+  width: auto;
+  min-height: 62px;
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .g-cmd .disc {
+    width: 46px;
+    height: 46px;
+  }
+  .g-cmd .disc .ico {
+    width: 22px;
+    height: 22px;
+  }
+  .g-act-row.g-cmds {
+    gap: 10px;
+  }
+  .g-menu {
+    width: 100%;
+    max-height: 46vh;
+    overflow-y: auto;
+  }
+}
+
+/* attack preview: the possible blows, each saying what it does */
+.g-fc-alts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.g-fc-alts .t {
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+  text-align: left;
+}
+.g-fc-alt {
+  display: grid;
+  grid-template-columns: 14px auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  text-align: left;
+}
+.g-fc-alt .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--ink-3);
+}
+.g-fc-alt.on {
+  border-color: rgba(255, 138, 114, 0.7);
+  background: rgba(194, 70, 58, 0.18);
+}
+.g-fc-alt.on .dot {
+  border-color: #ff8a72;
+  background: radial-gradient(circle, #ff8a72 45%, transparent 50%);
+}
+.g-fc-alt .nm {
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.g-fc-alt small {
+  font-size: 11.5px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .g-fc-alt {
+    padding: 3px 8px;
+  }
+  .g-fc-alt small {
+    display: none;
+  }
+}

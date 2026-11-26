@@ -619,10 +619,13 @@ function Forecast({ S, hero, targetId, defId, pre, onPick, onConfirm, onCancel, 
         </div>
       )}
       {options.length > 1 && (
-        <div className="g-fc-alts">
+        <div className="g-fc-alts" role="radiogroup" aria-label="Escolha o golpe">
+          <div className="t">Escolha o golpe</div>
           {options.slice(0, 5).map((d) => (
-            <button key={d.id} className={`g-pill ${d.id === def.id ? 'gold' : ''}`} onClick={() => onPick(d.id)}>
-              {d.name}
+            <button key={d.id} role="radio" aria-checked={d.id === def.id} className={`g-fc-alt ${d.id === def.id ? 'on' : ''}`} onClick={() => onPick(d.id)}>
+              <i className="dot" />
+              <span className="nm">{d.name}</span>
+              <small>{skillLine(d, d.preview?.(c, hero)?.dano)}</small>
             </button>
           ))}
         </div>
@@ -1068,29 +1071,31 @@ function TempoPicker({ S, heroId, setHero }: { S: CombatState; heroId: string | 
 }
 
 // ------------------------------------------------------------------ actions: big round buttons
+/**
+ * The hero's turn, simple: a few big commands (Atacar · Mover · Apoio · Encerrar), only those that can be used now.
+ * A command opens a small grid with just its choices — never a long scrolling row.
+ */
+type Menu = 'attack' | 'move' | 'support' | null;
+const MENU_OF = (d: ActionDef): Exclude<Menu, null> => (d.kind === 'attack' || d.kind === 'spell' || d.kind === 'control' ? 'attack' : d.kind === 'move' ? 'move' : 'support');
 function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre, onKit }: { f: Figure; S: CombatState; sel: Sel | null; onPick(d: ActionDef, o?: string): void; onEnd(): void; pre: string[]; setPre(p: string[]): void; onKit(): void }) {
   const c = ctxOf(S);
   const list = actionAvailability(c, f);
-  const order = (a: ActionDef) => (a.kind === 'attack' || a.kind === 'spell' ? 0 : a.kind === 'control' ? 1 : a.kind === 'support' ? 2 : a.kind === 'move' ? 3 : 4);
-  // only what can be done right now (the whole kit is one tap away on the hero's name)
   const useful = (a: (typeof list)[number]) => !a.reason && !(a.def.id === 'cantil' && f.hp >= f.maxHp);
-  const sorted = list.filter(useful).sort((a, b) => order(a.def) - order(b.def));
-  const hidden = list.length - sorted.length;
+  const usable = list.filter(useful);
+  const [menu, setMenu] = useState<Menu>(null);
+  // a new activation starts with the menu closed
+  useEffect(() => setMenu(null), [f.id, S.cycle]);
   const oil = f.backpack?.find((i) => i.itemId === 'oleo_afiacao');
   const tonic = f.backpack?.find((i) => i.itemId === 'tonico_foco');
   const toggle = (k: string) => setPre(pre.includes(k) ? pre.filter((x) => x !== k) : [...pre, k]);
   const boosts = [f.tempo === 'pesado' && { k: 'pesado', label: '+1 Grau' }, oil && { k: `oleo:${oil.uid}`, label: 'Óleo +1 Dano' }, tonic && { k: `tonico:${tonic.uid}`, label: 'Tônico +1 Grau' }].filter(Boolean) as { k: string; label: string }[];
-  const endBtn = (
-    <button className="g-act g-card end" onClick={onEnd} title="Encerrar a vez deste herói">
-      <span className="cic">
-        <Icon id="act_end_turn" />
-      </span>
-      <span className="ctx">
-        <b className="an">Encerrar</b>
-        <small>Termina a vez deste herói</small>
-      </span>
-    </button>
-  );
+  const groups: { m: Exclude<Menu, null>; label: string; icon: string }[] = [
+    { m: 'attack', label: 'Atacar', icon: 'act_attack_melee' },
+    { m: 'move', label: 'Mover', icon: 'act_move' },
+    { m: 'support', label: 'Apoio', icon: 'act_heal' },
+  ];
+  const items = (m: Exclude<Menu, null>) => usable.filter((a) => MENU_OF(a.def) === m);
+  const shown = menu ? items(menu) : [];
   return (
     <div className="g-actions">
       <div className="g-ctx-title" style={{ color: CLASS_COLOR[f.typeId] }}>
@@ -1109,18 +1114,18 @@ function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre, onKit }: { f: Figu
           </button>
         ))}
       </div>
-      <div className="g-act-row g-skills">
-        {sorted.map(({ def, cost, reason }, i) => {
-          const dano = def.preview?.(c, f)?.dano;
-          return (
-            <React.Fragment key={def.id}>
-              <button className={`g-act g-card k-${def.kind} ${reason ? 'off' : ''} ${sel?.def.id === def.id ? 'sel' : ''}`} title={`${def.name} — ${cost} PA\n${def.text}${reason ? `\n\n${reason}` : ''}`} onClick={() => (reason ? toast(reason, 'error') : onPick(def))}>
+      {menu && shown.length > 0 && (
+        <div className={`g-menu ${menu}`} role="menu" aria-label={groups.find((g) => g.m === menu)?.label}>
+          {shown.map(({ def, cost }) => {
+            const dano = def.preview?.(c, f)?.dano;
+            return (
+              <button key={def.id} role="menuitem" className={`g-act g-card k-${def.kind} ${sel?.def.id === def.id ? 'sel' : ''}`} title={`${def.name} — ${cost} PA\n${def.text}`} onClick={() => onPick(def)}>
                 <span className="cic">
                   <Icon id={def.icon ?? 'act_item'} />
                 </span>
                 <span className="ctx">
                   <b className="an">{def.name}</b>
-                  <small>{reason ? reason : skillLine(def, dano)}</small>
+                  <small>{skillLine(def, dano)}</small>
                 </span>
                 <span className="cost" aria-label={`${cost} PA`}>
                   {Array.from({ length: Math.max(0, cost) }).map((_, k) => (
@@ -1128,18 +1133,29 @@ function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre, onKit }: { f: Figu
                   ))}
                 </span>
               </button>
-            </React.Fragment>
+            );
+          })}
+        </div>
+      )}
+      <div className="g-act-row g-cmds">
+        {groups.map((g) => {
+          const n = items(g.m).length;
+          if (!n) return null;
+          return (
+            <button key={g.m} className={`g-cmd c-${g.m} ${menu === g.m ? 'on' : ''}`} onClick={() => setMenu(menu === g.m ? null : g.m)} aria-expanded={menu === g.m}>
+              <span className="disc">
+                <Icon id={g.icon} />
+              </span>
+              <span className="lb">{g.label}</span>
+            </button>
           );
         })}
-        {endBtn}
-        {hidden > 0 && (
-          <button className="g-act g-card more" onClick={onKit}>
-            <span className="ctx">
-              <b className="an">+{hidden} habilidades</b>
-              <small>Não dá para usar agora · ver todas</small>
-            </span>
-          </button>
-        )}
+        <button className="g-cmd g-act end" onClick={onEnd} title="Terminar a vez deste herói">
+          <span className="disc">
+            <Icon id="act_end_turn" />
+          </span>
+          <span className="lb">Encerrar</span>
+        </button>
       </div>
     </div>
   );
