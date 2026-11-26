@@ -18,6 +18,7 @@ import { PendingPrompt } from './Prompts';
 import { PauseMenu } from '../Pause';
 import { DiceBurst } from './Dice3D';
 import { forecastLater, type ActionCommand, type AttackForecast } from './forecast';
+import { CLASS_ROLE, KIND_LABEL, skillLine } from './skills';
 import type { Highlight } from '../../three/Diorama';
 import './game.css';
 
@@ -117,6 +118,7 @@ export function GameHUD() {
     });
     setSel(null);
   };
+  const [kit, setKit] = useState<string | null>(null);
   const [undo, setUndo] = useState<{ snap: NonNullable<typeof session.state>; label: string; seq: number; key: number } | null>(null);
   // the undo offer lasts until anything else happens
   useEffect(() => {
@@ -152,7 +154,16 @@ export function GameHUD() {
       return;
     }
     if (sel && heroActive && targets) {
-      if (targets.figures.includes(id)) return fire({ targetIds: [id] });
+      if (targets.figures.includes(id)) {
+        // an attack chosen from its card: show the preview with that attack before anything happens
+        const T0 = sel.def.targeting.type;
+        if ((sel.def.kind === 'attack' || sel.def.kind === 'spell') && T0 === 'enemy' && !sel.option && attacksOn(c, heroActive, id).some((d) => d.id === sel.def.id)) {
+          setForecast({ targetId: id, defId: sel.def.id });
+          setSel(null);
+          return;
+        }
+        return fire({ targetIds: [id] });
+      }
       const T = sel.def.targeting.type;
       if (T === 'sector' || T === 'move' || T === 'area2' || T === 'sectors2') return handlers.current.sector(f.sector);
       return toast('Esse alvo não serve para esta ação.', 'error');
@@ -180,7 +191,8 @@ export function GameHUD() {
         return;
       }
     }
-    // anything else: look at it
+    // anything else: look at it (a hero shows everything they can do)
+    if (f.side === 'H') return setKit(id);
     setInspect(id);
   };
   handlers.current.sector = (k: SectorKey) => {
@@ -441,7 +453,7 @@ export function GameHUD() {
             <Icon id="back" /> Desfazer {undo.label.toLowerCase()}
           </button>
         )}
-        {heroActive && canAct && !S.pending && !forecast && <ActionWheel f={heroActive} S={S} sel={sel} pre={pre} setPre={setPre} onPick={choose} onEnd={() => void act({ t: 'combat', cmd: { t: 'end', figureId: heroActive.id } })} />}
+        {heroActive && canAct && !S.pending && !forecast && <ActionWheel f={heroActive} S={S} sel={sel} pre={pre} setPre={setPre} onPick={choose} onEnd={() => void act({ t: 'combat', cmd: { t: 'end', figureId: heroActive.id } })} onKit={() => setKit(heroActive.id)} />}
         <Dock S={S} heroes={heroes} tempoHero={tempoHero} incoming={showThreats ? incomingDamage(threats) : {}} onTap={(id) => handlers.current.fig(id)} />
       </div>
 
@@ -455,6 +467,7 @@ export function GameHUD() {
       {S.phase === 'enemyBand' && active && active.side === 'E' && !S.pending && <EnemyActing S={S} f={active} />}
       {sel && heroActive && <TargetBar sel={sel} f={heroActive} S={S} areaFirst={areaFirst} onOption={(o) => setSel({ ...sel, option: o })} onCancel={() => setSel(null)} onFire={() => fire({})} />}
       {S.pending && <PendingPrompt S={S} />}
+      {kit && S.figures.find((x) => x.id === kit) && <KitSheet S={S} f={S.figures.find((x) => x.id === kit)!} onClose={() => setKit(null)} />}
       {roll && <DiceBurst key={roll.key} ev={roll} />}
       {banner && (
         <div key={banner.key} className="g-banner">
@@ -1046,7 +1059,7 @@ function TempoPicker({ S, heroId, setHero }: { S: CombatState; heroId: string | 
 }
 
 // ------------------------------------------------------------------ actions: big round buttons
-function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre }: { f: Figure; S: CombatState; sel: Sel | null; onPick(d: ActionDef, o?: string): void; onEnd(): void; pre: string[]; setPre(p: string[]): void }) {
+function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre, onKit }: { f: Figure; S: CombatState; sel: Sel | null; onPick(d: ActionDef, o?: string): void; onEnd(): void; pre: string[]; setPre(p: string[]): void; onKit(): void }) {
   const c = ctxOf(S);
   const list = actionAvailability(c, f);
   const order = (a: ActionDef) => (a.kind === 'attack' || a.kind === 'spell' ? 0 : a.kind === 'control' ? 1 : a.kind === 'support' ? 2 : a.kind === 'move' ? 3 : 4);
@@ -1056,21 +1069,27 @@ function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre }: { f: Figure; S: 
   const toggle = (k: string) => setPre(pre.includes(k) ? pre.filter((x) => x !== k) : [...pre, k]);
   const boosts = [f.tempo === 'pesado' && { k: 'pesado', label: '+1 Grau' }, oil && { k: `oleo:${oil.uid}`, label: 'Óleo +1 Dano' }, tonic && { k: `tonico:${tonic.uid}`, label: 'Tônico +1 Grau' }].filter(Boolean) as { k: string; label: string }[];
   const endBtn = (
-    <button className="g-act end" onClick={onEnd} title="Encerrar a Ativação">
-      <span className="disc">
+    <button className="g-act g-card end" onClick={onEnd} title="Encerrar a vez deste herói">
+      <span className="cic">
         <Icon id="act_end_turn" />
       </span>
-      <span className="an">Encerrar</span>
+      <span className="ctx">
+        <b className="an">Encerrar</b>
+        <small>Termina a vez deste herói</small>
+      </span>
     </button>
   );
   return (
     <div className="g-actions">
       <div className="g-ctx-title" style={{ color: CLASS_COLOR[f.typeId] }}>
-        {f.name}
-        <span className="g-ap">
+        <button className="g-kit-btn" onClick={onKit} aria-label={`Habilidades de ${f.name}`}>
+          {f.name} <Icon id="info" />
+        </button>
+        <span className="g-ap" title="Pontos de ação">
           {Array.from({ length: Math.max(0, f.ap ?? 0) }).map((_, i) => (
             <i key={i} />
           ))}
+          <em>{f.ap ?? 0} PA</em>
         </span>
         {boosts.map((b) => (
           <button key={b.k} className={`g-boost ${pre.includes(b.k) ? 'on' : ''}`} onClick={() => toggle(b.k)}>
@@ -1078,21 +1097,96 @@ function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre }: { f: Figure; S: 
           </button>
         ))}
       </div>
-      <div className="g-act-row">
-        {sorted.map(({ def, cost, reason }, i) => (
-          <React.Fragment key={def.id}>
-            {/* "Encerrar" sits right after what can still be done, never hidden behind the greyed-out actions */}
-            {reason && !sorted[i - 1]?.reason && endBtn}
-            <button className={`g-act k-${def.kind} ${reason ? 'off' : ''} ${sel?.def.id === def.id ? 'sel' : ''}`} title={`${def.name} — ${cost} AP\n${def.text}${reason ? `\n\n${reason}` : ''}`} onClick={() => (reason ? toast(reason, 'error') : onPick(def))}>
-              <span className="disc">
-                <Icon id={def.icon ?? 'act_item'} />
-                <span className="cost">{cost}</span>
-              </span>
-              <span className="an">{def.name}</span>
-            </button>
-          </React.Fragment>
-        ))}
+      <div className="g-act-row g-skills">
+        {sorted.map(({ def, cost, reason }, i) => {
+          const dano = def.preview?.(c, f)?.dano;
+          return (
+            <React.Fragment key={def.id}>
+              {/* "Encerrar" sits right after what can still be done, never hidden behind the greyed-out actions */}
+              {reason && !sorted[i - 1]?.reason && endBtn}
+              <button className={`g-act g-card k-${def.kind} ${reason ? 'off' : ''} ${sel?.def.id === def.id ? 'sel' : ''}`} title={`${def.name} — ${cost} PA\n${def.text}${reason ? `\n\n${reason}` : ''}`} onClick={() => (reason ? toast(reason, 'error') : onPick(def))}>
+                <span className="cic">
+                  <Icon id={def.icon ?? 'act_item'} />
+                </span>
+                <span className="ctx">
+                  <b className="an">{def.name}</b>
+                  <small>{reason ? reason : skillLine(def, dano)}</small>
+                </span>
+                <span className="cost" aria-label={`${cost} PA`}>
+                  {Array.from({ length: Math.max(0, cost) }).map((_, k) => (
+                    <i key={k} />
+                  ))}
+                </span>
+              </button>
+            </React.Fragment>
+          );
+        })}
         {!sorted.some((a) => a.reason) && endBtn}
+      </div>
+    </div>
+  );
+}
+
+/** Everything a hero can do, in plain words (tap the hero's name). */
+function KitSheet({ S, f, onClose }: { S: CombatState; f: Figure; onClose(): void }) {
+  const c = ctxOf(S);
+  const list = actionAvailability(c, f);
+  const role = CLASS_ROLE[f.typeId];
+  const groups = ['attack', 'spell', 'control', 'support', 'move', 'utility'] as const;
+  const [open, setOpen] = useState<string | null>(null);
+  return (
+    <div className="g-sheet-back" onClick={onClose}>
+      <div className="g-sheet g-kit" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Habilidades de ${f.name}`}>
+        <div className="g-sheet-grab" />
+        <div className="g-insp-head">
+          <span className="g-insp-badge" style={{ ['--acc' as string]: CLASS_COLOR[f.typeId] }}>
+            <Icon id={`class_${f.typeId}`} />
+          </span>
+          <div className="grow">
+            <div className="g-insp-name">{f.name}</div>
+            <div className="g-insp-sub">
+              {reg().classes[f.typeId]?.name}
+              {role ? ` · ${role.role}` : ''}
+            </div>
+          </div>
+          <button className="g-x" aria-label="Fechar" onClick={onClose}>
+            <Icon id="close" />
+          </button>
+        </div>
+        <div className="g-kit-stats">
+          <span>
+            <Icon id="hp" /> {f.hp}/{f.maxHp} vida
+          </span>
+          <span>
+            <Icon id="armor" /> {f.armor + (f.conditions.armaduraExtra ?? 0)} armadura
+          </span>
+        </div>
+        {role && <p className="g-kit-how">{role.how}</p>}
+        <p className="g-kit-ap">
+          Cada habilidade gasta <b>PA</b> (as bolinhas douradas). Tático tem 3 PA por vez, Rápido tem 2.
+        </p>
+        {groups.map((g) => {
+          const items = list.filter((a) => a.def.kind === g);
+          if (!items.length) return null;
+          return (
+            <div key={g} className="g-kit-group">
+              <div className="g-kit-h">{KIND_LABEL[g]}</div>
+              {items.map(({ def, cost }) => (
+                <button key={def.id} className={`g-kit-row k-${def.kind}`} onClick={() => setOpen(open === def.id ? null : def.id)}>
+                  <span className="cic">
+                    <Icon id={def.icon ?? 'act_item'} />
+                  </span>
+                  <span className="ctx">
+                    <b>{def.name}</b>
+                    <small>{skillLine(def, def.preview?.(c, f)?.dano)}</small>
+                    {open === def.id && <span className="full">{def.text}</span>}
+                  </span>
+                  <span className="cost">{cost} PA</span>
+                </button>
+              ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -1122,7 +1216,10 @@ function TargetBar({ sel, f, S, areaFirst, onOption, onCancel, onFire }: { sel: 
   return (
     <div className="g-target">
       <div className="row1">
-        <b>{sel.def.name}</b>
+        <span className="who">
+          <b>{sel.def.name}</b>
+          <small>{skillLine(sel.def, sel.def.preview?.(ctxOf(S), f)?.dano)}</small>
+        </span>
         <span className="msg">{msg}</span>
         {T === 'none' && !needsOption && (
           <button className="g-pill gold" onClick={onFire}>
