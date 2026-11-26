@@ -9,6 +9,8 @@ import { Icon } from '../Icon';
 import { ATTR_NAME } from '../data';
 import { act } from './GameHUD';
 import { autoSpend } from './forecast';
+import { getSettings } from '../../state/settings';
+import { toast } from '../Toasts';
 
 function answer(p: Pending, a: PendingAnswer) {
   return act({ t: 'combat', cmd: { t: 'answer', pendingId: p.id, answer: a } });
@@ -37,7 +39,7 @@ export function PendingPrompt({ S }: { S: CombatState }) {
   }
   switch (p.kind) {
     case 'attackPost':
-      return <AttackPost p={p} S={S} />;
+      return <AttackPostGate p={p} S={S} />;
     case 'defense':
       return <Defense p={p} S={S} />;
     case 'egide':
@@ -164,6 +166,40 @@ function Dice({ roll, onReroll }: { roll: { dice: { grade: number; value: number
       })}
     </div>
   );
+}
+
+/**
+ * Most attack results have nothing to decide: the Impulsos go to the best effect. Then there is no sheet — the
+ * dice finish, the effect is named in one line, and the attack resolves by itself. The sheet only opens for a real
+ * choice (Mira, Convicção, Brechas, re-roll) or when the player asked to always choose (Settings).
+ */
+function AttackPostGate({ p, S }: { p: Extract<Pending, { kind: 'attackPost' }>; S: CombatState }) {
+  const s = useSession();
+  const src = S.figures.find((f) => f.id === p.attack.sourceId);
+  const real = p.canReroll || p.options.some((o) => o.cost.mira || o.cost.conviccao || o.cost.brecha);
+  const auto = !real && !getSettings().askImpulse && !!src && s.controls(src.id);
+  useEffect(() => {
+    if (!auto) return;
+    let gone = false;
+    const t0 = Date.now();
+    const d = (window as unknown as { __diorama?: { busy: boolean } }).__diorama;
+    const tick = () => {
+      if (gone) return;
+      // wait for the dice to land and shine (the animation queue holds while they do), then resolve
+      if (d?.busy && Date.now() - t0 < 6000) return void setTimeout(tick, 120);
+      const choices = autoSpend(p);
+      const names = choices.map((id) => p.options.find((o) => o.id === id)?.label).filter(Boolean) as string[];
+      if (names.length) toast(`✦ ${names.map((n) => n.replace(/^.*?:\s*/, '').replace(/^Impulso\s*→\s*/i, '')).join(' · ')}`, 'info');
+      void act({ t: 'combat', cmd: { t: 'answer', pendingId: p.id, answer: { kind: 'attackPost', choices } } });
+    };
+    const t = setTimeout(tick, 450);
+    return () => {
+      gone = true;
+      clearTimeout(t);
+    };
+  }, [p.id, auto]);
+  if (auto) return null;
+  return <AttackPost p={p} S={S} />;
 }
 
 function AttackPost({ p, S }: { p: Extract<Pending, { kind: 'attackPost' }>; S: CombatState }) {

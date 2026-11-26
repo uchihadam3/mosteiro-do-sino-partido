@@ -11,6 +11,8 @@ export interface Settings {
   highContrast: boolean;
   animSpeed: 1 | 1.5 | 2 | 3;
   autoTieBreak: boolean;
+  /** Always open the attack result to choose Impulsos (otherwise they are spent on the best effect). */
+  askImpulse: boolean;
   showPerf: boolean;
   subtitles: boolean;
   playerName: string;
@@ -27,6 +29,7 @@ const DEFAULTS: Settings = {
   highContrast: false,
   animSpeed: 1,
   autoTieBreak: false,
+  askImpulse: false,
   showPerf: false,
   subtitles: true,
   playerName: 'Peregrino',

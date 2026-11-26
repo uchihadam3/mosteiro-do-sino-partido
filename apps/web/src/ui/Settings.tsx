@@ -124,6 +124,7 @@ export function SettingsModal({ onClose }: { onClose(): void }) {
             {toggle('reducedMotion', 'Reduzir movimento', 'tempo_pesado')}
             {toggle('highContrast', 'Alto contraste', 'mira')}
             {toggle('autoTieBreak', 'Desempate automático', 'dice_d12', 'Empates do Alvo Padrão sem perguntar')}
+            {toggle('askImpulse', 'Escolher Impulsos sempre', 'impulse', 'Senão o jogo usa o melhor efeito sozinho')}
             {toggle('showPerf', 'Painel de desempenho', 'log', 'FPS e draw calls')}
           </div>
         </div>
