@@ -918,6 +918,7 @@ function TopBar({ S, heroes, onLog, onMenu, onSkip, onPick }: { S: CombatState; 
         </button>
       </div>
       <div className="g-order" ref={strip} aria-label="Quem age neste ciclo, em ordem">
+        <span className="lbl">Ordem</span>
         {order.map((e, i) => (
           <React.Fragment key={e.key}>
             {i > 0 && <span className={`arr ${order[i - 1].tempo !== e.tempo ? 'tempo' : ''}`}>›</span>}
