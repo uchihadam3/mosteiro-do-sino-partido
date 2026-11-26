@@ -132,7 +132,26 @@ interface Task {
   tick?: (k: number, dt: number) => void;
   end?: () => void;
   started?: boolean;
+  /**
+   * A gate: once `dur` has run, the task stays at the head of the queue until `done()` (e.g. the dice overlay
+   * reported that the result has been shown), or until a safety limit passes — `maxQ` queue-seconds or
+   * `maxWallMs` of wall-clock time, whichever comes first — so a lost signal can never stall the board.
+   */
+  hold?: { done: () => boolean; maxQ: number; maxWallMs: number; wall0?: number };
+  /** this task starts a blow: the dice on screen burst into sparks that reach `targetId` in `arrive` queue-seconds */
+  releaseDice?: { targetId: string; arrive: number };
 }
+
+/** Dice ⇄ board handshake (window events; see ui/combat/Dice3D.tsx). */
+const DICE_SIGNAL = 'mosteiro:dice';
+const DICE_RELEASE = 'mosteiro:dice-release';
+type DiceSpark = { x: number; y: number; kind: string };
+/** wall clock for the dice gate (tests can drive it with `window.__diceClock`, like the dice overlay) */
+const diceNow = () => {
+  const c = (window as unknown as { __diceClock?: number }).__diceClock;
+  return typeof c === 'number' ? c : performance.now();
+};
+const reducedMotion = () => typeof document !== 'undefined' && document.documentElement.dataset.motion === 'reduced';
 
 export interface Highlight {
   figures: Map<string, 'attack' | 'ally' | 'active' | 'hover' | 'intent'>;
@@ -244,6 +263,7 @@ export class Diorama {
     this.renderer.domElement.addEventListener('pointerdown', this.onPointerDown);
     this.renderer.domElement.addEventListener('pointerleave', () => this.setHover(null, null, 0, 0));
     this.renderer.domElement.addEventListener('pointerup', (e) => void this.pointerOverride?.(e, 'up'));
+    window.addEventListener(DICE_SIGNAL, this.onDiceSignal);
     this.loop();
   }
 
@@ -801,12 +821,22 @@ export class Diorama {
     return this.queue.length > 0;
   }
   skip() {
-    while (this.queue.length) {
-      const t = this.queue.shift()!;
-      if (!t.started) t.start?.();
-      t.tick?.(1, 0);
-      t.end?.();
+    // fast-forward: every queued task runs to its end at once (gates included: nothing waits for the dice)
+    this.skipping = true;
+    try {
+      while (this.queue.length) {
+        const t = this.queue.shift()!;
+        if (!t.started) t.start?.();
+        t.tick?.(1, 0);
+        t.end?.();
+      }
+    } finally {
+      this.skipping = false;
     }
+    this.rollGate = null;
+    this.diceUp = null;
+    this.clearSparks();
+    window.dispatchEvent(new CustomEvent(DICE_RELEASE, { detail: { instant: true } }));
     for (const v of [...this.figs.values()]) {
       v.tween = null;
       v.anim = null;
@@ -826,7 +856,141 @@ export class Diorama {
   }
 
   play(events: DomainEvent[]) {
-    for (const ev of events) this.enqueueEvent(ev);
+    this.batch = events;
+    try {
+      for (const ev of events) this.enqueueEvent(ev);
+    } finally {
+      this.batch = [];
+    }
+  }
+  /** the events of the play() call being enqueued (lets a blow know it is lethal) */
+  private batch: DomainEvent[] = [];
+  private skipping = false;
+
+  // ---------------------------------------------------------------- dice gate
+  private rollSeq = 0;
+  /** the roll whose dice are on screen right now and whether the overlay has shown its result */
+  private rollGate: { seq: number; open: boolean; sparks: DiceSpark[]; defense: boolean } | null = null;
+  /** a shown roll waiting for its blow (its sparks fly to the target when the strike starts) */
+  private diceUp: { sparks: DiceSpark[]; defense: boolean } | null = null;
+  private onDiceSignal = (e: Event) => {
+    const d = (e as CustomEvent<{ seq?: number; phase?: string; sparks?: DiceSpark[]; defense?: boolean }>).detail;
+    const g = this.rollGate;
+    if (!g || !d || d.seq !== g.seq || d.phase !== 'shown') return;
+    g.open = true;
+    g.sparks = Array.isArray(d.sparks) ? d.sparks.slice(0, 9) : [];
+    g.defense = !!d.defense;
+  };
+  /** Same time scale as the dice overlay (Dice3D diceTimeScale): battle speed and the test slow-down. */
+  private diceScale() {
+    const slow = (window as unknown as { __diceSlow?: number }).__diceSlow ?? 1;
+    return Math.pow(Math.max(1, this.speed), -0.72) * Math.max(0.05, slow);
+  }
+  /**
+   * The roll: the HUD shows the 3D dice (cb.onRoll) and the queue WAITS on this task until the overlay says the
+   * result has landed and glowed (DICE_SIGNAL 'shown'); only then does the blow play. Safety: ~2.7 s of dice
+   * (speed-scaled) + 2.5 s, in queue time or wall time, whichever ends first.
+   */
+  private enqueueRoll(ev: Extract<DomainEvent, { type: 'roll' }>) {
+    const seq = ++this.rollSeq;
+    let gated = false;
+    const expected = 2.75 * this.diceScale();
+    this.task({
+      dur: 0.04,
+      start: () => {
+        // a new roll replaces dice still waiting for their blow
+        if (this.diceUp) this.releaseDice(null);
+        if (this.skipping || !this.cb.onRoll) return;
+        gated = true;
+        this.rollGate = { seq, open: false, sparks: [], defense: false };
+        this.cb.onRoll({ ...ev, seq } as typeof ev);
+      },
+      hold: {
+        done: () => !gated || !this.rollGate || this.rollGate.seq !== seq || this.rollGate.open,
+        maxQ: (expected + 2.5) * Math.max(1, this.speed),
+        maxWallMs: (expected + 2.5) * 1000,
+      },
+      end: () => {
+        const g = this.rollGate;
+        if (!g || g.seq !== seq) return;
+        this.rollGate = null;
+        if (!this.skipping) this.diceUp = { sparks: g.sparks, defense: g.defense };
+      },
+    });
+  }
+  /** The blow starts: the dice leave the screen; their successes fly to the target as sparks. */
+  private releaseDice(to: { targetId: string; arrive: number } | null) {
+    const up = this.diceUp;
+    this.diceUp = null;
+    window.dispatchEvent(new CustomEvent(DICE_RELEASE, { detail: { instant: false } }));
+    if (!up || !to || !up.sparks.length) return;
+    const tgt = this.figs.get(to.targetId);
+    if (!tgt) return;
+    this.launchSparks(up.sparks, tgt.id, Math.max(0.12, to.arrive), up.defense);
+  }
+
+  // ---------------------------------------------------------------- dice sparks (screen space, queue time)
+  private sparkLayer: HTMLDivElement | null = null;
+  private sparks: { els: HTMLDivElement[]; from: { x: number; y: number }; bend: number; targetId: string; t: number; dur: number; delay: number; color: string; last: { x: number; y: number } }[] = [];
+  private launchSparks(src: DiceSpark[], targetId: string, arrive: number, defense: boolean) {
+    if (!this.sparkLayer) {
+      const L = document.createElement('div');
+      L.setAttribute('aria-hidden', 'true');
+      L.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:32;overflow:hidden;';
+      document.body.appendChild(L);
+      this.sparkLayer = L;
+    }
+    const colorOf = (k: string) => (defense ? '#9fd8ff' : k === 'crit' ? '#ffd760' : k === 'imp' ? '#ffbf48' : '#fff0c8');
+    src.forEach((p, i) => {
+      const color = colorOf(p.kind);
+      const els: HTMLDivElement[] = [];
+      for (let g = 0; g < 3; g++) {
+        const el = document.createElement('div');
+        const sz = g === 0 ? (p.kind === 'crit' ? 34 : 26) : g === 1 ? 17 : 11;
+        el.style.cssText = `position:absolute;left:0;top:0;width:${sz}px;height:${sz}px;margin:${-sz / 2}px 0 0 ${-sz / 2}px;border-radius:50%;` + `background:radial-gradient(circle,#fff 0 22%,${color} 48%,rgba(0,0,0,0) 72%);box-shadow:0 0 ${g === 0 ? 18 : 10}px ${g === 0 ? 6 : 3}px ${color};` + `opacity:${g === 0 ? 1 : g === 1 ? 0.7 : 0.45};will-change:transform;transform:translate(${p.x}px,${p.y}px);`;
+        this.sparkLayer!.appendChild(el);
+        els.push(el);
+      }
+      // each spark leaves a little after the previous one; they all arrive together with the blow
+      const delay = Math.min(0.08, arrive * 0.25) * (i / Math.max(1, src.length - 1 || 1));
+      this.sparks.push({ els, from: { x: p.x, y: p.y }, bend: (i % 2 ? 1 : -1) * (40 + 25 * Math.random()), targetId, t: 0, dur: Math.max(0.08, arrive - delay), delay, color, last: { x: p.x, y: p.y } });
+    });
+  }
+  private updateSparks(dt: number) {
+    if (!this.sparks.length) return;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    for (const s of [...this.sparks]) {
+      s.t += dt;
+      const tgt = this.figs.get(s.targetId);
+      const at = tgt ? this.chestPos(s.targetId).project(this.camera) : null;
+      const to = at ? { x: rect.left + ((at.x + 1) / 2) * rect.width, y: rect.top + ((1 - at.y) / 2) * rect.height } : s.last;
+      const pos = (k: number) => {
+        // quadratic arc: up and out, then accelerating into the target
+        const e = k * k * (1.6 - 0.6 * k);
+        const cx = (s.from.x + to.x) / 2 + s.bend;
+        const cy = Math.min(s.from.y, to.y) - 70;
+        const u = 1 - e;
+        return { x: u * u * s.from.x + 2 * u * e * cx + e * e * to.x, y: u * u * s.from.y + 2 * u * e * cy + e * e * to.y };
+      };
+      const k = Math.max(0, Math.min(1, (s.t - s.delay) / s.dur));
+      s.els.forEach((el, g) => {
+        const kk = Math.max(0, k - g * 0.07);
+        const p = pos(kk);
+        const q = pos(Math.min(1, kk + 0.03));
+        const ang = Math.atan2(q.y - p.y, q.x - p.x);
+        const stretch = 1 + Math.min(3, Math.hypot(q.x - p.x, q.y - p.y) / 9);
+        el.style.transform = `translate(${p.x}px,${p.y}px) rotate(${ang}rad) scale(${stretch.toFixed(2)},${(1 / Math.sqrt(stretch)).toFixed(2)})`;
+      });
+      s.last = to;
+      if (k >= 1) {
+        for (const el of s.els) el.remove();
+        this.sparks.splice(this.sparks.indexOf(s), 1);
+      }
+    }
+  }
+  private clearSparks() {
+    for (const s of this.sparks) for (const el of s.els) el.remove();
+    this.sparks = [];
   }
 
   private task(t: Omit<Task, 't'>) {
@@ -897,9 +1061,10 @@ export class Diorama {
         const tgt = ev.targetIds[0] ? this.figs.get(ev.targetIds[0]) : undefined;
         const spell = this.isSpell(ev.school);
         const ranged = this.isRanged(ev.cat);
-        // ANTICIPATION: turn to the target, gather (lean back / raise the weapon), the camera leans in
+        // ANTICIPATION: turn to the target, gather (lean back / raise the weapon), the camera leans in and
+        // holds there while the dice roll (the blow itself waits for the dice — see enqueueRoll)
         this.task({
-          dur: 0.34,
+          dur: 0.22,
           start: () => {
             if (tgt) this.faceToward(v, tgt.pos);
             v.leanTarget = spell ? 0 : -0.14;
@@ -908,14 +1073,14 @@ export class Diorama {
               this.vfx.charge(this.chestPos(v.id).add(new THREE.Vector3(0, 0.25, 0)), schoolColor(ev.school));
             } else if (ranged) v.anim = { kind: 'aim', t: 0, dur: 0.34 };
             const mid = tgt ? v.pos.clone().lerp(tgt.pos, 0.5) : v.pos.clone();
-            this.punchTo(mid.setY(0.8), ranged || spell ? 0.32 : 0.42, 1.4);
+            this.punchTo(mid.setY(0.8), reducedMotion() ? 0.15 : ranged || spell ? 0.3 : 0.36, 3.2 * this.diceScale() + 0.4);
             snd(ev.school === 'arcane' ? 'spell_arcane_cast' : ev.school === 'holy' ? 'holy_cast' : ev.school === 'arrow' ? 'bow_draw' : ev.school === 'bolt' ? 'crossbow_shot' : ev.school === 'bell' ? 'bell_toll_short' : ev.cat === 'cac' ? 'swing_light' : 'swing_heavy', { volume: 0.8 });
           },
         });
         break;
       }
       case 'roll':
-        this.task({ dur: 0.62, start: () => this.cb.onRoll?.(ev) });
+        this.enqueueRoll(ev);
         break;
       case 'hit':
       case 'miss':
@@ -1163,6 +1328,7 @@ export class Diorama {
     }
     if (ev.type === 'activationEnd') {
       this.pendingAttack = null;
+      this.task({ dur: 0, start: () => this.diceUp && this.releaseDice(null) });
       const v = this.figs.get(ev.figureId);
       if (v)
         this.task({
@@ -1176,9 +1342,12 @@ export class Diorama {
   }
 
   /**
-   * One strike: LUNGE (melee closes most of the gap with the swing timed to land) or RELEASE (shot / spell
-   * travels) → IMPACT (hit-stop, flash, recoil, sparks, number, shake; crits: slow motion, punch-in, chromatic
-   * flash) → RECOVERY (the attacker steps back to its slot, the camera eases out).
+   * One strike, played only after the dice have shown their result:
+   * WIND-UP (the attacker gathers, the camera leans in, the dice burst into sparks that fly to the target) →
+   * LUNGE (melee closes the gap, the swing timed to land) or RELEASE (shot / spell travels) → IMPACT, its weight
+   * scaled by the damage (hit-stop, shake, flash, knockback, number size); a critical adds slow motion, a deep
+   * punch-in, a gold burst and chromatic flash; a lethal blow is the heaviest → RECOVERY (back to the slot).
+   * A miss: the target sidesteps, the attacker over-reaches, "Errou".
    */
   private enqueueStrike(ev: Extract<DomainEvent, { type: 'hit' | 'miss' }>) {
     const snd = (id: string, o?: { volume?: number; delay?: number }) => this.cb.onSound?.(id, o);
@@ -1190,38 +1359,56 @@ export class Diorama {
     const school = ev.type === 'hit' ? ev.school : pa?.school ?? 'metal';
     const spell = this.isSpell(school) && ranged;
     const crit = ev.type === 'hit' && ev.critical;
+    const dmg = ev.type === 'hit' ? ev.damage : 0;
+    const lethal = ev.type === 'hit' && dmg > 0 && this.batch.some((e) => e.type === 'death' && e.figureId === ev.targetId);
+    const calm = reducedMotion();
     const dist = src ? tgt.pos.distanceTo(src.pos) : 0;
     const dir = src ? tgt.pos.clone().sub(src.pos).setY(0).normalize() : new THREE.Vector3(0, 0, tgt.side === 'E' ? -1 : 1);
     // area attacks: one lunge for the whole sweep, then each further target just takes the blow
     const follow = !!pa && (pa.struck ?? 0) > 0 && !ranged;
     if (pa) pa.struck = (pa.struck ?? 0) + 1;
+    const windup = crit || lethal ? 0.16 : 0.12;
     if (src && !follow) {
+      // WIND-UP: gather the blow while the dice's sparks leave for the target
+      const lunge = 0.2;
+      const proj = spell ? 0.42 : 0.32;
+      this.task({
+        dur: windup,
+        releaseDice: { targetId: tgt.id, arrive: windup + (ranged ? 0.12 + proj : lunge) },
+        start: () => {
+          this.faceToward(src, tgt.pos);
+          src.leanTarget = ranged ? -0.08 : -0.3;
+          if (ranged) src.anim = { kind: spell ? 'cast' : 'aim', t: 0, dur: windup + 0.1 };
+          this.punchTo(tgt.pos.clone().lerp(src.pos, 0.35).setY(0.9), calm ? 0.2 : crit ? 0.55 : 0.46, 1.1);
+        },
+      });
       if (!ranged) {
         // melee: close in; the attack clip starts with the dash so its swing lands on arrival
         const reach = pa?.cat === 'alcance' ? Math.max(0.2, dist - 2.4) : Math.max(0.25, dist - 1.4);
         this.task({
-          dur: 0.2,
+          dur: lunge,
           start: () => {
-            this.faceToward(src, tgt.pos);
-            src.leanTarget = 0.22;
+            src.leanTarget = 0.24;
             src.anim = { kind: 'strike', t: 0, dur: 0.5 };
-            this.offsetTo(src, dir.clone().multiplyScalar(reach), 0.2, easeInCubic);
-            this.vfx.dust(src.pos.clone().setY(0.15), 0.5);
-            snd(crit ? 'swing_heavy' : 'swing_light', { volume: 0.7 });
+            this.offsetTo(src, dir.clone().multiplyScalar(reach), lunge, easeInCubic);
+            this.vfx.dust(src.pos.clone().setY(0.15), 0.6);
+            snd(crit || dmg >= 3 ? 'swing_heavy' : 'swing_light', { volume: 0.75 });
           },
         });
       } else {
         this.task({
           dur: 0.12,
           start: () => {
-            this.faceToward(src, tgt.pos);
             src.anim = { kind: 'release', t: 0, dur: 0.38, dir };
             src.leanTarget = -0.1;
             this.offsetTo(src, dir.clone().multiplyScalar(-0.18), 0.12, easeOutCubic);
           },
         });
-        this.projectile(src, tgt, school, spell ? 0.42 : 0.32);
+        this.projectile(src, tgt, school, proj);
       }
+    } else if (!src) {
+      // no visible attacker (traps, the bell): the sparks still find the target
+      this.task({ dur: 0.18, releaseDice: { targetId: tgt.id, arrive: 0.18 } });
     }
     // IMPACT
     this.task({
@@ -1229,48 +1416,74 @@ export class Diorama {
       strikeOf: src?.id,
       start: () => {
         const at = this.chestPos(tgt.id);
+        const hs = (x: number) => (this.hitStop = Math.max(this.hitStop, x / Math.sqrt(this.speed)));
         if (ev.type === 'miss') {
-          // the target sidesteps the blow
-          const side = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(Math.random() < 0.5 ? 0.45 : -0.45);
+          // the target sidesteps the blow, the attacker over-reaches into empty air
+          const side = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(Math.random() < 0.5 ? 0.55 : -0.55);
           tgt.rig.anim?.play('dodge', { speed: 1.6 });
-          this.offsetTo(tgt, side, 0.12, easeOutCubic, () => this.offsetTo(tgt, new THREE.Vector3(), 0.35, easeInOut));
-          this.floatText(at, 'Erro', 'miss');
-          snd('miss_whoosh', { volume: 0.7 });
-          this.vfx.dust(tgt.pos.clone().setY(0.15), 0.4);
+          this.offsetTo(tgt, side, 0.12, easeOutCubic, () => this.offsetTo(tgt, new THREE.Vector3(), 0.4, easeInOut));
+          if (src && !ranged) this.offsetTo(src, src.off.clone().addScaledVector(dir, 0.3), 0.12, easeOutCubic);
+          this.vfx.slash(at.clone().addScaledVector(side, -0.4), dir, 0x9a948c, 0.8);
+          this.floatText(at, 'Errou', 'miss');
+          snd('miss_whoosh', { volume: 0.8 });
+          this.vfx.dust(tgt.pos.clone().setY(0.15), 0.6);
           return;
         }
-        if (ev.damage > 0) {
-          const heavy = ev.damage >= 3 || crit;
-          this.vfx.impact(at, school, ev.damage / 2 + (crit ? 0.8 : 0));
-          this.vfx.slash(at, dir, crit ? 0xfff0c0 : schoolColor(school), crit ? 1.5 : 1);
-          tgt.anim = { kind: 'hurt', t: 0, dur: 0.45, dir };
+        if (dmg > 0) {
+          // weight: everything scales with the damage; criticals and killing blows on top
+          const d = Math.min(5, dmg);
+          const heavy = dmg >= 3 || crit || lethal;
+          this.vfx.impact(at, school, d / 2 + (crit ? 0.9 : 0) + (lethal ? 0.4 : 0));
+          if (heavy) this.vfx.impact(at, 'metal', 0.5 + d * 0.15);
+          this.vfx.slash(at, dir, crit ? 0xfff0c0 : schoolColor(school), (crit ? 1.6 : 1) + d * 0.08);
+          this.vfx.ring(tgt.pos.clone().setY(0.06), 'glow', crit ? 0xffd27a : 0xffb880, 0.3, 1.4 + d * 0.35, 0.4);
+          tgt.anim = { kind: 'hurt', t: 0, dur: 0.45 + d * 0.03, dir };
           tgt.flash = 1;
-          tgt.leanTarget = -0.25;
-          const knock = dir.clone().multiplyScalar(crit ? 0.55 : heavy ? 0.38 : 0.26);
-          this.offsetTo(tgt, knock, 0.07, easeOutCubic, () => this.offsetTo(tgt, new THREE.Vector3(), 0.4, easeInOut, () => (tgt.leanTarget = 0)));
-          this.floatText(at, `${ev.damage}`, crit ? 'crit' : 'dmg');
-          this.shake = Math.max(this.shake, Math.min(0.45, 0.1 + ev.damage * 0.05 + (crit ? 0.2 : 0)));
+          tgt.leanTarget = -0.25 - d * 0.03;
+          const knock = dir.clone().multiplyScalar(Math.min(0.75, (crit ? 0.5 : 0.18) + d * 0.08 + (lethal ? 0.12 : 0)));
+          this.offsetTo(tgt, knock, 0.07, easeOutCubic, () => this.offsetTo(tgt, new THREE.Vector3(), 0.45, easeInOut, () => (tgt.leanTarget = 0)));
+          this.vfx.dust(tgt.pos.clone().add(knock).setY(0.12), 0.5 + d * 0.15);
+          this.floatText(at, `${dmg}`, crit ? 'crit' : 'dmg', 1 + d * 0.1 + (lethal ? 0.15 : 0));
           // hit-stop: the world freezes for a few frames (shorter at higher animation speed)
-          this.hitStop = Math.max(this.hitStop, (crit ? 0.13 : heavy ? 0.095 : 0.07) / Math.sqrt(this.speed));
-          if (crit) {
-            this.slowMo = 0.55 / Math.sqrt(this.speed);
-            this.slowMoScale = 0.28;
-            this.flash = Math.max(this.flash, 0.45);
-            this.grade.uniforms.uFlashColor.value.set(0xfff2d0);
-            this.aberration = 1;
-            this.punchTo(at, 0.75, 0.9);
-            this.vfx.ring(at, 'glow', 0xffe0a0, 0.3, 3.2, 0.45, true);
-            snd('dice_critical', { volume: 0.6 });
+          hs(0.075 + d * 0.016 + (crit ? 0.06 : 0) + (lethal ? 0.05 : 0));
+          this.shake = Math.max(this.shake, (calm ? 0.3 : 1) * Math.min(0.8, 0.14 + d * 0.07 + (crit ? 0.22 : 0) + (lethal ? 0.14 : 0)));
+          if (heavy && !calm) {
+            this.flash = Math.max(this.flash, 0.12 + d * 0.04);
+            this.grade.uniforms.uFlashColor.value.set(0xfff4e6);
           }
-          snd(impactSound(school, ev.damage), { volume: Math.min(1, 0.6 + ev.damage * 0.12) });
+          if (!calm) this.punchTo(at, crit ? 0.8 : lethal ? 0.65 : 0.42 + d * 0.04, crit ? 0.95 : 0.45);
+          if (crit && !calm) {
+            this.slowMo = 0.6 / Math.sqrt(this.speed);
+            this.slowMoScale = 0.26;
+            this.flash = Math.max(this.flash, 0.55);
+            this.grade.uniforms.uFlashColor.value.set(0xffe6a8);
+            this.aberration = 1;
+            this.vfx.ring(at, 'glow', 0xffe0a0, 0.3, 3.4, 0.5, true);
+            this.vfx.ring(at, 'holy', 0xffd060, 0.2, 2.2, 0.7, true);
+            this.vfx.impact(at, 'holy', 1.4);
+          } else if (lethal && !calm) {
+            this.slowMo = 0.38 / Math.sqrt(this.speed);
+            this.slowMoScale = 0.4;
+            this.aberration = Math.max(this.aberration, 0.5);
+          }
+          if (crit) snd('dice_critical', { volume: 0.45 });
+          snd(impactSound(school, dmg), { volume: Math.min(1, 0.6 + dmg * 0.12) });
+          if (heavy) snd('hit_metal_heavy', { volume: Math.min(0.9, 0.4 + d * 0.1) });
+          if (ev.blocked > 0) {
+            // part of the blow was stopped (defence dice / armour)
+            this.vfx.shield(at, tgt.rig.height * 0.55);
+            this.floatText(at.clone().add(new THREE.Vector3(0.5, 0.35, 0)), `bloqueou ${ev.blocked}`, 'block', 0.7);
+          }
         } else {
           tgt.anim = { kind: 'block', t: 0, dur: 0.4 };
           this.vfx.guard(at);
-          this.vfx.impact(at, 'metal', 0.5);
-          this.offsetTo(tgt, dir.clone().multiplyScalar(0.12), 0.06, easeOutCubic, () => this.offsetTo(tgt, new THREE.Vector3(), 0.3, easeInOut));
-          this.hitStop = Math.max(this.hitStop, 0.05 / Math.sqrt(this.speed));
+          this.vfx.shield(at, tgt.rig.height * 0.62);
+          this.vfx.impact(at, 'metal', 0.7);
+          this.offsetTo(tgt, dir.clone().multiplyScalar(0.14), 0.06, easeOutCubic, () => this.offsetTo(tgt, new THREE.Vector3(), 0.3, easeInOut));
+          hs(0.07);
+          this.shake = Math.max(this.shake, calm ? 0.05 : 0.14);
           this.floatText(at, 'Bloqueado', 'block');
-          snd(ev.blocked > 0 ? 'block_shield' : 'armor_absorb', { volume: 0.8 });
+          snd(ev.blocked > 0 ? 'block_shield' : 'armor_absorb', { volume: 0.85 });
         }
       },
     });
@@ -1346,7 +1559,7 @@ export class Diorama {
     this.queue.push(task);
   }
 
-  private floatText(at: THREE.Vector3, text: string, kind: string) {
+  private floatText(at: THREE.Vector3, text: string, kind: string, scale = 1) {
     const el = document.createElement('div');
     el.className = `float-text ft-${kind}`;
     el.textContent = text;
@@ -1367,7 +1580,7 @@ export class Diorama {
       el.style.textShadow = '0 2px 0 rgba(0,0,0,0.85), 0 0 18px rgba(255,190,90,0.85), 0 0 4px rgba(255,240,200,0.9)';
       el.style.zIndex = '3';
     }
-    const tr = (x: number, y: number, s: number, r = 0) => `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${s}) rotate(${r}deg)`;
+    const tr = (x: number, y: number, s: number, r = 0) => `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${s * scale}) rotate(${r}deg)`;
     const anim = el.animate(
       big
         ? [
@@ -1447,6 +1660,7 @@ export class Diorama {
     const gdt = rawDt * k;
     this.lastRealDt = rawDt;
     this.processQueue(gdt * this.speed);
+    this.updateSparks(gdt * this.speed);
     this.updateFigures(gdt, t);
     this.updateCamera(rawDt, t);
     for (const h of this.frameHooks) h(rawDt, t);
@@ -1519,13 +1733,24 @@ export class Diorama {
       const t = this.queue[0];
       if (!t.started) {
         t.started = true;
+        if (t.hold) t.hold.wall0 = diceNow();
+        if (t.releaseDice && this.diceUp) this.releaseDice(t.releaseDice);
         t.start?.();
       }
       const remaining = t.dur - t.t;
-      const step = Math.min(remaining, budget);
+      const step = Math.min(Math.max(0, remaining), budget);
       t.t += step;
       budget -= step;
-      t.tick?.(t.dur > 0 ? t.t / t.dur : 1, step);
+      t.tick?.(t.dur > 0 ? Math.min(1, t.t / t.dur) : 1, step);
+      if (t.hold && t.t >= t.dur - 1e-6) {
+        // gated: wait for the signal (or the safety limit), spending this frame's time on the wait
+        const h = t.hold;
+        const waited = h.done() || t.t >= h.maxQ || diceNow() - (h.wall0 ?? 0) >= h.maxWallMs;
+        if (!waited) {
+          t.t += budget;
+          break;
+        }
+      }
       if (t.t >= t.dur - 1e-6) {
         this.queue.shift();
         t.end?.();
@@ -1920,6 +2145,8 @@ export class Diorama {
     window.removeEventListener('orientationchange', this.onViewportChange);
     screen.orientation?.removeEventListener?.('change', this.onViewportChange);
     window.visualViewport?.removeEventListener('resize', this.onViewportChange);
+    window.removeEventListener(DICE_SIGNAL, this.onDiceSignal);
+    this.clearSparks();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
