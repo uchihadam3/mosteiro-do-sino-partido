@@ -79,17 +79,14 @@ export function FormationBoard({ pick, setPick }: { pick: string | null; setPick
   );
 }
 
-export function Prep() {
+/** Hero switcher + the stage where the chosen hero stands in 3D while you dress them (Prep and Base). */
+export function HeroStage({ heroId, setHeroId, active }: { heroId: string; setHeroId(id: string): void; active: boolean }) {
   const s = useSession();
   const st = s.state!;
-  const [heroId, setHeroId] = useState(st.heroes[0].id);
-  const [pick, setPick] = useState<string | null>(null);
-  const [tab, setTab] = useState<'equip' | 'form'>('equip');
-  // the chosen hero stands on a stage in 3D while you dress them
   const { diorama } = useApp();
   const stage = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!diorama || tab !== 'equip') return;
+    if (!diorama || !active) return;
     const place = () => {
       const r = stage.current?.getBoundingClientRect();
       const c = diorama.renderer.domElement.getBoundingClientRect();
@@ -103,7 +100,29 @@ export function Prep() {
       window.removeEventListener('resize', place);
       diorama.showcase(null);
     };
-  }, [diorama, heroId, tab]);
+  }, [diorama, heroId, active]);
+  return (
+    <>
+      {st.heroes.length > 1 && (
+        <div className="pt-heroes" role="tablist" aria-label="Heróis">
+          {st.heroes.map((x) => (
+            <HeroDisc key={x.id} h={x} size={st.heroes.length >= 5 ? 46 : 52} on={x.id === heroId} onClick={() => setHeroId(x.id)} />
+          ))}
+        </div>
+      )}
+      <div className="pt-stage" ref={stage} aria-hidden>
+        <span className="pt-stage-floor" />
+      </div>
+    </>
+  );
+}
+
+export function Prep() {
+  const s = useSession();
+  const st = s.state!;
+  const [heroId, setHeroId] = useState(st.heroes[0].id);
+  const [pick, setPick] = useState<string | null>(null);
+  const [tab, setTab] = useState<'equip' | 'form'>('equip');
   return (
     <div className={`k-screen pt-prep tab-${tab}`}>
       <div className="k-head pt-head-menu">
@@ -124,16 +143,7 @@ export function Prep() {
       </div>
       <div className="k-body pt-prep-body">
         <section className="pt-pane pt-pane-equip" aria-label="Equipamento">
-          {st.heroes.length > 1 && (
-            <div className="pt-heroes" role="tablist" aria-label="Heróis">
-              {st.heroes.map((x) => (
-                <HeroDisc key={x.id} h={x} size={st.heroes.length >= 5 ? 46 : 52} on={x.id === heroId} onClick={() => setHeroId(x.id)} />
-              ))}
-            </div>
-          )}
-          <div className="pt-stage" ref={stage} aria-hidden>
-            <span className="pt-stage-floor" />
-          </div>
+          <HeroStage heroId={heroId} setHeroId={setHeroId} active={tab === 'equip'} />
           <Inventory heroId={heroId} setHeroId={setHeroId} inBase showHeroes={false} />
         </section>
         <section className="pt-pane pt-pane-form" aria-label="Formação">

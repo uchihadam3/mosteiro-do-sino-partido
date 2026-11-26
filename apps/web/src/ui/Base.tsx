@@ -5,6 +5,8 @@ import { useSession } from '../app/hooks';
 import { useApp } from '../app/App';
 import { Icon } from './Icon';
 import { Inventory, run } from './Inventory';
+import { HeroStage } from './Prep';
+import './party.css';
 import { ATTR_NAME, ATTR_ORDER, CLASS_COLOR } from './data';
 import { session } from '../state/session';
 import { VoteBar } from './Explore';
@@ -58,7 +60,12 @@ export function Base() {
       </div>
       <div className="k-body">
         {tab === 'loja' && <Shop heroId={heroId} />}
-        {tab === 'equip' && <Inventory heroId={heroId} setHeroId={setHeroId} inBase sell />}
+        {tab === 'equip' && (
+          <div className="pt-pane-equip b-equip">
+            <HeroStage heroId={heroId} setHeroId={setHeroId} active />
+            <Inventory heroId={heroId} setHeroId={setHeroId} inBase sell showHeroes={false} />
+          </div>
+        )}
         {tab === 'herois' && <Heroes heroId={heroId} setHeroId={setHeroId} />}
         {tab === 'servicos' && <Services />}
       </div>
