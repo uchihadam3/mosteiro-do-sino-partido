@@ -1,0 +1,1654 @@
+{
+ "license": "CC0 1.0 \u2014 KayKit Dungeon Remastered 1.0 by Kay Lousberg (kaylousberg.com); repacked by tools/python/kaykit/build_kit.py",
+ "material": "kaykit_dungeon",
+ "pieces": {
+  "banner_patternC_white": {
+   "bounds": {
+    "max": [
+     0.75,
+     3.727,
+     0.69
+    ],
+    "min": [
+     -0.75,
+     0.531,
+     0.378
+    ]
+   },
+   "bytes": 5400,
+   "file": "banner_patternC_white.glb",
+   "nodes": [
+    "banner_patternC_white"
+   ],
+   "triangles": 97,
+   "vertices": 205
+  },
+  "banner_red": {
+   "bounds": {
+    "max": [
+     0.75,
+     3.727,
+     0.69
+    ],
+    "min": [
+     -0.75,
+     0.531,
+     0.378
+    ]
+   },
+   "bytes": 5356,
+   "file": "banner_red.glb",
+   "nodes": [
+    "banner_red"
+   ],
+   "triangles": 97,
+   "vertices": 205
+  },
+  "banner_shield_red": {
+   "bounds": {
+    "max": [
+     1.116,
+     3.727,
+     0.69
+    ],
+    "min": [
+     -1.116,
+     0.531,
+     0.315
+    ]
+   },
+   "bytes": 22452,
+   "file": "banner_shield_red.glb",
+   "nodes": [
+    "banner_shield_red"
+   ],
+   "triangles": 639,
+   "vertices": 1068
+  },
+  "banner_thin_red": {
+   "bounds": {
+    "max": [
+     0.55,
+     3.727,
+     0.716
+    ],
+    "min": [
+     -0.55,
+     0.556,
+     0.353
+    ]
+   },
+   "bytes": 4764,
+   "file": "banner_thin_red.glb",
+   "nodes": [
+    "banner_thin_red"
+   ],
+   "triangles": 83,
+   "vertices": 172
+  },
+  "banner_triple_red": {
+   "bounds": {
+    "max": [
+     1.85,
+     3.727,
+     0.716
+    ],
+    "min": [
+     -1.85,
+     0.531,
+     0.353
+    ]
+   },
+   "bytes": 11888,
+   "file": "banner_triple_red.glb",
+   "nodes": [
+    "banner_triple_red"
+   ],
+   "triangles": 263,
+   "vertices": 549
+  },
+  "barrel_large": {
+   "bounds": {
+    "max": [
+     0.9,
+     2.0,
+     0.9
+    ],
+    "min": [
+     -0.9,
+     0.0,
+     -0.9
+    ]
+   },
+   "bytes": 16740,
+   "file": "barrel_large.glb",
+   "nodes": [
+    "barrel_large"
+   ],
+   "triangles": 561,
+   "vertices": 745
+  },
+  "barrel_large_decorated": {
+   "bounds": {
+    "max": [
+     1.019,
+     2.554,
+     0.937
+    ],
+    "min": [
+     -0.919,
+     -0.002,
+     -0.919
+    ]
+   },
+   "bytes": 32956,
+   "file": "barrel_large_decorated.glb",
+   "nodes": [
+    "barrel_large_decorated"
+   ],
+   "triangles": 1047,
+   "vertices": 1570
+  },
+  "barrel_small": {
+   "bounds": {
+    "max": [
+     0.501,
+     1.018,
+     0.501
+    ],
+    "min": [
+     -0.501,
+     -0.0,
+     -0.501
+    ]
+   },
+   "bytes": 9608,
+   "file": "barrel_small.glb",
+   "nodes": [
+    "barrel_small"
+   ],
+   "triangles": 207,
+   "vertices": 429
+  },
+  "barrel_small_stack": {
+   "bounds": {
+    "max": [
+     0.925,
+     1.77,
+     0.5
+    ],
+    "min": [
+     -0.925,
+     0.0,
+     -0.5
+    ]
+   },
+   "bytes": 45484,
+   "file": "barrel_small_stack.glb",
+   "nodes": [
+    "barrel_small_stack"
+   ],
+   "triangles": 1149,
+   "vertices": 2316
+  },
+  "barrier": {
+   "bounds": {
+    "max": [
+     2.0,
+     1.1,
+     0.25
+    ],
+    "min": [
+     -2.0,
+     0.0,
+     -0.25
+    ]
+   },
+   "bytes": 4836,
+   "file": "barrier.glb",
+   "nodes": [
+    "barrier"
+   ],
+   "triangles": 90,
+   "vertices": 180
+  },
+  "barrier_column": {
+   "bounds": {
+    "max": [
+     2.0,
+     1.4,
+     0.35
+    ],
+    "min": [
+     -2.0,
+     0.0,
+     -0.35
+    ]
+   },
+   "bytes": 5688,
+   "file": "barrier_column.glb",
+   "nodes": [
+    "barrier_column"
+   ],
+   "triangles": 110,
+   "vertices": 224
+  },
+  "barrier_half": {
+   "bounds": {
+    "max": [
+     2.0,
+     1.1,
+     0.25
+    ],
+    "min": [
+     0.0,
+     0.0,
+     -0.25
+    ]
+   },
+   "bytes": 3032,
+   "file": "barrier_half.glb",
+   "nodes": [
+    "barrier_half"
+   ],
+   "triangles": 42,
+   "vertices": 84
+  },
+  "bed_floor": {
+   "bounds": {
+    "max": [
+     0.75,
+     0.563,
+     1.5
+    ],
+    "min": [
+     -0.75,
+     0.0,
+     -1.5
+    ]
+   },
+   "bytes": 6376,
+   "file": "bed_floor.glb",
+   "nodes": [
+    "bed_floor"
+   ],
+   "triangles": 232,
+   "vertices": 222
+  },
+  "bed_frame": {
+   "bounds": {
+    "max": [
+     0.75,
+     1.063,
+     1.5
+    ],
+    "min": [
+     -0.75,
+     0.0,
+     -1.5
+    ]
+   },
+   "bytes": 9180,
+   "file": "bed_frame.glb",
+   "nodes": [
+    "bed_frame"
+   ],
+   "triangles": 304,
+   "vertices": 370
+  },
+  "bottle_A_brown": {
+   "bounds": {
+    "max": [
+     0.184,
+     0.886,
+     0.184
+    ],
+    "min": [
+     -0.184,
+     0.0,
+     -0.184
+    ]
+   },
+   "bytes": 6464,
+   "file": "bottle_A_brown.glb",
+   "nodes": [
+    "bottle_A_brown"
+   ],
+   "triangles": 144,
+   "vertices": 256
+  },
+  "bottle_B_green": {
+   "bounds": {
+    "max": [
+     0.276,
+     0.886,
+     0.276
+    ],
+    "min": [
+     -0.276,
+     0.0,
+     -0.276
+    ]
+   },
+   "bytes": 6624,
+   "file": "bottle_B_green.glb",
+   "nodes": [
+    "bottle_B_green"
+   ],
+   "triangles": 144,
+   "vertices": 266
+  },
+  "bottle_C_brown": {
+   "bounds": {
+    "max": [
+     0.369,
+     0.906,
+     0.369
+    ],
+    "min": [
+     -0.369,
+     0.0,
+     -0.369
+    ]
+   },
+   "bytes": 6464,
+   "file": "bottle_C_brown.glb",
+   "nodes": [
+    "bottle_C_brown"
+   ],
+   "triangles": 144,
+   "vertices": 256
+  },
+  "box_large": {
+   "bounds": {
+    "max": [
+     0.75,
+     1.5,
+     0.75
+    ],
+    "min": [
+     -0.75,
+     0.0,
+     -0.75
+    ]
+   },
+   "bytes": 7884,
+   "file": "box_large.glb",
+   "nodes": [
+    "box_large"
+   ],
+   "triangles": 188,
+   "vertices": 330
+  },
+  "box_small": {
+   "bounds": {
+    "max": [
+     0.5,
+     1.0,
+     0.5
+    ],
+    "min": [
+     -0.5,
+     0.0,
+     -0.5
+    ]
+   },
+   "bytes": 7840,
+   "file": "box_small.glb",
+   "nodes": [
+    "box_small"
+   ],
+   "triangles": 188,
+   "vertices": 330
+  },
+  "box_stacked": {
+   "bounds": {
+    "max": [
+     1.725,
+     3.309,
+     1.861
+    ],
+    "min": [
+     -1.75,
+     -0.0,
+     -1.773
+    ]
+   },
+   "bytes": 72972,
+   "file": "box_stacked.glb",
+   "nodes": [
+    "box_stacked"
+   ],
+   "triangles": 2173,
+   "vertices": 3651
+  },
+  "candle_lit": {
+   "bounds": {
+    "max": [
+     0.167,
+     1.051,
+     0.16
+    ],
+    "min": [
+     -0.167,
+     0.0,
+     -0.17
+    ]
+   },
+   "bytes": 5600,
+   "file": "candle_lit.glb",
+   "nodes": [
+    "candle_lit",
+    "flame"
+   ],
+   "triangles": 120,
+   "vertices": 152
+  },
+  "candle_melted": {
+   "bounds": {
+    "max": [
+     0.167,
+     0.702,
+     0.16
+    ],
+    "min": [
+     -0.167,
+     0.0,
+     -0.17
+    ]
+   },
+   "bytes": 3560,
+   "file": "candle_melted.glb",
+   "nodes": [
+    "candle_melted"
+   ],
+   "triangles": 66,
+   "vertices": 104
+  },
+  "candle_thin_lit": {
+   "bounds": {
+    "max": [
+     0.097,
+     1.051,
+     0.092
+    ],
+    "min": [
+     -0.097,
+     0.0,
+     -0.098
+    ]
+   },
+   "bytes": 5620,
+   "file": "candle_thin_lit.glb",
+   "nodes": [
+    "candle_thin_lit",
+    "flame"
+   ],
+   "triangles": 120,
+   "vertices": 152
+  },
+  "candle_triple": {
+   "bounds": {
+    "max": [
+     0.334,
+     0.873,
+     0.23
+    ],
+    "min": [
+     -0.167,
+     0.0,
+     -0.16
+    ]
+   },
+   "bytes": 7688,
+   "file": "candle_triple.glb",
+   "nodes": [
+    "candle_triple"
+   ],
+   "triangles": 198,
+   "vertices": 312
+  },
+  "chair": {
+   "bounds": {
+    "max": [
+     0.376,
+     1.227,
+     0.375
+    ],
+    "min": [
+     -0.374,
+     0.0,
+     -0.375
+    ]
+   },
+   "bytes": 11940,
+   "file": "chair.glb",
+   "nodes": [
+    "chair"
+   ],
+   "triangles": 294,
+   "vertices": 544
+  },
+  "chest_gold": {
+   "bounds": {
+    "max": [
+     0.85,
+     1.3,
+     0.746
+    ],
+    "min": [
+     -0.85,
+     -0.0,
+     -0.7
+    ]
+   },
+   "bytes": 49076,
+   "file": "chest_gold.glb",
+   "nodes": [
+    "chest_gold",
+    "chest_gold_lid"
+   ],
+   "triangles": 1568,
+   "vertices": 2322
+  },
+  "coin_stack_large": {
+   "bounds": {
+    "max": [
+     0.717,
+     1.157,
+     0.843
+    ],
+    "min": [
+     -0.719,
+     0.0,
+     -0.816
+    ]
+   },
+   "bytes": 48860,
+   "file": "coin_stack_large.glb",
+   "nodes": [
+    "coin_stack_large"
+   ],
+   "triangles": 1776,
+   "vertices": 2292
+  },
+  "coin_stack_medium": {
+   "bounds": {
+    "max": [
+     0.547,
+     0.641,
+     0.527
+    ],
+    "min": [
+     -0.446,
+     -0.0,
+     -0.507
+    ]
+   },
+   "bytes": 27888,
+   "file": "coin_stack_medium.glb",
+   "nodes": [
+    "coin_stack_medium"
+   ],
+   "triangles": 968,
+   "vertices": 1284
+  },
+  "coin_stack_small": {
+   "bounds": {
+    "max": [
+     0.514,
+     0.478,
+     0.436
+    ],
+    "min": [
+     -0.445,
+     -0.0,
+     -0.461
+    ]
+   },
+   "bytes": 13428,
+   "file": "coin_stack_small.glb",
+   "nodes": [
+    "coin_stack_small"
+   ],
+   "triangles": 416,
+   "vertices": 588
+  },
+  "column": {
+   "bounds": {
+    "max": [
+     0.35,
+     1.4,
+     0.35
+    ],
+    "min": [
+     -0.35,
+     0.0,
+     -0.35
+    ]
+   },
+   "bytes": 3192,
+   "file": "column.glb",
+   "nodes": [
+    "column"
+   ],
+   "triangles": 44,
+   "vertices": 92
+  },
+  "crates_stacked": {
+   "bounds": {
+    "max": [
+     0.999,
+     2.142,
+     1.092
+    ],
+    "min": [
+     -1.09,
+     -0.0,
+     -1.157
+    ]
+   },
+   "bytes": 48824,
+   "file": "crates_stacked.glb",
+   "nodes": [
+    "crates_stacked"
+   ],
+   "triangles": 1331,
+   "vertices": 2457
+  },
+  "floor_dirt_large": {
+   "bounds": {
+    "max": [
+     2.0,
+     0.109,
+     2.0
+    ],
+    "min": [
+     -2.0,
+     -0.1,
+     -2.0
+    ]
+   },
+   "bytes": 5592,
+   "file": "floor_dirt_large.glb",
+   "nodes": [
+    "floor_dirt_large"
+   ],
+   "triangles": 104,
+   "vertices": 216
+  },
+  "floor_dirt_large_rocky": {
+   "bounds": {
+    "max": [
+     2.0,
+     0.293,
+     2.0
+    ],
+    "min": [
+     -2.0,
+     -0.1,
+     -2.0
+    ]
+   },
+   "bytes": 8664,
+   "file": "floor_dirt_large_rocky.glb",
+   "nodes": [
+    "floor_dirt_large_rocky"
+   ],
+   "triangles": 187,
+   "vertices": 375
+  },
+  "floor_dirt_small_weeds": {
+   "bounds": {
+    "max": [
+     1.0,
+     0.195,
+     1.0
+    ],
+    "min": [
+     -1.0,
+     -0.1,
+     -1.0
+    ]
+   },
+   "bytes": 14812,
+   "file": "floor_dirt_small_weeds.glb",
+   "nodes": [
+    "floor_dirt_small_weeds"
+   ],
+   "triangles": 416,
+   "vertices": 676
+  },
+  "floor_tile_big_grate": {
+   "bounds": {
+    "max": [
+     2.0,
+     0.05,
+     2.0
+    ],
+    "min": [
+     -2.0,
+     -1.0,
+     -2.0
+    ]
+   },
+   "bytes": 11996,
+   "file": "floor_tile_big_grate.glb",
+   "nodes": [
+    "floor_tile_big_grate"
+   ],
+   "triangles": 292,
+   "vertices": 548
+  },
+  "floor_tile_grate": {
+   "bounds": {
+    "max": [
+     2.0,
+     0.05,
+     1.0
+    ],
+    "min": [
+     -2.0,
+     -0.98,
+     -1.0
+    ]
+   },
+   "bytes": 6728,
+   "file": "floor_tile_grate.glb",
+   "nodes": [
+    "floor_tile_grate"
+   ],
+   "triangles": 142,
+   "vertices": 276
+  },
+  "floor_tile_large": {
+   "bounds": {
+    "max": [
+     2.0,
+     0.05,
+     2.0
+    ],
+    "min": [
+     -2.0,
+     -0.1,
+     -2.0
+    ]
+   },
+   "bytes": 7564,
+   "file": "floor_tile_large.glb",
+   "nodes": [
+    "floor_tile_large"
+   ],
+   "triangles": 188,
+   "vertices": 311
+  },
+  "floor_tile_large_rocks": {
+   "bounds": {
+    "max": [
+     2.0,
+     0.536,
+     2.0
+    ],
+    "min": [
+     -2.0,
+     -0.1,
+     -2.0
+    ]
+   },
+   "bytes": 13180,
+   "file": "floor_tile_large_rocks.glb",
+   "nodes": [
+    "floor_tile_large_rocks"
+   ],
+   "triangles": 338,
+   "vertices": 604
+  },
+  "floor_tile_small_broken_A": {
+   "bounds": {
+    "max": [
+     1.0,
+     0.05,
+     1.0
+    ],
+    "min": [
+     -1.0,
+     -0.1,
+     -1.0
+    ]
+   },
+   "bytes": 4328,
+   "file": "floor_tile_small_broken_A.glb",
+   "nodes": [
+    "floor_tile_small_broken_A"
+   ],
+   "triangles": 94,
+   "vertices": 142
+  },
+  "floor_tile_small_broken_B": {
+   "bounds": {
+    "max": [
+     1.0,
+     0.05,
+     1.0
+    ],
+    "min": [
+     -1.0,
+     -0.1,
+     -1.0
+    ]
+   },
+   "bytes": 4012,
+   "file": "floor_tile_small_broken_B.glb",
+   "nodes": [
+    "floor_tile_small_broken_B"
+   ],
+   "triangles": 76,
+   "vertices": 129
+  },
+  "floor_tile_small_weeds_A": {
+   "bounds": {
+    "max": [
+     1.0,
+     0.195,
+     1.0
+    ],
+    "min": [
+     -1.0,
+     -0.1,
+     -1.0
+    ]
+   },
+   "bytes": 16760,
+   "file": "floor_tile_small_weeds_A.glb",
+   "nodes": [
+    "floor_tile_small_weeds_A"
+   ],
+   "triangles": 589,
+   "vertices": 733
+  },
+  "floor_tile_small_weeds_B": {
+   "bounds": {
+    "max": [
+     1.0,
+     0.195,
+     1.0
+    ],
+    "min": [
+     -1.0,
+     -0.1,
+     -1.0
+    ]
+   },
+   "bytes": 15508,
+   "file": "floor_tile_small_weeds_B.glb",
+   "nodes": [
+    "floor_tile_small_weeds_B"
+   ],
+   "triangles": 447,
+   "vertices": 708
+  },
+  "floor_wood_large": {
+   "bounds": {
+    "max": [
+     2.0,
+     0.05,
+     2.0
+    ],
+    "min": [
+     -2.0,
+     -0.1,
+     -2.0
+    ]
+   },
+   "bytes": 11572,
+   "file": "floor_wood_large.glb",
+   "nodes": [
+    "floor_wood_large"
+   ],
+   "triangles": 272,
+   "vertices": 530
+  },
+  "floor_wood_large_dark": {
+   "bounds": {
+    "max": [
+     2.0,
+     0.05,
+     2.0
+    ],
+    "min": [
+     -2.0,
+     -0.1,
+     -2.0
+    ]
+   },
+   "bytes": 11592,
+   "file": "floor_wood_large_dark.glb",
+   "nodes": [
+    "floor_wood_large_dark"
+   ],
+   "triangles": 272,
+   "vertices": 530
+  },
+  "keg": {
+   "bounds": {
+    "max": [
+     0.9,
+     2.051,
+     1.024
+    ],
+    "min": [
+     -0.9,
+     0.0,
+     -0.976
+    ]
+   },
+   "bytes": 25308,
+   "file": "keg.glb",
+   "nodes": [
+    "keg"
+   ],
+   "triangles": 807,
+   "vertices": 1187
+  },
+  "keyring_hanging": {
+   "bounds": {
+    "max": [
+     0.34,
+     0.023,
+     0.225
+    ],
+    "min": [
+     -0.34,
+     -1.196,
+     -0.159
+    ]
+   },
+   "bytes": 19712,
+   "file": "keyring_hanging.glb",
+   "nodes": [
+    "keyring_hanging"
+   ],
+   "triangles": 728,
+   "vertices": 864
+  },
+  "pillar": {
+   "bounds": {
+    "max": [
+     0.75,
+     4.0,
+     0.75
+    ],
+    "min": [
+     -0.75,
+     0.0,
+     -0.75
+    ]
+   },
+   "bytes": 6092,
+   "file": "pillar.glb",
+   "nodes": [
+    "pillar"
+   ],
+   "triangles": 136,
+   "vertices": 241
+  },
+  "pillar_decorated": {
+   "bounds": {
+    "max": [
+     1.116,
+     4.0,
+     0.96
+    ],
+    "min": [
+     -1.116,
+     0.0,
+     -0.75
+    ]
+   },
+   "bytes": 26460,
+   "file": "pillar_decorated.glb",
+   "nodes": [
+    "pillar_decorated"
+   ],
+   "triangles": 761,
+   "vertices": 1276
+  },
+  "plate": {
+   "bounds": {
+    "max": [
+     0.485,
+     0.129,
+     0.485
+    ],
+    "min": [
+     -0.485,
+     0.0,
+     -0.486
+    ]
+   },
+   "bytes": 4740,
+   "file": "plate.glb",
+   "nodes": [
+    "plate"
+   ],
+   "triangles": 120,
+   "vertices": 159
+  },
+  "rubble_half": {
+   "bounds": {
+    "max": [
+     4.0,
+     3.5,
+     1.484
+    ],
+    "min": [
+     -0.0,
+     -0.0,
+     -1.516
+    ]
+   },
+   "bytes": 13552,
+   "file": "rubble_half.glb",
+   "nodes": [
+    "rubble_half"
+   ],
+   "triangles": 390,
+   "vertices": 607
+  },
+  "rubble_large": {
+   "bounds": {
+    "max": [
+     4.06,
+     3.496,
+     1.597
+    ],
+    "min": [
+     -4.069,
+     0.0,
+     -1.586
+    ]
+   },
+   "bytes": 25436,
+   "file": "rubble_large.glb",
+   "nodes": [
+    "rubble_large"
+   ],
+   "triangles": 788,
+   "vertices": 1200
+  },
+  "stairs_wood": {
+   "bounds": {
+    "max": [
+     1.65,
+     4.05,
+     6.0
+    ],
+    "min": [
+     -1.65,
+     -0.0,
+     0.0
+    ]
+   },
+   "bytes": 11124,
+   "file": "stairs_wood.glb",
+   "nodes": [
+    "stairs_wood"
+   ],
+   "triangles": 296,
+   "vertices": 494
+  },
+  "sword_shield": {
+   "bounds": {
+    "max": [
+     1.116,
+     0.852,
+     0.251
+    ],
+    "min": [
+     -1.116,
+     -0.815,
+     -0.085
+    ]
+   },
+   "bytes": 18468,
+   "file": "sword_shield.glb",
+   "nodes": [
+    "sword_shield"
+   ],
+   "triangles": 542,
+   "vertices": 857
+  },
+  "sword_shield_broken": {
+   "bounds": {
+    "max": [
+     0.667,
+     1.169,
+     0.251
+    ],
+    "min": [
+     -0.759,
+     -0.793,
+     -0.085
+    ]
+   },
+   "bytes": 14168,
+   "file": "sword_shield_broken.glb",
+   "nodes": [
+    "sword_shield_broken"
+   ],
+   "triangles": 396,
+   "vertices": 641
+  },
+  "sword_shield_gold": {
+   "bounds": {
+    "max": [
+     1.116,
+     0.852,
+     0.251
+    ],
+    "min": [
+     -1.116,
+     -0.815,
+     -0.085
+    ]
+   },
+   "bytes": 18488,
+   "file": "sword_shield_gold.glb",
+   "nodes": [
+    "sword_shield_gold"
+   ],
+   "triangles": 542,
+   "vertices": 857
+  },
+  "table_long": {
+   "bounds": {
+    "max": [
+     1.0,
+     1.0,
+     2.0
+    ],
+    "min": [
+     -1.0,
+     0.0,
+     -2.0
+    ]
+   },
+   "bytes": 11368,
+   "file": "table_long.glb",
+   "nodes": [
+    "table_long"
+   ],
+   "triangles": 280,
+   "vertices": 513
+  },
+  "table_long_broken": {
+   "bounds": {
+    "max": [
+     1.018,
+     1.266,
+     2.228
+    ],
+    "min": [
+     -1.391,
+     0.0,
+     -2.176
+    ]
+   },
+   "bytes": 22240,
+   "file": "table_long_broken.glb",
+   "nodes": [
+    "table_long_broken"
+   ],
+   "triangles": 550,
+   "vertices": 1088
+  },
+  "table_medium": {
+   "bounds": {
+    "max": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "min": [
+     -1.0,
+     0.0,
+     -1.0
+    ]
+   },
+   "bytes": 10656,
+   "file": "table_medium.glb",
+   "nodes": [
+    "table_medium"
+   ],
+   "triangles": 256,
+   "vertices": 477
+  },
+  "table_small_decorated_A": {
+   "bounds": {
+    "max": [
+     0.499,
+     1.621,
+     0.59
+    ],
+    "min": [
+     -0.54,
+     0.0,
+     -0.621
+    ]
+   },
+   "bytes": 29812,
+   "file": "table_small_decorated_A.glb",
+   "nodes": [
+    "table_small_decorated_A"
+   ],
+   "triangles": 986,
+   "vertices": 1396
+  },
+  "torch_lit": {
+   "bounds": {
+    "max": [
+     0.275,
+     0.731,
+     0.275
+    ],
+    "min": [
+     -0.275,
+     -0.395,
+     -0.275
+    ]
+   },
+   "bytes": 10336,
+   "file": "torch_lit.glb",
+   "nodes": [
+    "torch_lit",
+    "flame"
+   ],
+   "triangles": 270,
+   "vertices": 392
+  },
+  "torch_mounted": {
+   "bounds": {
+    "max": [
+     0.275,
+     0.682,
+     0.616
+    ],
+    "min": [
+     -0.275,
+     -0.381,
+     -0.0
+    ]
+   },
+   "bytes": 10408,
+   "file": "torch_mounted.glb",
+   "nodes": [
+    "torch_mounted"
+   ],
+   "triangles": 278,
+   "vertices": 452
+  },
+  "trunk_large_A": {
+   "bounds": {
+    "max": [
+     0.75,
+     1.0,
+     0.65
+    ],
+    "min": [
+     -0.75,
+     -0.0,
+     -0.65
+    ]
+   },
+   "bytes": 8664,
+   "file": "trunk_large_A.glb",
+   "nodes": [
+    "trunk_large_A"
+   ],
+   "triangles": 204,
+   "vertices": 371
+  },
+  "trunk_large_B": {
+   "bounds": {
+    "max": [
+     0.75,
+     1.0,
+     0.65
+    ],
+    "min": [
+     -0.75,
+     -0.0,
+     -0.65
+    ]
+   },
+   "bytes": 8664,
+   "file": "trunk_large_B.glb",
+   "nodes": [
+    "trunk_large_B"
+   ],
+   "triangles": 204,
+   "vertices": 371
+  },
+  "trunk_medium_A": {
+   "bounds": {
+    "max": [
+     0.477,
+     0.726,
+     0.438
+    ],
+    "min": [
+     -0.477,
+     -0.0,
+     -0.438
+    ]
+   },
+   "bytes": 6616,
+   "file": "trunk_medium_A.glb",
+   "nodes": [
+    "trunk_medium_A"
+   ],
+   "triangles": 148,
+   "vertices": 264
+  },
+  "trunk_small_A": {
+   "bounds": {
+    "max": [
+     0.338,
+     0.484,
+     0.292
+    ],
+    "min": [
+     -0.338,
+     -0.0,
+     -0.292
+    ]
+   },
+   "bytes": 8664,
+   "file": "trunk_small_A.glb",
+   "nodes": [
+    "trunk_small_A"
+   ],
+   "triangles": 204,
+   "vertices": 371
+  },
+  "wall": {
+   "bounds": {
+    "max": [
+     2.0,
+     4.0,
+     0.5
+    ],
+    "min": [
+     -2.0,
+     0.0,
+     -0.5
+    ]
+   },
+   "bytes": 20972,
+   "file": "wall.glb",
+   "nodes": [
+    "wall"
+   ],
+   "triangles": 494,
+   "vertices": 1037
+  },
+  "wall_arched": {
+   "bounds": {
+    "max": [
+     2.0,
+     4.0,
+     0.5
+    ],
+    "min": [
+     -2.0,
+     0.0,
+     -0.5
+    ]
+   },
+   "bytes": 29712,
+   "file": "wall_arched.glb",
+   "nodes": [
+    "wall_arched"
+   ],
+   "triangles": 724,
+   "vertices": 1492
+  },
+  "wall_archedwindow_gated": {
+   "bounds": {
+    "max": [
+     2.0,
+     4.0,
+     0.5
+    ],
+    "min": [
+     -2.0,
+     0.0,
+     -0.5
+    ]
+   },
+   "bytes": 27548,
+   "file": "wall_archedwindow_gated.glb",
+   "nodes": [
+    "wall_archedwindow_gated"
+   ],
+   "triangles": 732,
+   "vertices": 1354
+  },
+  "wall_archedwindow_open": {
+   "bounds": {
+    "max": [
+     2.0,
+     4.0,
+     0.5
+    ],
+    "min": [
+     -2.0,
+     0.0,
+     -0.5
+    ]
+   },
+   "bytes": 23908,
+   "file": "wall_archedwindow_open.glb",
+   "nodes": [
+    "wall_archedwindow_open"
+   ],
+   "triangles": 635,
+   "vertices": 1163
+  },
+  "wall_broken": {
+   "bounds": {
+    "max": [
+     2.0,
+     4.0,
+     0.5
+    ],
+    "min": [
+     -2.0,
+     0.0,
+     -0.5
+    ]
+   },
+   "bytes": 29924,
+   "file": "wall_broken.glb",
+   "nodes": [
+    "wall_broken"
+   ],
+   "triangles": 784,
+   "vertices": 1486
+  },
+  "wall_cracked": {
+   "bounds": {
+    "max": [
+     2.0,
+     4.0,
+     0.63
+    ],
+    "min": [
+     -2.0,
+     0.0,
+     -0.63
+    ]
+   },
+   "bytes": 68172,
+   "file": "wall_cracked.glb",
+   "nodes": [
+    "wall_cracked"
+   ],
+   "triangles": 2010,
+   "vertices": 3416
+  },
+  "wall_doorway": {
+   "bounds": {
+    "max": [
+     2.0,
+     4.0,
+     0.5
+    ],
+    "min": [
+     -2.0,
+     0.0,
+     -0.5
+    ]
+   },
+   "bytes": 33844,
+   "file": "wall_doorway.glb",
+   "nodes": [
+    "wall_doorway",
+    "wall_doorway_door"
+   ],
+   "triangles": 1068,
+   "vertices": 1563
+  },
+  "wall_gated": {
+   "bounds": {
+    "max": [
+     2.0,
+     4.0,
+     0.5
+    ],
+    "min": [
+     -2.0,
+     0.0,
+     -0.5
+    ]
+   },
+   "bytes": 17460,
+   "file": "wall_gated.glb",
+   "nodes": [
+    "wall_gated"
+   ],
+   "triangles": 449,
+   "vertices": 833
+  },
+  "wall_open_scaffold": {
+   "bounds": {
+    "max": [
+     2.0,
+     4.0,
+     0.5
+    ],
+    "min": [
+     -2.0,
+     0.0,
+     -0.5
+    ]
+   },
+   "bytes": 8496,
+   "file": "wall_open_scaffold.glb",
+   "nodes": [
+    "wall_open_scaffold"
+   ],
+   "triangles": 196,
+   "vertices": 366
+  },
+  "wall_pillar": {
+   "bounds": {
+    "max": [
+     2.0,
+     4.0,
+     0.75
+    ],
+    "min": [
+     -2.0,
+     0.0,
+     -0.75
+    ]
+   },
+   "bytes": 22144,
+   "file": "wall_pillar.glb",
+   "nodes": [
+    "wall_pillar"
+   ],
+   "triangles": 540,
+   "vertices": 1091
+  },
+  "wall_scaffold": {
+   "bounds": {
+    "max": [
+     2.0,
+     4.0,
+     0.5
+    ],
+    "min": [
+     -2.0,
+     0.0,
+     -0.5
+    ]
+   },
+   "bytes": 24412,
+   "file": "wall_scaffold.glb",
+   "nodes": [
+    "wall_scaffold"
+   ],
+   "triangles": 584,
+   "vertices": 1216
+  },
+  "wall_shelves": {
+   "bounds": {
+    "max": [
+     2.0,
+     4.0,
+     0.868
+    ],
+    "min": [
+     -2.0,
+     0.0,
+     -0.5
+    ]
+   },
+   "bytes": 58824,
+   "file": "wall_shelves.glb",
+   "nodes": [
+    "wall_shelves"
+   ],
+   "triangles": 1582,
+   "vertices": 2992
+  },
+  "wall_window_closed": {
+   "bounds": {
+    "max": [
+     2.0,
+     4.0,
+     0.5
+    ],
+    "min": [
+     -2.0,
+     0.0,
+     -0.5
+    ]
+   },
+   "bytes": 25680,
+   "file": "wall_window_closed.glb",
+   "nodes": [
+    "wall_window_closed"
+   ],
+   "triangles": 664,
+   "vertices": 1264
+  }
+ },
+ "quantized": "KHR_mesh_quantization (POSITION int16 + uniform dequant node, NORMAL int8, TEXCOORD_0 uint16)",
+ "source_bytes": 3633624,
+ "texture": "dungeon_texture.png",
+ "total_bytes": 1365377,
+ "units": "KayKit native units (walls are 4 x 4 x 1); the runtime scales the kit per dungeon theme"
+}

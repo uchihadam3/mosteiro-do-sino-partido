@@ -1,0 +1,26 @@
+{
+  "name": "Mosteiro do Sino Partido",
+  "short_name": "Sino Partido",
+  "description": "Dungeon crawler tático cooperativo — Dungeon 1, Modo Básico.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#0e0c0c",
+  "theme_color": "#121011",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "icons/app-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/app-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
