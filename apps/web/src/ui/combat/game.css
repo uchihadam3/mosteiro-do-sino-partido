@@ -2836,3 +2836,16 @@ em.pa {
     flex: 0 1 auto;
   }
 }
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .g-forecast {
+    top: auto;
+  }
+  .g-target {
+    left: auto !important;
+    right: 8px;
+    top: calc(var(--safe-t) + 56px);
+    transform: none;
+    width: 44% !important;
+  }
+}

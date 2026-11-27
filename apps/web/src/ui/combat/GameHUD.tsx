@@ -1230,12 +1230,12 @@ function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre, onKit, onAttack }:
           </button>
         ))}
       </div>
-      {menu && shown.length > 0 && (
+      {menu && !sel && shown.length > 0 && (
         <div className={`g-menu ${menu}`} role="menu" aria-label={groups.find((g) => g.m === menu)?.label}>
           {shown.map(({ def, cost }) => {
             const dano = def.preview?.(c, f)?.dano;
             return (
-              <button key={def.id} role="menuitem" className={`g-act g-card k-${def.kind} ${sel?.def.id === def.id ? 'sel' : ''}`} title={`${def.name} — ${cost} PA\n${def.text}`} onClick={() => onPick(def)}>
+              <button key={def.id} role="menuitem" className={`g-act g-card k-${def.kind}`} title={`${def.name} — ${cost} PA\n${def.text}`} onClick={() => onPick(def)}>
                 <span className="cic">
                   <Icon id={def.icon ?? 'act_item'} />
                 </span>
