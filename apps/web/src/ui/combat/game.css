@@ -2817,3 +2817,22 @@ em.pa {
     font-size: 15px;
   }
 }
+
+.g-tmarks .tm.sec {
+  width: 34px;
+  height: 34px;
+  opacity: 0.92;
+}
+.g-tmarks .tm.sec.picked {
+  scale: 1.2;
+  animation: none;
+  box-shadow: 0 0 22px rgba(255, 230, 160, 0.9);
+}
+.g-forecast .g-fc-go {
+  margin-top: auto;
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .g-forecast .g-fc-alts {
+    flex: 0 1 auto;
+  }
+}

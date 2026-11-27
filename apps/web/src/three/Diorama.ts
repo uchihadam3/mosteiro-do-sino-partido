@@ -2187,6 +2187,12 @@ export class Diorama {
     },
   };
 
+  /** Screen position of the centre of a board Sector (for HUD target marks). */
+  screenOfSector(k: SectorKey): { x: number; y: number } {
+    const p = sectorCenter(k).setY(0.1).project(this.camera);
+    return { x: ((p.x + 1) / 2) * this.renderer.domElement.clientWidth, y: ((1 - p.y) / 2) * this.renderer.domElement.clientHeight };
+  }
+
   /** Screen-space box of a figure from its feet to the top of its head (for rings and spotlights). */
   screenBoxOf(id: string): { x: number; top: number; bottom: number } | null {
     const v = this.figs.get(id);

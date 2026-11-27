@@ -444,6 +444,14 @@ export function GameHUD() {
       <TopBar S={S} heroes={heroes} onLog={() => setLog(true)} onMenu={() => setPause(true)} onSkip={() => diorama?.skip()} onPick={(id) => (S.figures.find((f) => f.id === id)?.side === 'H' ? setKit(id) : setInspect(id))} />
       <BossGauge S={S} />
 
+      {sel && targets && diorama && !S.pending && (targets.sectors.length > 0 || targets.areas.length > 0) && (
+        <SectorMarks
+          keys={[...new Set([...targets.sectors, ...targets.areas.filter(([a, b]) => !areaFirst || a === areaFirst || b === areaFirst).flat()])] as SectorKey[]}
+          picked={areaFirst}
+          foe={[...targets.sectors, ...targets.areas.flat()].some((k) => k.startsWith('E'))}
+          diorama={diorama}
+        />
+      )}
       {sel && targets && targets.figures.length > 0 && diorama && !S.pending && <TargetMarks S={S} ids={targets.figures} def={sel.def} diorama={diorama} />}
       {heroActive && canAct && !S.pending && !sel && !forecast && diorama && <LethalMarks S={S} hero={heroActive} pre={pre} diorama={diorama} />}
       <div className="g-bottom">
@@ -659,6 +667,36 @@ function Forecast({ S, hero, targetId, defId, pre, onPick, onConfirm, onCancel, 
       <button className="g-cta g-fc-go" autoFocus onClick={onConfirm}>
         Atacar
       </button>
+    </div>
+  );
+}
+
+/** While an area/sector skill is chosen: a big mark on every Sector that can be tapped. */
+function SectorMarks({ keys, picked, foe, diorama }: { keys: SectorKey[]; picked: SectorKey | null; foe: boolean; diorama: NonNullable<ReturnType<typeof useApp>['diorama']> }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let raf = 0;
+    const draw = () => {
+      raf = requestAnimationFrame(draw);
+      const box = ref.current;
+      if (!box) return;
+      keys.forEach((k, i) => {
+        const el = box.children[i] as HTMLElement | undefined;
+        if (!el) return;
+        const p = diorama.screenOfSector(k);
+        el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
+      });
+    };
+    draw();
+    return () => cancelAnimationFrame(raf);
+  }, [keys.join(), diorama]);
+  return (
+    <div ref={ref} className="g-tmarks" aria-hidden>
+      {keys.map((k) => (
+        <span key={k} className={`tm sec ${foe ? 'foe' : 'ally'} ${picked === k ? 'picked' : ''}`}>
+          <Icon id={picked === k ? 'check' : 'act_area'} />
+        </span>
+      ))}
     </div>
   );
 }
