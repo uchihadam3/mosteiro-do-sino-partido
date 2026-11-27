@@ -2759,3 +2759,61 @@ em.pa {
 .g-order:not(:has(.o)) {
   display: none;
 }
+.g-cmd.c-area {
+  --k: #c39bff;
+}
+/* phone held sideways: the attack card fits the height, nothing cut */
+@media (max-height: 500px) and (orientation: landscape) {
+  .g-forecast {
+    top: 8px;
+    bottom: 8px !important;
+    max-height: calc(100vh - 16px);
+    display: flex;
+    flex-direction: column;
+    padding: 6px 10px 8px;
+    overflow: hidden;
+  }
+  .g-forecast .g-fc-stats {
+    margin: 4px 0;
+    gap: 6px;
+  }
+  .g-forecast .g-fc-stats .st {
+    padding: 2px 4px;
+  }
+  .g-forecast .g-fc-stats .st b {
+    font-size: 17px;
+  }
+  .g-forecast .g-fc-stats .st small {
+    font-size: 9.5px;
+  }
+  .g-forecast .g-fc-dice {
+    display: none;
+  }
+  .g-forecast .g-fc-alts {
+    flex: 1;
+    min-height: 0;
+    gap: 3px;
+    margin-bottom: 6px;
+  }
+  .g-forecast .g-fc-alts .t {
+    font-size: 10px;
+  }
+  .g-forecast .g-fc-alt {
+    padding: 3px 8px;
+  }
+  .g-forecast .g-fc-alt .nm {
+    font-size: 12px;
+  }
+  .g-forecast .g-fc-alt .tags,
+  .g-forecast .g-fc-alt small {
+    display: none;
+  }
+  .g-forecast .g-fc-alt.on .tags {
+    display: flex;
+  }
+  .g-forecast .g-fc-go {
+    min-height: 38px;
+    padding: 6px;
+    font-size: 15px;
+  }
+}

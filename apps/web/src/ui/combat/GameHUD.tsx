@@ -548,8 +548,7 @@ function attackCommand(c: Ctx, hero: Figure, def: ActionDef, targetId: string, p
 
 function Forecast({ S, hero, targetId, defId, pre, onPick, onConfirm, onCancel, onInfo, onExtra }: { S: CombatState; hero: Figure; targetId: string; defId: string; pre: string[]; onPick(id: string): void; onConfirm(): void; onCancel(): void; onInfo(): void; onExtra(d: ActionDef): void }) {
   const c = ctxOf(S);
-  // blows that do not aim at one enemy (areas, traps, control on a Sector) are offered here too
-  const extras = actionAvailability(c, hero).filter((a) => !a.reason && MENU_OF(a.def) === 'attack' && a.def.targeting.type !== 'enemy');
+
   const target = S.figures.find((f) => f.id === targetId);
   const options = target ? attacksOn(c, hero, targetId) : [];
   const def = options.find((d) => d.id === defId) ?? options[0];
@@ -656,19 +655,6 @@ function Forecast({ S, hero, targetId, defId, pre, onPick, onConfirm, onCancel, 
             </button>
           );
         })}
-        {extras.map(({ def: d, cost: cst }) => (
-          <button key={d.id} className="g-fc-alt extra" onClick={() => onExtra(d)}>
-            <i className="dot" />
-            <span className="body">
-              <span className="nm">
-                {d.name} <em className="pa">{cst} PA</em>
-              </span>
-              <small>
-                {skillLine(d, d.preview?.(c, hero)?.dano)} · {targetWords(d)}
-              </small>
-            </span>
-          </button>
-        ))}
       </div>
       <button className="g-cta g-fc-go" autoFocus onClick={onConfirm}>
         Atacar
@@ -1164,8 +1150,10 @@ function TempoPicker({ S, heroId, setHero }: { S: CombatState; heroId: string | 
  * The hero's turn, simple: a few big commands (Atacar · Mover · Apoio · Encerrar), only those that can be used now.
  * A command opens a small grid with just its choices — never a long scrolling row.
  */
-type Menu = 'attack' | 'move' | 'support' | null;
-const MENU_OF = (d: ActionDef): Exclude<Menu, null> => (d.kind === 'attack' || d.kind === 'spell' || d.kind === 'control' ? 'attack' : d.kind === 'move' ? 'move' : 'support');
+type Menu = 'attack' | 'area' | 'move' | 'support' | null;
+/** Atacar = blows aimed at one enemy (they open the preview); Magia de área = blows aimed at Sectors (areas, traps). */
+const MENU_OF = (d: ActionDef): Exclude<Menu, null> =>
+  d.kind === 'attack' || d.kind === 'spell' || d.kind === 'control' ? (d.targeting.type === 'enemy' ? 'attack' : 'area') : d.kind === 'move' ? 'move' : 'support';
 function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre, onKit, onAttack }: { f: Figure; S: CombatState; sel: Sel | null; onPick(d: ActionDef, o?: string): void; onEnd(): void; pre: string[]; setPre(p: string[]): void; onKit(): void; onAttack(): boolean }) {
   const c = ctxOf(S);
   const list = actionAvailability(c, f);
@@ -1181,6 +1169,7 @@ function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre, onKit, onAttack }:
   const groups: { m: Exclude<Menu, null>; label: string; icon: string }[] = [
     { m: 'attack', label: 'Atacar', icon: 'act_attack_melee' },
     { m: 'move', label: 'Mover', icon: 'act_move' },
+    { m: 'area', label: 'Área', icon: 'act_area' },
     { m: 'support', label: 'Apoio', icon: 'act_heal' },
   ];
   const items = (m: Exclude<Menu, null>) => usable.filter((a) => MENU_OF(a.def) === m);
@@ -1214,7 +1203,7 @@ function ActionWheel({ f, S, sel, onPick, onEnd, pre, setPre, onKit, onAttack }:
                 </span>
                 <span className="ctx">
                   <b className="an">{def.name}</b>
-                  <small>{skillLine(def, dano)}</small>
+                  <small>{menu === 'area' || menu === 'support' ? `${skillLine(def, dano)} · ${targetWords(def)}` : skillLine(def, dano)}</small>
                   <span className="tags">
                     <em className="pa">{cost} PA</em>
                     {skillTags(def, dano).slice(0, 3).map((t) => (
@@ -1344,11 +1333,11 @@ function TargetBar({ sel, f, S, areaFirst, onOption, onCancel, onFire }: { sel: 
         : T === 'move'
           ? 'Toque no destino'
           : T === 'sector'
-            ? 'Toque num Setor'
+            ? 'Toque numa casa marcada'
             : T === 'area2'
               ? areaFirst
-                ? 'Toque no segundo Setor'
-                : 'Toque em dois Setores vizinhos'
+                ? 'Agora toque numa casa vizinha marcada'
+                : 'Toque numa casa marcada (pega 2 casas vizinhas)'
               : T === 'sectors2'
                 ? 'Toque em dois Setores'
                 : '';
